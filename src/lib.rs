@@ -1,5 +1,5 @@
 //! This crate is a wrapper around [PulseAudio's repackaging of WebRTC's AudioProcessing module](https://www.freedesktop.org/software/pulseaudio/webrtc-audio-processing/).
-//! 
+//!
 //! See `examples/simple.rs` for an example of how to use the library.
 
 #![warn(clippy::all)]

@@ -3,7 +3,7 @@ use webrtc_audio_processing::*;
 fn main() {
     let config = InitializationConfig {
         num_capture_channels: 2, // Stereo mic input
-        num_render_channels: 2, // Stereo speaker output
+        num_render_channels: 2,  // Stereo speaker output
         ..InitializationConfig::default()
     };
 
@@ -30,7 +30,10 @@ fn main() {
     let mut capture_frame_output = capture_frame.clone();
     ap.process_capture_frame(&mut capture_frame_output).unwrap();
 
-    assert_ne!(capture_frame, capture_frame_output, "Echo cancellation should have modified capture_frame.");
+    assert_ne!(
+        capture_frame, capture_frame_output,
+        "Echo cancellation should have modified capture_frame."
+    );
 
     // capture_frame_output is now ready to send to a remote peer.
     println!("Successfully processed a render and capture frame through WebRTC!");
