@@ -1,0 +1,8 @@
+[package]
+name = "webrtc-audio-processing"
+version = "0.1.0"
+authors = ["Ryo Kawaguchi <ryo@kawagu.ch>"]
+edition = "2018"
+
+[dependencies]
+webrtc-audio-processing-sys = { path = "webrtc-audio-processing-sys" }
