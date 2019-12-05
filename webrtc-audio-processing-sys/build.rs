@@ -3,6 +3,7 @@ use pkg_config;
 use failure::Error;
 use regex::Regex;
 use std::{
+    env,
     fs::File,
     io::{Read, Write},
     path::Path,
@@ -25,10 +26,16 @@ fn get_header_include_path_from_env() -> Option<String> {
     env::var("DEP_WEBRTC_AUDIO_PROCESSING_INCLUDE").ok()
 }
 
+#[cfg(not(feature = "bundled"))]
 fn get_header_include_path() -> String {
     get_header_include_path_from_env()
         .or_else(find_header_include_path)
         .expect(format!("Couldn't find header files for {}, aborting.", LIB_NAME).as_str())
+}
+
+#[cfg(feature = "bundled")]
+fn get_header_include_path() -> String {
+    "./webrtc-audio-processing"
 }
 
 // TODO: Consider fixing this with the upstream.
@@ -84,10 +91,17 @@ fn main() {
         eprintln!("Unable to configure webrtc-audio-processing: {:?}", err);
     }
 
-    let out_path = autotools::Config::new("webrtc-audio-processing")
-        .disable_shared()
-        .enable_static()
-        .build();
+    let out_path = if cfg!(feature = "bundled") {
+        autotools::Config::new("webrtc-audio-processing")
+            .disable_shared()
+            .enable_static()
+            .build()
+    } else {
+        autotools::Config::new("webrtc-audio-processing")
+            .enable_shared()
+            .disable_static()
+            .build()
+    };
 
     cc::Build::new()
         .cpp(true)
