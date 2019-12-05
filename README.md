@@ -23,7 +23,12 @@ sudo pacman -S webrtc-audio-processing
 
 #### Ubuntu/Debian
 ```sh
+# If using the system library
 sudo apt install libwebrtc-audio-processing-dev
+
+# If building webrtc-audio-processing from source
+sudo apt install autotools-dev
+sudo apt install libtool
 ```
 
 ### MacOS
