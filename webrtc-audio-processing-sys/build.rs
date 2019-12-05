@@ -61,7 +61,10 @@ fn main() {
         eprintln!("Unable to configure webrtc-audio-processing: {:?}", err);
     }
 
-    let out_path = autotools::build("webrtc-audio-processing");
+    let out_path = autotools::Config::new("webrtc-audio-processing")
+        .disable_shared()
+        .enable_static()
+        .build();
 
     cc::Build::new()
         .cpp(true)
