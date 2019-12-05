@@ -15,17 +15,22 @@ fn add_derives(binding_file: &Path) -> Result<(), Error> {
 
     // Add PartialEq to structs.
     // Used for checking partial equality of `Config` struct.
-    let contents = Regex::new(r"#\s*\[\s*derive\s*\((?P<d>[^)]+)\)\s*\]\s*pub struct")?
-        .replace_all(&contents, "#[derive($d, PartialEq)]\n pub struct");
+    contents = Regex::new(r"#\s*\[\s*derive\s*\((?P<d>[^)]+)\)\s*\]\s*pub\s*struct")?
+        .replace_all(&contents, "#[derive($d, PartialEq)] pub struct")
+        .to_string();
 
-    #[cfg(feature = "derive_serde")] {
-        // Add Serialize and Deserialize derive to enums and structs.
-        let contents = Regex::new(r"#\s*\[\s*derive\s*\((?P<d>[^)]+)\)\s*\]\s*pub struct|enum")?
-            .replace_all(&contents, "#[derive($d, Serialize, Deserialize)]\n pub struct");
+    #[cfg(feature = "derive_serde")]
+    {
+        // Add Serialize and Deserialize to enums and structs.
+        contents = format!(
+            "use serde::{{Serialize, Deserialize}};\n{}",
+            Regex::new(r"#\s*\[\s*derive\s*\((?P<d>[^)]+)\)\s*\]\s*pub\s*(?P<s>struct|enum)")?
+                .replace_all(&contents, "#[derive($d, Serialize, Deserialize)] pub $s")
+        )
+        .to_string();
     }
 
-    let new_binding_contents = format!("use serde::{{Serialize, Deserialize}};\n{}", contents);
-    File::create(&binding_file)?.write_all(new_binding_contents.as_bytes())?;
+    File::create(&binding_file)?.write_all(contents.as_bytes())?;
 
     Ok(())
 }
