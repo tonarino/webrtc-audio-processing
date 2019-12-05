@@ -41,7 +41,11 @@ fn main() {
 
     println!("cargo:rustc-link-lib=static=webrtc_audio_processing_wrapper");
     println!("cargo:rustc-link-lib=dylib=webrtc_audio_processing");
-    println!("cargo:rustc-link-lib=dylib=c++");
+    if cfg!(target_os = "macos") {
+        println!("cargo:rustc-link-lib=dylib=c++");
+    } else {
+        println!("cargo:rustc-link-lib=dylib=stdc++");
+    }
     println!("cargo:rustc-link-search=native={}", out_path.display());
 
     let binding_file = out_path.join("bindings.rs");
