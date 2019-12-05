@@ -1,15 +1,21 @@
+//! This crate is a wrapper around [PulseAudio's repackaging of WebRTC's AudioProcessing module](https://www.freedesktop.org/software/pulseaudio/webrtc-audio-processing/).
+//! 
+//! See `examples/simple.rs` for an example of how to use the library.
+
 #![warn(clippy::all)]
+#![warn(missing_docs)]
 
 use std::{error, fmt, sync::Arc};
 pub use webrtc::*;
 use webrtc_audio_processing_sys as webrtc;
 
 /// Represents an error inside webrtc::AudioProcessing.
-/// See the documentation of `webrtc::AudioProcessing::Error` for further
-/// details.
+/// See the documentation of [`webrtc::AudioProcessing::Error`](https://cgit.freedesktop.org/pulseaudio/webrtc-audio-processing/tree/webrtc/modules/audio_processing/include/audio_processing.h?id=9def8cf10d3c97640d32f1328535e881288f700f)
+/// for further details.
 #[derive(Debug)]
 pub struct Error {
-    code: i32, /* webrtc::AudioProcessing::Error */
+    /// webrtc::AudioProcessing::Error
+    code: i32,
 }
 
 impl fmt::Display for Error {
@@ -34,9 +40,9 @@ pub struct Processor {
 }
 
 impl Processor {
-    /// Creates a new `Processor`. `InitializationConfig` is one-time-only, and
-    /// can not be modified after the initialization unlike `Config`, which can
-    /// be passed to `set_config()` multiple times during processing.
+    /// Creates a new `Processor`. `InitializationConfig` is only used on
+    /// instantiation, however new configs can be be passed to `set_config()`
+    /// at any time during processing.
     pub fn new(config: &webrtc::InitializationConfig) -> Result<Self, Error> {
         Ok(Self {
             inner: Arc::new(AudioProcessing::new(config)?),
@@ -52,8 +58,8 @@ impl Processor {
     }
 
     /// Processes and modifies the audio frame from a capture device by applying
-    /// various signal processing. `frame_buf` should hold an interleaved f32
-    /// audio frame, with NUM_SAMPLES_PER_FRAME samples.
+    /// signal processing as specified in the config. `frame_buf` should hold an
+    /// interleaved f32 audio frame, with NUM_SAMPLES_PER_FRAME samples.
     pub fn process_capture_frame(&mut self, frame: &mut [f32]) -> Result<(), Error> {
         Self::deinterleave(frame, &mut self.deinterleaved_capture_frame);
         self.inner.process_capture_frame(&mut self.deinterleaved_capture_frame)?;
@@ -126,11 +132,11 @@ impl Processor {
     }
 }
 
+/// Minimal wrapper for safe and synchronized ffi.
 struct AudioProcessing {
     inner: *mut webrtc::AudioProcessing,
 }
 
-/// Minimal wrapper for safe and synchronized ffi.
 impl AudioProcessing {
     fn new(config: &webrtc::InitializationConfig) -> Result<Self, Error> {
         let mut code = 0;
