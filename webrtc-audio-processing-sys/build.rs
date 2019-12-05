@@ -1,3 +1,4 @@
+use pkg_config;
 use failure::Error;
 use regex::Regex;
 use std::{
@@ -6,6 +7,28 @@ use std::{
     io::{Read, Write},
     path::{Path, PathBuf},
 };
+
+const LIB_NAME: &str = "webrtc-audio-processing";
+
+fn find_header_include_path() -> Option<String> {
+    pkg_config::Config::new()
+        .print_system_libs(false)
+        .probe(LIB_NAME)
+        .ok()
+        .and_then(|mut lib| {
+            lib.include_paths.pop()
+        }).map(|header| header.to_string_lossy().into())
+}
+
+fn get_header_include_path_from_env() -> Option<String> {
+    env::var("DEP_WEBRTC_AUDIO_PROCESSING_INCLUDE").ok()
+}
+
+fn get_header_include_path() -> String {
+    get_header_include_path_from_env()
+        .or_else(find_header_include_path)
+        .expect(format!("Couldn't find header files for {}, aborting.", LIB_NAME).as_str())
+}
 
 // TODO: Consider fixing this with the upstream.
 // https://github.com/rust-lang/rust-bindgen/issues/1301
@@ -32,8 +55,7 @@ fn main() {
     cc::Build::new()
         .cpp(true)
         .file("src/wrapper.cpp")
-        .include("/usr/include/webrtc_audio_processing")
-        .include("/usr/local/include/webrtc_audio_processing")
+        .include(get_header_include_path())
         .flag("-Wno-unused-parameter")
         .flag("-std=c++11")
         .out_dir(&out_path)

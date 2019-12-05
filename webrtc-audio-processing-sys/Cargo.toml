@@ -9,6 +9,7 @@ bindgen = "0"
 cc = "1.0.38"
 failure = "0.1"
 regex = "1"
+pkg-config = "0.3"
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
