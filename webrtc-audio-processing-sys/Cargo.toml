@@ -1,8 +1,19 @@
 [package]
 name = "webrtc-audio-processing-sys"
+description = "A wrapper for WebRTC's AudioProcessing module."
+documentation = "https://docs.rs/webrtc-audio-processing-sys"
 version = "0.1.0"
 authors = ["Ryo Kawaguchi <ryo@kawagu.ch>"]
 edition = "2018"
+links = "webrtc-audio-processing"
+build = "build.rs"
+keywords = ["ffi"]
+categories = ["multimedia::audio"]
+license-file = "COPYING"
+
+[badges]
+travis-ci = { repository = "https://github.com/tonarino/webrtc-audio-processing", branch = "master" }
+maintenance = { status = "passively-maintained" }
 
 [build-dependencies]
 bindgen = "0"
