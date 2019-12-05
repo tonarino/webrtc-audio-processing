@@ -11,6 +11,7 @@ use std::{
 };
 
 const LIB_NAME: &str = "webrtc-audio-processing";
+const BUNDLED_SOURCE_PATH: &str = "./webrtc-audio-processing";
 
 fn find_header_include_path() -> Option<String> {
     pkg_config::Config::new()
@@ -43,7 +44,7 @@ fn get_header_include_path() -> String {
 
 #[cfg(feature = "bundled")]
 fn get_header_include_path() -> String {
-    "./webrtc-audio-processing".into()
+    BUNDLED_SOURCE_PATH.to_string()
 }
 
 // TODO: Consider fixing this with the upstream.
@@ -65,31 +66,29 @@ fn derive_serde(binding_file: &Path) -> Result<(), Error> {
 }
 
 fn configure_webrtc_audio() -> Result<(), Error> {
-    fn run_command(cmd: &str, args_opt: Option<&[&str]>) -> Result<(), Error> {
-        let current_dir = "./webrtc-audio-processing";
-
-        let mut command = Command::new(cmd);
-
-        command.current_dir(current_dir);
-
-        if let Some(args) = args_opt {
-            command.args(args);
-        }
-
-        let _output = command.output()?;
-
-        Ok(())
-    }
-
     if cfg!(target_os = "macos") {
-        run_command("glibtoolize", None)?;
+        run_command(BUNDLED_SOURCE_PATH, "glibtoolize", None)?;
     } else {
-        run_command("libtoolize", None)?;
+        run_command(BUNDLED_SOURCE_PATH, "libtoolize", None)?;
     }
 
-    run_command("aclocal", None)?;
-    run_command("automake", Some(&["--add-missing", "--copy"]))?;
-    run_command("autoconf", None)?;
+    run_command(BUNDLED_SOURCE_PATH, "aclocal", None)?;
+    run_command(BUNDLED_SOURCE_PATH, "automake", Some(&["--add-missing", "--copy"]))?;
+    run_command(BUNDLED_SOURCE_PATH, "autoconf", None)?;
+
+    Ok(())
+}
+
+fn run_command(curr_dir: &str, cmd: &str, args_opt: Option<&[&str]>) -> Result<(), Error> {
+    let mut command = Command::new(cmd);
+
+    command.current_dir(curr_dir);
+
+    if let Some(args) = args_opt {
+        command.args(args);
+    }
+
+    let _output = command.output()?;
 
     Ok(())
 }
