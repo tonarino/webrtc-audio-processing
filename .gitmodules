@@ -1,0 +1,3 @@
+[submodule "webrtc-audio-processing-sys/webrtc-audio-processing"]
+	path = webrtc-audio-processing-sys/webrtc-audio-processing
+	url = https://gitlab.freedesktop.org/pulseaudio/webrtc-audio-processing.git
