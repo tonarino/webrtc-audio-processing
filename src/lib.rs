@@ -27,7 +27,7 @@ impl error::Error for Error {}
 #[derive(Clone)]
 pub struct Processor {
     inner: Arc<AudioProcessing>,
-    // TODO(ryo): Refactor. It's not necessary to have two frame buffers as
+    // TODO: Refactor. It's not necessary to have two frame buffers as
     // `Processor`s are cloned for each thread.
     deinterleaved_capture_frame: Vec<Vec<f32>>,
     deinterleaved_render_frame: Vec<Vec<f32>>,

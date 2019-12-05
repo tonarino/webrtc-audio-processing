@@ -7,7 +7,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-// TODO(ryo): Consider fixing this with the upstream.
+// TODO: Consider fixing this with the upstream.
 // https://github.com/rust-lang/rust-bindgen/issues/1301
 fn add_derives(binding_file: &Path) -> Result<(), Error> {
     let mut contents = String::new();
