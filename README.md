@@ -70,17 +70,17 @@ fn sample_stereo_frames() -> (Vec<f32>, Vec<f32>) {
 
 ## Dependencies
 
-## Linux
+### Linux
 
 ```sh
 sudo apt install libwebrtc-audio-processing-dev
 ```
 
-## MacOS
+### MacOS
 
 Build from source?
 
-## Windows
+### Windows
 
 Build from source?
 
