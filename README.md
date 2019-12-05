@@ -10,31 +10,21 @@ A wrapper around [PulseAudio's repackaging of WebRTC's AudioProcessing module](h
 
 See `examples/simple.rs` for an example of how to use this crate.
 
-## Dependencies
+## Building
 
-You'll need the headers and library for PulseAudio's package installed in your OS.
+### Dynamic linking
 
-### Linux
+By default the build will attempt to dynamically link with the library installed via your OS's package manager.
 
-#### Arch
+You can specify an include path yourself by setting the environment variable `WEBRTC_AUDIO_PROCESSING_INCLUDE`.
+
+### Packages
+
 ```sh
-sudo pacman -S webrtc-audio-processing
+sudo apt install webrtc-audio-processing-dev # Ubuntu/Debian
+sudo pacman -S webrtc-audio-processing # Arch
 ```
 
-#### Ubuntu/Debian
-```sh
-# If using the system library
-sudo apt install libwebrtc-audio-processing-dev
+### Static linking
 
-# If building webrtc-audio-processing from source
-sudo apt install autotools-dev
-sudo apt install libtool
-```
-
-### MacOS
-
-Build from source?
-
-### Windows
-
-Build from source?
+Static linking can be enabled with the `bundler` feature flag.
