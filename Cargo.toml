@@ -4,5 +4,8 @@ version = "0.1.0"
 authors = ["Ryo Kawaguchi <ryo@kawagu.ch>"]
 edition = "2018"
 
+[features]
+derive_serde = ["webrtc-audio-processing-sys/derive_serde"]
+
 [dependencies]
 webrtc-audio-processing-sys = { path = "webrtc-audio-processing-sys" }

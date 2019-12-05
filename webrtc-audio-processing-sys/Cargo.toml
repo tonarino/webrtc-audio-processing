@@ -4,6 +4,9 @@ version = "0.1.0"
 authors = ["Ryo Kawaguchi <ryo@kawagu.ch>"]
 edition = "2018"
 
+[features]
+derive_serde = ["serde"]
+
 [build-dependencies]
 bindgen = "0"
 cc = "1.0.38"
@@ -11,4 +14,4 @@ failure = "0.1"
 regex = "1"
 
 [dependencies]
-serde = { version = "1", features = ["derive"] }
+serde = { version = "1", features = ["derive"], optional = true }

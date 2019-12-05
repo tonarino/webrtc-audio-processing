@@ -13,12 +13,16 @@ fn add_derives(binding_file: &Path) -> Result<(), Error> {
     let mut contents = String::new();
     File::open(binding_file)?.read_to_string(&mut contents)?;
 
-    // Add PartialEq, Serialize and Deserialize to structs.
+    // Add PartialEq to structs.
+    // Used for checking partial equality of `Config` struct.
     let contents = Regex::new(r"#\s*\[\s*derive\s*\((?P<d>[^)]+)\)\s*\]\s*pub struct")?
-        .replace_all(&contents, "#[derive($d, PartialEq, Serialize, Deserialize)]\n pub struct");
-    // Add Serialize and Deserialize to enums.
-    let contents = Regex::new(r"#\s*\[\s*derive\s*\((?P<d>[^)]+)\)\s*\]\s*pub enum")?
-        .replace_all(&contents, "#[derive($d, Serialize, Deserialize)]\n pub enum");
+        .replace_all(&contents, "#[derive($d, PartialEq)]\n pub struct");
+
+    #[cfg(feature = "derive_serde")] {
+        // Add Serialize and Deserialize derive to enums and structs.
+        let contents = Regex::new(r"#\s*\[\s*derive\s*\((?P<d>[^)]+)\)\s*\]\s*pub struct|enum")?
+            .replace_all(&contents, "#[derive($d, Serialize, Deserialize)]\n pub struct");
+    }
 
     let new_binding_contents = format!("use serde::{{Serialize, Deserialize}};\n{}", contents);
     File::create(&binding_file)?.write_all(new_binding_contents.as_bytes())?;
