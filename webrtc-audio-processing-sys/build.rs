@@ -33,13 +33,15 @@ fn main() {
         .cpp(true)
         .file("src/wrapper.cpp")
         .include("/usr/include/webrtc_audio_processing")
+        .include("/usr/local/include/webrtc_audio_processing")
         .flag("-Wno-unused-parameter")
+        .flag("-std=c++11")
         .out_dir(&out_path)
         .compile("webrtc_audio_processing_wrapper");
 
     println!("cargo:rustc-link-lib=static=webrtc_audio_processing_wrapper");
     println!("cargo:rustc-link-lib=dylib=webrtc_audio_processing");
-    println!("cargo:rustc-link-lib=dylib=stdc++");
+    println!("cargo:rustc-link-lib=dylib=c++");
     println!("cargo:rustc-link-search=native={}", out_path.display());
 
     let binding_file = out_path.join("bindings.rs");
