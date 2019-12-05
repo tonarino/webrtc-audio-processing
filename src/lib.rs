@@ -6,8 +6,8 @@
 #![warn(missing_docs)]
 
 use std::{error, fmt, sync::Arc};
-pub use webrtc::*;
-use webrtc_audio_processing_sys as webrtc;
+pub use webrtc_audio_processing_sys as ffi;
+use ffi::*;
 
 /// Represents an error inside webrtc::AudioProcessing.
 /// See the documentation of [`webrtc::AudioProcessing::Error`](https://cgit.freedesktop.org/pulseaudio/webrtc-audio-processing/tree/webrtc/modules/audio_processing/include/audio_processing.h?id=9def8cf10d3c97640d32f1328535e881288f700f)
@@ -20,7 +20,7 @@ pub struct Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "webrtc::AudioProcessing::Error code: {}", self.code)
+        write!(f, "ffi::AudioProcessing::Error code: {}", self.code)
     }
 }
 
@@ -43,7 +43,7 @@ impl Processor {
     /// Creates a new `Processor`. `InitializationConfig` is only used on
     /// instantiation, however new configs can be be passed to `set_config()`
     /// at any time during processing.
-    pub fn new(config: &webrtc::InitializationConfig) -> Result<Self, Error> {
+    pub fn new(config: &ffi::InitializationConfig) -> Result<Self, Error> {
         Ok(Self {
             inner: Arc::new(AudioProcessing::new(config)?),
             deinterleaved_capture_frame: vec![
@@ -78,14 +78,14 @@ impl Processor {
     }
 
     /// Returns statistics from the last `process_capture_frame()` call.
-    pub fn get_stats(&self) -> webrtc::Stats {
+    pub fn get_stats(&self) -> ffi::Stats {
         self.inner.get_stats()
     }
 
     /// Immediately updates the configurations of the internal signal processor.
     /// May be called multiple times after the initialization and during
     /// processing.
-    pub fn set_config(&self, config: &webrtc::Config) {
+    pub fn set_config(&self, config: &ffi::Config) {
         self.inner.set_config(config);
     }
 
@@ -134,13 +134,13 @@ impl Processor {
 
 /// Minimal wrapper for safe and synchronized ffi.
 struct AudioProcessing {
-    inner: *mut webrtc::AudioProcessing,
+    inner: *mut ffi::AudioProcessing,
 }
 
 impl AudioProcessing {
-    fn new(config: &webrtc::InitializationConfig) -> Result<Self, Error> {
+    fn new(config: &ffi::InitializationConfig) -> Result<Self, Error> {
         let mut code = 0;
-        let inner = unsafe { webrtc::audio_processing_create(config, &mut code) };
+        let inner = unsafe { ffi::audio_processing_create(config, &mut code) };
         if !inner.is_null() {
             Ok(Self { inner })
         } else {
@@ -151,8 +151,8 @@ impl AudioProcessing {
     fn process_capture_frame(&self, frame: &mut Vec<Vec<f32>>) -> Result<(), Error> {
         let mut frame_ptr = frame.iter_mut().map(|v| v.as_mut_ptr()).collect::<Vec<*mut f32>>();
         unsafe {
-            let code = webrtc::process_capture_frame(self.inner, frame_ptr.as_mut_ptr());
-            if webrtc::is_success(code) {
+            let code = ffi::process_capture_frame(self.inner, frame_ptr.as_mut_ptr());
+            if ffi::is_success(code) {
                 Ok(())
             } else {
                 Err(Error { code })
@@ -163,8 +163,8 @@ impl AudioProcessing {
     fn process_render_frame(&self, frame: &mut Vec<Vec<f32>>) -> Result<(), Error> {
         let mut frame_ptr = frame.iter_mut().map(|v| v.as_mut_ptr()).collect::<Vec<*mut f32>>();
         unsafe {
-            let code = webrtc::process_render_frame(self.inner, frame_ptr.as_mut_ptr());
-            if webrtc::is_success(code) {
+            let code = ffi::process_render_frame(self.inner, frame_ptr.as_mut_ptr());
+            if ffi::is_success(code) {
                 Ok(())
             } else {
                 Err(Error { code })
@@ -172,13 +172,13 @@ impl AudioProcessing {
         }
     }
 
-    fn get_stats(&self) -> webrtc::Stats {
-        unsafe { webrtc::get_stats(self.inner) }
+    fn get_stats(&self) -> ffi::Stats {
+        unsafe { ffi::get_stats(self.inner) }
     }
 
-    fn set_config(&self, config: &webrtc::Config) {
+    fn set_config(&self, config: &ffi::Config) {
         unsafe {
-            webrtc::set_config(self.inner, config);
+            ffi::set_config(self.inner, config);
         }
     }
 }
@@ -186,12 +186,12 @@ impl AudioProcessing {
 impl Drop for AudioProcessing {
     fn drop(&mut self) {
         unsafe {
-            webrtc::audio_processing_delete(self.inner);
+            ffi::audio_processing_delete(self.inner);
         }
     }
 }
 
-// webrtc::AudioProcessing provides thread safety with a few exceptions around
+// ffi::AudioProcessing provides thread safety with a few exceptions around
 // the concurrent usage of its getters and setters e.g. `set_stream_delay_ms()`.
 unsafe impl Sync for AudioProcessing {}
 unsafe impl Send for AudioProcessing {}
