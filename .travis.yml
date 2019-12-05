@@ -12,3 +12,6 @@ matrix:
   allow_failures:
     - rust: nightly
 cache: cargo
+script:
+  - cargo build --verbose --features "bundled"
+  - cargo test --verbose --features "bundled"
