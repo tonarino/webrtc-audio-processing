@@ -17,12 +17,15 @@ maintenance = { status = "passively-maintained" }
 
 [features]
 derive_serde = ["serde"]
+bundled = []
 
 [build-dependencies]
+autotools = "0.2"
 bindgen = "0"
-cc = "1.0.38"
+cc = "1"
 failure = "0.1"
 regex = "1"
+pkg-config = "0.3"
 
 [dependencies]
 serde = { version = "1", features = ["derive"], optional = true }
