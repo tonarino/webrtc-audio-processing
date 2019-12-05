@@ -103,6 +103,8 @@ fn main() {
     }
 
     let mut config = autotools::Config::new("webrtc-audio-processing");
+    config.cflag("-fPIC");
+    config.cxxflag("-fPIC");
     if cfg!(feature = "bundled") {
             config.disable_shared()
             .enable_static();
