@@ -8,20 +8,19 @@ use std::{
 };
 
 // TODO: Consider fixing this with the upstream.
+// https://github.com/rust-lang/rust-bindgen/issues/1089
 // https://github.com/rust-lang/rust-bindgen/issues/1301
-fn add_derives(binding_file: &Path) -> Result<(), Error> {
+fn derive_serde(binding_file: &Path) -> Result<(), Error> {
     let mut contents = String::new();
     File::open(binding_file)?.read_to_string(&mut contents)?;
 
-    // Add PartialEq, Serialize and Deserialize to structs.
-    let contents = Regex::new(r"#\s*\[\s*derive\s*\((?P<d>[^)]+)\)\s*\]\s*pub struct")?
-        .replace_all(&contents, "#[derive($d, PartialEq, Serialize, Deserialize)]\n pub struct");
-    // Add Serialize and Deserialize to enums.
-    let contents = Regex::new(r"#\s*\[\s*derive\s*\((?P<d>[^)]+)\)\s*\]\s*pub enum")?
-        .replace_all(&contents, "#[derive($d, Serialize, Deserialize)]\n pub enum");
+    let new_contents = format!(
+        "use serde::{{Serialize, Deserialize}};\n{}",
+        Regex::new(r"#\s*\[\s*derive\s*\((?P<d>[^)]+)\)\s*\]\s*pub\s*(?P<s>struct|enum)")?
+            .replace_all(&contents, "#[derive($d, Serialize, Deserialize)] pub $s")
+    );
 
-    let new_binding_contents = format!("use serde::{{Serialize, Deserialize}};\n{}", contents);
-    File::create(&binding_file)?.write_all(new_binding_contents.as_bytes())?;
+    File::create(&binding_file)?.write_all(new_contents.as_bytes())?;
 
     Ok(())
 }
@@ -55,11 +54,14 @@ fn main() {
         .rustified_enum(".*")
         .derive_debug(true)
         .derive_default(true)
+        .derive_partialeq(true)
         .disable_name_namespacing()
         .generate()
         .expect("Unable to generate bindings")
         .write_to_file(&binding_file)
         .expect("Couldn't write bindings!");
 
-    add_derives(&binding_file).expect("Failed to modify derive macros");
+    if cfg!(feature = "derive_serde") {
+        derive_serde(&binding_file).expect("Failed to modify derive macros");
+    }
 }

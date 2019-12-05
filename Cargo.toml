@@ -13,5 +13,8 @@ license-file = "COPYING"
 travis-ci = { repository = "https://github.com/tonarino/webrtc-audio-processing", branch = "master" }
 maintenance = { status = "actively-developed" }
 
+[features]
+derive_serde = ["webrtc-audio-processing-sys/derive_serde"]
+
 [dependencies]
 webrtc-audio-processing-sys = { path = "webrtc-audio-processing-sys" }
