@@ -19,6 +19,7 @@ maintenance = { status = "passively-maintained" }
 derive_serde = ["serde"]
 
 [build-dependencies]
+autotools = "0.2.1"
 bindgen = "0"
 cc = "1.0.38"
 failure = "0.1"

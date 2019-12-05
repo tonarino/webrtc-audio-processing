@@ -1,10 +1,11 @@
+use autotools;
 use failure::Error;
 use regex::Regex;
 use std::{
-    env,
     fs::File,
     io::{Read, Write},
-    path::{Path, PathBuf},
+    path::Path,
+    process::Command,
 };
 
 // TODO: Consider fixing this with the upstream.
@@ -25,14 +26,47 @@ fn derive_serde(binding_file: &Path) -> Result<(), Error> {
     Ok(())
 }
 
+fn configure_webrtc_audio() -> Result<(), Error> {
+    fn run_command(cmd: &str, args_opt: Option<&[&str]>) -> Result<(), Error> {
+        let current_dir = "./webrtc-audio-processing";
+
+        let mut command = Command::new(cmd);
+
+        command.current_dir(current_dir);
+
+        if let Some(args) = args_opt {
+            command.args(args);
+        }
+
+        let _output = command.output()?;
+
+        Ok(())
+    }
+
+    if cfg!(target_os = "macos") {
+        run_command("glibtoolize", None)?;
+    } else {
+        run_command("libtoolize", None)?;
+    }
+
+    run_command("aclocal", None)?;
+    run_command("automake", Some(&["--add-missing", "--copy"]))?;
+    run_command("autoconf", None)?;
+
+    Ok(())
+}
+
 fn main() {
-    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
+    if let Err(err) = configure_webrtc_audio() {
+        eprintln!("Unable to configure webrtc-audio-processing: {:?}", err);
+    }
+
+    let out_path = autotools::build("webrtc-audio-processing");
 
     cc::Build::new()
         .cpp(true)
         .file("src/wrapper.cpp")
-        .include("/usr/include/webrtc_audio_processing")
-        .include("/usr/local/include/webrtc_audio_processing")
+        .include("./webrtc-audio-processing")
         .flag("-Wno-unused-parameter")
         .flag("-std=c++11")
         .out_dir(&out_path)
@@ -40,12 +74,14 @@ fn main() {
 
     println!("cargo:rustc-link-lib=static=webrtc_audio_processing_wrapper");
     println!("cargo:rustc-link-lib=dylib=webrtc_audio_processing");
+
     if cfg!(target_os = "macos") {
         println!("cargo:rustc-link-lib=dylib=c++");
     } else {
         println!("cargo:rustc-link-lib=dylib=stdc++");
     }
-    println!("cargo:rustc-link-search=native={}", out_path.display());
+
+    println!("cargo:rustc-link-search=native={}", out_path.join("lib").display());
 
     let binding_file = out_path.join("bindings.rs");
     bindgen::Builder::default()
