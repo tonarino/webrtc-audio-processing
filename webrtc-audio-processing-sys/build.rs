@@ -23,19 +23,27 @@ fn find_header_include_path() -> Option<String> {
 }
 
 fn get_header_include_path_from_env() -> Option<String> {
-    env::var("DEP_WEBRTC_AUDIO_PROCESSING_INCLUDE").ok()
+    env::var("WEBRTC_AUDIO_PROCESSING_INCLUDE").ok()
 }
 
 #[cfg(not(feature = "bundled"))]
 fn get_header_include_path() -> String {
-    get_header_include_path_from_env()
-        .or_else(find_header_include_path)
-        .expect(format!("Couldn't find header files for {}, aborting.", LIB_NAME).as_str())
+    let header = get_header_include_path_from_env()
+        .or_else(find_header_include_path);
+
+    match header {
+        Some(header_path) => header_path,
+        None => {
+            eprintln!("Couldn't find header files for {}.", LIB_NAME);
+            eprintln!("See the crate README for installation instructions, or use the 'bundled' feature to statically compile.");
+            panic!("Aborting compilation due to linker failure.");
+        }
+    }
 }
 
 #[cfg(feature = "bundled")]
 fn get_header_include_path() -> String {
-    "./webrtc-audio-processing"
+    "./webrtc-audio-processing".into()
 }
 
 // TODO: Consider fixing this with the upstream.

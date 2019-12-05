@@ -17,6 +17,7 @@ maintenance = { status = "passively-maintained" }
 
 [features]
 derive_serde = ["serde"]
+bundled = []
 
 [build-dependencies]
 autotools = "0.2.1"
