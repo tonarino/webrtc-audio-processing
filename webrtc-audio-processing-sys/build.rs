@@ -98,17 +98,16 @@ fn main() {
         eprintln!("Unable to configure webrtc-audio-processing: {:?}", err);
     }
 
-    let out_path = if cfg!(feature = "bundled") {
-        autotools::Config::new("webrtc-audio-processing")
-            .disable_shared()
-            .enable_static()
-            .build()
+    let mut config = autotools::Config::new("webrtc-audio-processing");
+    if cfg!(feature = "bundled") {
+            config.disable_shared()
+            .enable_static();
     } else {
-        autotools::Config::new("webrtc-audio-processing")
-            .enable_shared()
-            .disable_static()
-            .build()
+        config.enable_shared()
+            .disable_static();
     };
+
+    let out_path = config.build();
 
     cc::Build::new()
         .cpp(true)
