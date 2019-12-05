@@ -1,18 +1,21 @@
 use autotools;
+#[cfg(not(feature = "bundled"))]
 use pkg_config;
 use failure::Error;
 use regex::Regex;
 use std::{
-    env,
     fs::File,
     io::{Read, Write},
     path::Path,
     process::Command,
 };
 
+
+#[cfg(not(feature = "bundled"))]
 const LIB_NAME: &str = "webrtc-audio-processing";
 const BUNDLED_SOURCE_PATH: &str = "./webrtc-audio-processing";
 
+#[cfg(not(feature = "bundled"))]
 fn find_header_include_path() -> Option<String> {
     pkg_config::Config::new()
         .print_system_libs(false)
@@ -23,8 +26,9 @@ fn find_header_include_path() -> Option<String> {
         }).map(|header| header.to_string_lossy().into())
 }
 
+#[cfg(not(feature = "bundled"))]
 fn get_header_include_path_from_env() -> Option<String> {
-    env::var("WEBRTC_AUDIO_PROCESSING_INCLUDE").ok()
+    std::env::var("WEBRTC_AUDIO_PROCESSING_INCLUDE").ok()
 }
 
 #[cfg(not(feature = "bundled"))]

@@ -15,6 +15,7 @@ maintenance = { status = "actively-developed" }
 
 [features]
 derive_serde = ["webrtc-audio-processing-sys/derive_serde"]
+bundled = ["webrtc-audio-processing-sys/bundled"]
 
 [dependencies]
 webrtc-audio-processing-sys = { path = "webrtc-audio-processing-sys" }
