@@ -72,7 +72,7 @@ fn sample_stereo_frames() -> (Vec<f32>, Vec<f32>) {
 
 ## Dependencies
 
-You'll need the headers and library for libwebrtc-audio-processing installed in your OS.
+You'll need the headers and library for PulseAudio's package installed in your OS.
 
 ### Linux
 
