@@ -296,6 +296,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_nominal_threaded() {
         let config = InitializationConfig {
             num_capture_channels: 2,
