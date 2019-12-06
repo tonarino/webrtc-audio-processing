@@ -24,6 +24,7 @@ autotools = "0.2"
 bindgen = "0"
 cc = "1"
 failure = "0.1"
+fs_extra = "1"
 regex = "1"
 pkg-config = "0.3"
 
