@@ -10,7 +10,7 @@ categories = ["multimedia::audio"]
 license-file = "COPYING"
 
 [badges]
-travis-ci = { repository = "https://github.com/tonarino/webrtc-audio-processing", branch = "master" }
+travis-ci = { repository = "tonarino/webrtc-audio-processing", branch = "master" }
 maintenance = { status = "actively-developed" }
 
 [features]
