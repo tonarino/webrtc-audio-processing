@@ -30,3 +30,6 @@ pkg-config = "0.3"
 
 [dependencies]
 serde = { version = "1", features = ["derive"], optional = true }
+
+[package.metadata.docs.rs]
+features = [ "bundled" ]
