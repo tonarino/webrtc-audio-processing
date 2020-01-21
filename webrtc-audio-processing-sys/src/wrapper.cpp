@@ -191,11 +191,8 @@ void set_config(AudioProcessing* ap, const Config& config) {
   }
 
   if (config.gain_control.enable) {
-    // TODO(ryo): Experiment with analog AGC. Read the documentation of
-    // webrtc::GainControl for the specifics on how to couple the AGC component
-    // with OS mixer controls, as well as pulseaudio's echo cancellation code
-    // for skipping the first frame to build enough energy for AGC analysis.
-    p->gain_control()->set_mode(webrtc::GainControl::kAdaptiveDigital);
+    p->gain_control()->set_mode(
+        static_cast<webrtc::GainControl::Mode>(config.gain_control.mode));
     p->gain_control()->set_target_level_dbfs(
         config.gain_control.target_level_dbfs);
     p->gain_control()->set_compression_gain_db(
