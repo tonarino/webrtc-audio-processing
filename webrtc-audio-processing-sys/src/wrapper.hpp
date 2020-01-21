@@ -53,6 +53,32 @@ struct GainControl {
   /// <div rustbindgen>Whether to use gain control.</div>
   bool enable;
 
+  /// <div rustbindgen>Mode of gain control.</div>
+  enum Mode {
+      /// <div rustbindgen>Not supported yet.</div>
+      /// TODO(skywhale): Expose set_stream_analog_level() and
+      /// stream_analog_level().
+      ADAPTIVE_ANALOG,
+
+      /// <div rustbindgen>
+      /// Bring the signal to an appropriate range by applying an adaptive gain
+      /// control. The volume is dynamically amplified with a microphone with
+      /// small pickup and vice versa.
+      /// </div>
+      ADAPTIVE_DIGITAL,
+
+      /// <div rustbindgen>
+      /// Unlike ADAPTIVE_DIGITAL, it only compresses (i.e. gradually reduces
+      /// gain with increasing level) the input signal when at higher levels.
+      /// Use this where the capture signal level is predictable, so that a
+      /// known gain can be applied.
+      /// </div>
+      DIGITAL_FIXED,
+  };
+
+  /// <div rustbindgen>Determines what type of gain control is applied.</div>
+  Mode mode;
+
   /// <div rustbindgen>
   /// Sets the target peak level (or envelope) of the AGC in dBFs (decibels from
   /// digital full-scale). The convention is to use positive values.
