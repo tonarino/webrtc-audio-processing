@@ -18,7 +18,7 @@ derive_serde = ["webrtc-audio-processing-sys/derive_serde"]
 bundled = ["webrtc-audio-processing-sys/bundled"]
 
 [dependencies]
-webrtc-audio-processing-sys = { path = "webrtc-audio-processing-sys", version = "0.1.2" }
+webrtc-audio-processing-sys = { path = "webrtc-audio-processing-sys", version = "0.1.3" }
 
 [package.metadata.docs.rs]
 features = [ "bundled" ]
