@@ -46,6 +46,15 @@ struct EchoCancellation {
   /// double-talk performance for increased echo suppression.
   /// </div>
   SuppressionLevel suppression_level;
+
+  /// <div rustbindgen>
+  /// Sets the delay in ms between process_render_frame() receiving a far-end
+  /// frame and process_capture_frame() receiving a near-end frame containing
+  /// the corresponding echo. You should set this only if you are certain that
+  /// the delay will be stable and constant. enable_delay_agnostic will be
+  /// ignored when this option is set.
+  /// </div>
+  OptionalInt stream_delay_ms;
 };
 
 /// <div rustbindgen>Gain control configuration.</div>
@@ -156,6 +165,7 @@ struct Config {
   /// increase in AEC complexity, but is much more robust to unreliable reported
   /// delays.
   /// </div>
+  /// TODO(skywhale): Move to EchoCancellation.
   bool enable_extended_filter;
 
   /// <div rustbindgen>
@@ -163,6 +173,7 @@ struct Config {
   /// estimated delays between the process and reverse streams, thus not relying
   /// on reported system delays.
   /// </div>
+  /// TODO(skywhale): Move to EchoCancellation.
   bool enable_delay_agnostic;
 
   /// <div rustbindgen>
