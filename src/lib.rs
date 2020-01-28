@@ -6,7 +6,7 @@
 #![warn(missing_docs)]
 
 pub use ffi::{
-    Config, EchoCancellation, EchoCancellation_SuppressionLevel, InitializationConfig,
+    Config, EchoCancellation, EchoCancellation_SuppressionLevel, InitializationConfig, OptionalInt,
     NUM_SAMPLES_PER_FRAME,
 };
 use std::{error, fmt, sync::Arc};
@@ -270,6 +270,7 @@ mod tests {
             echo_cancellation: EchoCancellation {
                 enable: true,
                 suppression_level: EchoCancellation_SuppressionLevel::HIGH,
+                stream_delay_ms: OptionalInt { has_value: false, value: 0 },
             },
             ..Config::default()
         };
@@ -315,6 +316,7 @@ mod tests {
                 echo_cancellation: EchoCancellation {
                     enable: true,
                     suppression_level: EchoCancellation_SuppressionLevel::HIGH,
+                    stream_delay_ms: OptionalInt { has_value: false, value: 0 },
                 },
                 ..Config::default()
             };
