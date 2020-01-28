@@ -18,6 +18,21 @@ const int NUM_SAMPLES_PER_FRAME = SAMPLE_RATE_HZ * FRAME_MS / 1000;
 
 struct AudioProcessing;
 
+struct OptionalDouble {
+  bool has_value = false;
+  double value = 0.0;
+};
+
+struct OptionalInt {
+  bool has_value = false;
+  int value = 0;
+};
+
+struct OptionalBool {
+  bool has_value = false;
+  bool value = false;
+};
+
 /// <div rustbindgen>A configuration used only when initializing a Processor.</div>
 struct InitializationConfig {
   int num_capture_channels;
@@ -186,21 +201,6 @@ struct Config {
   /// low-frequency noise.
   /// </div>
   bool enable_high_pass_filter;
-};
-
-struct OptionalDouble {
-  bool has_value = false;
-  double value = 0.0;
-};
-
-struct OptionalInt {
-  bool has_value = false;
-  int value = 0;
-};
-
-struct OptionalBool {
-  bool has_value = false;
-  bool value = false;
 };
 
 /// <div rustbindgen>Statistics about the processor state.</div>
