@@ -1,4 +1,4 @@
-use webrtc_audio_processing::*;
+use webrtc_audio_processing::{ffi::OptionalInt, *};
 
 fn main() {
     let config = InitializationConfig {
@@ -13,6 +13,7 @@ fn main() {
         echo_cancellation: EchoCancellation {
             enable: true,
             suppression_level: EchoCancellation_SuppressionLevel::HIGH,
+            stream_delay_ms: OptionalInt { has_value: false, value: 0 },
         },
         ..Config::default()
     };
