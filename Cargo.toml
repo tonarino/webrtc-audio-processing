@@ -1,6 +1,6 @@
 [package]
 name = "webrtc-audio-processing"
-version = "0.1.2"
+version = "0.2.0"
 authors = ["Ryo Kawaguchi <ryo@kawagu.ch>"]
 edition = "2018"
 description = "A wrapper for WebRTC's AudioProcessing module."
@@ -18,7 +18,7 @@ derive_serde = ["webrtc-audio-processing-sys/derive_serde"]
 bundled = ["webrtc-audio-processing-sys/bundled"]
 
 [dependencies]
-webrtc-audio-processing-sys = { path = "webrtc-audio-processing-sys", version = "0.1.3" }
+webrtc-audio-processing-sys = { path = "webrtc-audio-processing-sys", version = "0.2.0" }
 
 [package.metadata.docs.rs]
 features = [ "bundled" ]
