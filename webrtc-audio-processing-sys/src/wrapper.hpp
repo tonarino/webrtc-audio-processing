@@ -18,6 +18,8 @@ const int NUM_SAMPLES_PER_FRAME = SAMPLE_RATE_HZ * FRAME_MS / 1000;
 
 struct AudioProcessing;
 
+// TODO(skywhale): Map this to Option<double> inside lib.rs, as well as the Config struct and its
+// members.
 struct OptionalDouble {
   bool has_value = false;
   double value = 0.0;
