@@ -44,6 +44,7 @@ struct AudioProcessing {
   std::unique_ptr<webrtc::AudioProcessing> processor;
   webrtc::StreamConfig capture_stream_config;
   webrtc::StreamConfig render_stream_config;
+  OptionalInt stream_delay_ms;
 };
 
 AudioProcessing* audio_processing_create(
@@ -89,11 +90,8 @@ int process_capture_frame(AudioProcessing* ap, float** channels) {
   auto* p = ap->processor.get();
 
   if (p->echo_cancellation()->is_enabled()) {
-    // TODO(ryo): Experiment with other values. It is supposed to approximate
-    // the time in millisecond between a frame is passed to ProcessReverseStream
-    // and the same frame is received by ProcessStream. The implemenation of
-    // pulseaudio sets this to zero.
-    p->set_stream_delay_ms(0);
+    p->set_stream_delay_ms(
+        ap->stream_delay_ms.has_value ? ap->stream_delay_ms.value : 0);
   }
 
   return p->ProcessStream(
@@ -168,7 +166,9 @@ void set_config(AudioProcessing* ap, const Config& config) {
   extra_config.Set<webrtc::ExtendedFilter>(
       new webrtc::ExtendedFilter(config.enable_extended_filter));
   extra_config.Set<webrtc::DelayAgnostic>(
-      new webrtc::DelayAgnostic(config.enable_delay_agnostic));
+      new webrtc::DelayAgnostic(
+        !config.echo_cancellation.stream_delay_ms.has_value &&
+        config.enable_delay_agnostic));
   extra_config.Set<webrtc::ExperimentalNs>(
       new webrtc::ExperimentalNs(config.enable_transient_suppressor));
   // TODO(ryo): There is a new RefinedAdaptiveFilter in the latest master.
@@ -176,6 +176,7 @@ void set_config(AudioProcessing* ap, const Config& config) {
 
   // TODO(ryo): Look into EchoCanceller3.
   if (config.echo_cancellation.enable) {
+    ap->stream_delay_ms = config.echo_cancellation.stream_delay_ms;
     // According to the webrtc documentation, drift compensation should not be
     // necessary as long as we are using the same audio device for input and
     // output.

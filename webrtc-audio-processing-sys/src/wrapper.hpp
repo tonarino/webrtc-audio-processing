@@ -18,6 +18,24 @@ const int NUM_SAMPLES_PER_FRAME = SAMPLE_RATE_HZ * FRAME_MS / 1000;
 
 struct AudioProcessing;
 
+// TODO(skywhale): Map this to Option<double> inside webrtc-audio-processing crate.
+struct OptionalDouble {
+  bool has_value = false;
+  double value = 0.0;
+};
+
+// TODO(skywhale): Map this to Option<i32> inside webrtc-audio-processing crate.
+struct OptionalInt {
+  bool has_value = false;
+  int value = 0;
+};
+
+// TODO(skywhale): Map this to Option<bool> inside webrtc-audio-processing crate.
+struct OptionalBool {
+  bool has_value = false;
+  bool value = false;
+};
+
 /// <div rustbindgen>A configuration used only when initializing a Processor.</div>
 struct InitializationConfig {
   int num_capture_channels;
@@ -46,6 +64,15 @@ struct EchoCancellation {
   /// double-talk performance for increased echo suppression.
   /// </div>
   SuppressionLevel suppression_level;
+
+  /// <div rustbindgen>
+  /// Sets the delay in ms between process_render_frame() receiving a far-end
+  /// frame and process_capture_frame() receiving a near-end frame containing
+  /// the corresponding echo. You should set this only if you are certain that
+  /// the delay will be stable and constant. enable_delay_agnostic will be
+  /// ignored when this option is set.
+  /// </div>
+  OptionalInt stream_delay_ms;
 };
 
 /// <div rustbindgen>Gain control configuration.</div>
@@ -156,6 +183,7 @@ struct Config {
   /// increase in AEC complexity, but is much more robust to unreliable reported
   /// delays.
   /// </div>
+  /// TODO(skywhale): Move to EchoCancellation.
   bool enable_extended_filter;
 
   /// <div rustbindgen>
@@ -163,6 +191,7 @@ struct Config {
   /// estimated delays between the process and reverse streams, thus not relying
   /// on reported system delays.
   /// </div>
+  /// TODO(skywhale): Move to EchoCancellation.
   bool enable_delay_agnostic;
 
   /// <div rustbindgen>
@@ -175,21 +204,6 @@ struct Config {
   /// low-frequency noise.
   /// </div>
   bool enable_high_pass_filter;
-};
-
-struct OptionalDouble {
-  bool has_value = false;
-  double value = 0.0;
-};
-
-struct OptionalInt {
-  bool has_value = false;
-  int value = 0;
-};
-
-struct OptionalBool {
-  bool has_value = false;
-  bool value = false;
 };
 
 /// <div rustbindgen>Statistics about the processor state.</div>
