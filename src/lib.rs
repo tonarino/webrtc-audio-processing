@@ -78,8 +78,7 @@ impl Processor {
         &mut self,
         frame: &mut Vec<Vec<f32>>,
     ) -> Result<(), Error> {
-        self.inner.process_capture_frame(frame)?;
-        Ok(())
+        self.inner.process_capture_frame(frame)
     }
 
     /// Processes and optionally modifies the audio frame from a playback device.
@@ -99,10 +98,7 @@ impl Processor {
         &mut self,
         frame: &mut Vec<Vec<f32>>,
     ) -> Result<(), Error> {
-        // Self::deinterleave(frame, &mut self.deinterleaved_render_frame);
-        self.inner.process_render_frame(frame)?;
-        // Self::interleave(&self.deinterleaved_render_frame, frame);
-        Ok(())
+        self.inner.process_render_frame(frame)
     }
 
     /// Returns statistics from the last `process_capture_frame()` call.
