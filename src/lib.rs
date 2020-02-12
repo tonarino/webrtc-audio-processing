@@ -61,7 +61,7 @@ impl Processor {
     }
 
     /// Processes and modifies the audio frame from a capture device by applying
-    /// signal processing as specified in the config. `frame_buf` should hold an
+    /// signal processing as specified in the config. `frame` should hold an
     /// interleaved f32 audio frame, with NUM_SAMPLES_PER_FRAME samples.
     pub fn process_capture_frame(&mut self, frame: &mut [f32]) -> Result<(), Error> {
         Self::deinterleave(frame, &mut self.deinterleaved_capture_frame);
@@ -70,14 +70,35 @@ impl Processor {
         Ok(())
     }
 
+    /// Processes and modifies the audio frame from a capture device by applying
+    /// signal processing as specified in the config. `frame` should be a Vec of
+    /// length 'num_capture_channels', with each inner Vec representing a channel
+    /// with NUM_SAMPLES_PER_FRAME samples.
+    pub fn process_capture_frame_noninterleaved(
+        &mut self,
+        frame: &mut Vec<Vec<f32>>,
+    ) -> Result<(), Error> {
+        self.inner.process_capture_frame(frame)
+    }
+
     /// Processes and optionally modifies the audio frame from a playback device.
-    /// `frame_buf` should hold an interleaved `f32` audio frame, with
+    /// `frame` should hold an interleaved `f32` audio frame, with
     /// `NUM_SAMPLES_PER_FRAME` samples.
     pub fn process_render_frame(&mut self, frame: &mut [f32]) -> Result<(), Error> {
         Self::deinterleave(frame, &mut self.deinterleaved_render_frame);
         self.inner.process_render_frame(&mut self.deinterleaved_render_frame)?;
         Self::interleave(&self.deinterleaved_render_frame, frame);
         Ok(())
+    }
+
+    /// Processes and optionally modifies the audio frame from a playback device.
+    /// `frame` should be a Vec of length 'num_render_channels', with each inner Vec
+    /// representing a channel with NUM_SAMPLES_PER_FRAME samples.
+    pub fn process_render_frame_noninterleaved(
+        &mut self,
+        frame: &mut Vec<Vec<f32>>,
+    ) -> Result<(), Error> {
+        self.inner.process_render_frame(frame)
     }
 
     /// Returns statistics from the last `process_capture_frame()` call.
