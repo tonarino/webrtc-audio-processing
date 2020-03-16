@@ -164,11 +164,12 @@ void set_config(AudioProcessing* ap, const Config& config) {
 
   webrtc::Config extra_config;
   extra_config.Set<webrtc::ExtendedFilter>(
-      new webrtc::ExtendedFilter(config.enable_extended_filter));
+      new webrtc::ExtendedFilter(
+        config.echo_cancellation.enable_extended_filter));
   extra_config.Set<webrtc::DelayAgnostic>(
       new webrtc::DelayAgnostic(
         !config.echo_cancellation.stream_delay_ms.has_value &&
-        config.enable_delay_agnostic));
+        config.echo_cancellation.enable_delay_agnostic));
   extra_config.Set<webrtc::ExperimentalNs>(
       new webrtc::ExperimentalNs(config.enable_transient_suppressor));
   // TODO(ryo): There is a new RefinedAdaptiveFilter in the latest master.

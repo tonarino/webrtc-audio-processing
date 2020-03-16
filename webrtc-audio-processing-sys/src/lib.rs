@@ -14,6 +14,16 @@ impl Into<Option<bool>> for OptionalBool {
     }
 }
 
+impl From<Option<bool>> for OptionalBool {
+    fn from(other: Option<bool>) -> OptionalBool {
+        if let Some(value) = other {
+            OptionalBool { has_value: true, value }
+        } else {
+            OptionalBool { has_value: false, value: false }
+        }
+    }
+}
+
 impl Into<Option<i32>> for OptionalInt {
     fn into(self) -> Option<i32> {
         if self.has_value {
@@ -24,12 +34,32 @@ impl Into<Option<i32>> for OptionalInt {
     }
 }
 
+impl From<Option<i32>> for OptionalInt {
+    fn from(other: Option<i32>) -> OptionalInt {
+        if let Some(value) = other {
+            OptionalInt { has_value: true, value }
+        } else {
+            OptionalInt { has_value: false, value: 0 }
+        }
+    }
+}
+
 impl Into<Option<f64>> for OptionalDouble {
     fn into(self) -> Option<f64> {
         if self.has_value {
             Some(self.value)
         } else {
             None
+        }
+    }
+}
+
+impl From<Option<f64>> for OptionalDouble {
+    fn from(other: Option<f64>) -> OptionalDouble {
+        if let Some(value) = other {
+            OptionalDouble { has_value: true, value }
+        } else {
+            OptionalDouble { has_value: false, value: 0.0 }
         }
     }
 }

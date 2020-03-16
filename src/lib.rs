@@ -5,12 +5,13 @@
 #![warn(clippy::all)]
 #![warn(missing_docs)]
 
-pub use ffi::{
-    Config, EchoCancellation, EchoCancellation_SuppressionLevel, InitializationConfig, OptionalInt,
-    NUM_SAMPLES_PER_FRAME,
-};
+mod config;
+
 use std::{error, fmt, sync::Arc};
-pub use webrtc_audio_processing_sys as ffi;
+use webrtc_audio_processing_sys as ffi;
+
+pub use config::*;
+pub use ffi::NUM_SAMPLES_PER_FRAME;
 
 /// Represents an error inside webrtc::AudioProcessing.
 /// See the documentation of [`webrtc::AudioProcessing::Error`](https://cgit.freedesktop.org/pulseaudio/webrtc-audio-processing/tree/webrtc/modules/audio_processing/include/audio_processing.h?id=9def8cf10d3c97640d32f1328535e881288f700f)
@@ -102,14 +103,14 @@ impl Processor {
     }
 
     /// Returns statistics from the last `process_capture_frame()` call.
-    pub fn get_stats(&self) -> ffi::Stats {
+    pub fn get_stats(&self) -> Stats {
         self.inner.get_stats()
     }
 
     /// Immediately updates the configurations of the internal signal processor.
     /// May be called multiple times after the initialization and during
     /// processing.
-    pub fn set_config(&self, config: &ffi::Config) {
+    pub fn set_config(&self, config: &Config) {
         self.inner.set_config(config);
     }
 
@@ -196,13 +197,13 @@ impl AudioProcessing {
         }
     }
 
-    fn get_stats(&self) -> ffi::Stats {
-        unsafe { ffi::get_stats(self.inner) }
+    fn get_stats(&self) -> Stats {
+        unsafe { ffi::get_stats(self.inner).into() }
     }
 
-    fn set_config(&self, config: &ffi::Config) {
+    fn set_config(&self, config: &Config) {
         unsafe {
-            ffi::set_config(self.inner, config);
+            ffi::set_config(self.inner, &config.clone().into());
         }
     }
 }
