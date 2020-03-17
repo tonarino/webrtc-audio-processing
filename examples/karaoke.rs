@@ -1,3 +1,5 @@
+// This example loops the microphone input back to the speakers, while applying echo cancellation,
+// creating an experience similar to Karaoke microphones.
 use ctrlc;
 use failure::Error;
 use portaudio;
