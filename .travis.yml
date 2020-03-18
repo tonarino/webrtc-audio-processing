@@ -19,3 +19,4 @@ addons:
     packages:
     - portaudio
     - pkg-config
+    update: true
