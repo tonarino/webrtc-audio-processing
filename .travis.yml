@@ -12,6 +12,7 @@ matrix:
     - rust: nightly
 cache: cargo
 script:
+  - cargo clean
   - cargo build --verbose --features "bundled"
   - cargo test --verbose --features "bundled"
 addons:
