@@ -263,7 +263,7 @@ impl From<Config> for ffi::Config {
 }
 
 /// Statistics about the processor state.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Stats {
     /// True if voice is detected in the current frame.
     pub has_voice: Option<bool>,

@@ -289,11 +289,12 @@ mod tests {
         let mut ap = Processor::new(&config).unwrap();
 
         let config = Config {
-            echo_cancellation: EchoCancellation {
-                enable: true,
-                suppression_level: EchoCancellation_SuppressionLevel::HIGH,
-                stream_delay_ms: OptionalInt { has_value: false, value: 0 },
-            },
+            echo_cancellation: Some(EchoCancellation {
+                suppression_level: EchoCancellationSuppressionLevel::High,
+                stream_delay_ms: None,
+                enable_delay_agnostic: false,
+                enable_extended_filter: false,
+            }),
             ..Config::default()
         };
         ap.set_config(&config);
@@ -314,7 +315,7 @@ mod tests {
         assert_ne!(capture_frame, capture_frame_output);
 
         let stats = ap.get_stats();
-        assert!(stats.echo_return_loss.has_value);
+        assert!(stats.echo_return_loss.is_some());
         println!("{:#?}", stats);
     }
 
@@ -335,11 +336,12 @@ mod tests {
             thread::sleep(Duration::from_millis(100));
 
             let config = Config {
-                echo_cancellation: EchoCancellation {
-                    enable: true,
-                    suppression_level: EchoCancellation_SuppressionLevel::HIGH,
-                    stream_delay_ms: OptionalInt { has_value: false, value: 0 },
-                },
+                echo_cancellation: Some(EchoCancellation {
+                    suppression_level: EchoCancellationSuppressionLevel::High,
+                    stream_delay_ms: None,
+                    enable_delay_agnostic: false,
+                    enable_extended_filter: false,
+                }),
                 ..Config::default()
             };
             config_ap.set_config(&config);
@@ -364,10 +366,10 @@ mod tests {
                 let stats = capture_ap.get_stats();
                 if i < 5 {
                     // first 50ms
-                    assert!(!stats.echo_return_loss.has_value);
+                    assert!(stats.echo_return_loss.is_none());
                 } else if i >= 95 {
                     // last 50ms
-                    assert!(stats.echo_return_loss.has_value);
+                    assert!(stats.echo_return_loss.is_some());
                 }
 
                 thread::sleep(Duration::from_millis(10));

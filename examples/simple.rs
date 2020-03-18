@@ -12,8 +12,10 @@ fn main() {
     let config = Config {
         echo_cancellation: Some(EchoCancellation {
             suppression_level: EchoCancellationSuppressionLevel::High,
-            stream_delay_ms: OptionalInt { has_value: false, value: 0 },
-        },
+            enable_delay_agnostic: false,
+            enable_extended_filter: false,
+            stream_delay_ms: None,
+        }),
         ..Config::default()
     };
     ap.set_config(&config);
