@@ -41,8 +41,7 @@ fn create_processor(
         enable_high_pass_filter: true,
         ..Config::default()
     };
-
-    processor.set_config(&config);
+    processor.set_config(config);
 
     Ok(processor)
 }

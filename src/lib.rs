@@ -110,7 +110,7 @@ impl Processor {
     /// Immediately updates the configurations of the internal signal processor.
     /// May be called multiple times after the initialization and during
     /// processing.
-    pub fn set_config(&self, config: &Config) {
+    pub fn set_config(&self, config: Config) {
         self.inner.set_config(config);
     }
 
@@ -201,9 +201,9 @@ impl AudioProcessing {
         unsafe { ffi::get_stats(self.inner).into() }
     }
 
-    fn set_config(&self, config: &Config) {
+    fn set_config(&self, config: Config) {
         unsafe {
-            ffi::set_config(self.inner, &config.clone().into());
+            ffi::set_config(self.inner, &config.into());
         }
     }
 }
@@ -297,7 +297,7 @@ mod tests {
             }),
             ..Config::default()
         };
-        ap.set_config(&config);
+        ap.set_config(config);
 
         let (render_frame, capture_frame) = sample_stereo_frames();
 
@@ -344,7 +344,7 @@ mod tests {
                 }),
                 ..Config::default()
             };
-            config_ap.set_config(&config);
+            config_ap.set_config(config);
         });
 
         let mut render_ap = ap.clone();

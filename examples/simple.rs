@@ -18,7 +18,7 @@ fn main() {
         }),
         ..Config::default()
     };
-    ap.set_config(&config);
+    ap.set_config(config);
 
     // The render_frame is what is sent to the speakers, and
     // capture_frame is audio captured from a microphone.
