@@ -20,5 +20,10 @@ bundled = ["webrtc-audio-processing-sys/bundled"]
 [dependencies]
 webrtc-audio-processing-sys = { path = "webrtc-audio-processing-sys", version = "0.2.0" }
 
+[dev-dependencies]
+portaudio = "0.7"
+failure = "0.1"
+ctrlc = "3"
+
 [package.metadata.docs.rs]
 features = [ "bundled" ]
