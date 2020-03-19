@@ -12,7 +12,7 @@ use std::{
     thread,
     time::Duration,
 };
-use webrtc_audio_processing::{ffi::OptionalInt, *};
+use webrtc_audio_processing::*;
 
 // The highest sample rate that webrtc-audio-processing supports.
 const SAMPLE_RATE: f64 = 48_000.0;
@@ -32,11 +32,12 @@ fn create_processor(
 
     // High pass filter is a prerequisite to running echo cancellation.
     let config = Config {
-        echo_cancellation: EchoCancellation {
-            enable: true,
-            suppression_level: EchoCancellation_SuppressionLevel::LOW,
-            stream_delay_ms: OptionalInt { has_value: true, value: 0 },
-        },
+        echo_cancellation: Some(EchoCancellation {
+            suppression_level: EchoCancellationSuppressionLevel::Low,
+            stream_delay_ms: Some(0),
+            enable_delay_agnostic: false,
+            enable_extended_filter: false,
+        }),
         enable_high_pass_filter: true,
         ..Config::default()
     };
