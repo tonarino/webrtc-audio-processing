@@ -110,7 +110,7 @@ impl Processor {
     /// Immediately updates the configurations of the internal signal processor.
     /// May be called multiple times after the initialization and during
     /// processing.
-    pub fn set_config(&self, config: Config) {
+    pub fn set_config(&mut self, config: Config) {
         self.inner.set_config(config);
     }
 
@@ -331,7 +331,7 @@ mod tests {
 
         let (render_frame, capture_frame) = sample_stereo_frames();
 
-        let config_ap = ap.clone();
+        let mut config_ap = ap.clone();
         let config_thread = thread::spawn(move || {
             thread::sleep(Duration::from_millis(100));
 

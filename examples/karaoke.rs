@@ -24,7 +24,7 @@ fn create_processor(
     num_capture_channels: i32,
     num_render_channels: i32,
 ) -> Result<Processor, Error> {
-    let processor = Processor::new(&InitializationConfig {
+    let mut processor = Processor::new(&InitializationConfig {
         num_capture_channels,
         num_render_channels,
         ..InitializationConfig::default()
