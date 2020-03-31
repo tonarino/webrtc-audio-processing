@@ -5,12 +5,13 @@
 #![warn(clippy::all)]
 #![warn(missing_docs)]
 
-pub use ffi::{
-    Config, EchoCancellation, EchoCancellation_SuppressionLevel, InitializationConfig, OptionalInt,
-    NUM_SAMPLES_PER_FRAME,
-};
+mod config;
+
 use std::{error, fmt, sync::Arc};
-pub use webrtc_audio_processing_sys as ffi;
+use webrtc_audio_processing_sys as ffi;
+
+pub use config::*;
+pub use ffi::NUM_SAMPLES_PER_FRAME;
 
 /// Represents an error inside webrtc::AudioProcessing.
 /// See the documentation of [`webrtc::AudioProcessing::Error`](https://cgit.freedesktop.org/pulseaudio/webrtc-audio-processing/tree/webrtc/modules/audio_processing/include/audio_processing.h?id=9def8cf10d3c97640d32f1328535e881288f700f)
@@ -102,14 +103,14 @@ impl Processor {
     }
 
     /// Returns statistics from the last `process_capture_frame()` call.
-    pub fn get_stats(&self) -> ffi::Stats {
+    pub fn get_stats(&self) -> Stats {
         self.inner.get_stats()
     }
 
     /// Immediately updates the configurations of the internal signal processor.
     /// May be called multiple times after the initialization and during
     /// processing.
-    pub fn set_config(&self, config: &ffi::Config) {
+    pub fn set_config(&mut self, config: Config) {
         self.inner.set_config(config);
     }
 
@@ -196,13 +197,13 @@ impl AudioProcessing {
         }
     }
 
-    fn get_stats(&self) -> ffi::Stats {
-        unsafe { ffi::get_stats(self.inner) }
+    fn get_stats(&self) -> Stats {
+        unsafe { ffi::get_stats(self.inner).into() }
     }
 
-    fn set_config(&self, config: &ffi::Config) {
+    fn set_config(&self, config: Config) {
         unsafe {
-            ffi::set_config(self.inner, config);
+            ffi::set_config(self.inner, &config.into());
         }
     }
 }
@@ -288,14 +289,15 @@ mod tests {
         let mut ap = Processor::new(&config).unwrap();
 
         let config = Config {
-            echo_cancellation: EchoCancellation {
-                enable: true,
-                suppression_level: EchoCancellation_SuppressionLevel::HIGH,
-                stream_delay_ms: OptionalInt { has_value: false, value: 0 },
-            },
+            echo_cancellation: Some(EchoCancellation {
+                suppression_level: EchoCancellationSuppressionLevel::High,
+                stream_delay_ms: None,
+                enable_delay_agnostic: false,
+                enable_extended_filter: false,
+            }),
             ..Config::default()
         };
-        ap.set_config(&config);
+        ap.set_config(config);
 
         let (render_frame, capture_frame) = sample_stereo_frames();
 
@@ -313,7 +315,7 @@ mod tests {
         assert_ne!(capture_frame, capture_frame_output);
 
         let stats = ap.get_stats();
-        assert!(stats.echo_return_loss.has_value);
+        assert!(stats.echo_return_loss.is_some());
         println!("{:#?}", stats);
     }
 
@@ -329,19 +331,20 @@ mod tests {
 
         let (render_frame, capture_frame) = sample_stereo_frames();
 
-        let config_ap = ap.clone();
+        let mut config_ap = ap.clone();
         let config_thread = thread::spawn(move || {
             thread::sleep(Duration::from_millis(100));
 
             let config = Config {
-                echo_cancellation: EchoCancellation {
-                    enable: true,
-                    suppression_level: EchoCancellation_SuppressionLevel::HIGH,
-                    stream_delay_ms: OptionalInt { has_value: false, value: 0 },
-                },
+                echo_cancellation: Some(EchoCancellation {
+                    suppression_level: EchoCancellationSuppressionLevel::High,
+                    stream_delay_ms: None,
+                    enable_delay_agnostic: false,
+                    enable_extended_filter: false,
+                }),
                 ..Config::default()
             };
-            config_ap.set_config(&config);
+            config_ap.set_config(config);
         });
 
         let mut render_ap = ap.clone();
@@ -363,10 +366,10 @@ mod tests {
                 let stats = capture_ap.get_stats();
                 if i < 5 {
                     // first 50ms
-                    assert!(!stats.echo_return_loss.has_value);
+                    assert!(stats.echo_return_loss.is_none());
                 } else if i >= 95 {
                     // last 50ms
-                    assert!(stats.echo_return_loss.has_value);
+                    assert!(stats.echo_return_loss.is_some());
                 }
 
                 thread::sleep(Duration::from_millis(10));

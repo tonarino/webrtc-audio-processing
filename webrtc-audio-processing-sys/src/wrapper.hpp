@@ -18,19 +18,16 @@ const int NUM_SAMPLES_PER_FRAME = SAMPLE_RATE_HZ * FRAME_MS / 1000;
 
 struct AudioProcessing;
 
-// TODO(skywhale): Map this to Option<double> inside webrtc-audio-processing crate.
 struct OptionalDouble {
   bool has_value = false;
   double value = 0.0;
 };
 
-// TODO(skywhale): Map this to Option<i32> inside webrtc-audio-processing crate.
 struct OptionalInt {
   bool has_value = false;
   int value = 0;
 };
 
-// TODO(skywhale): Map this to Option<bool> inside webrtc-audio-processing crate.
 struct OptionalBool {
   bool has_value = false;
   bool value = false;
@@ -64,6 +61,21 @@ struct EchoCancellation {
   /// double-talk performance for increased echo suppression.
   /// </div>
   SuppressionLevel suppression_level;
+
+  /// <div rustbindgen>
+  /// Use to enable the extended filter mode in the AEC, along with robustness
+  /// measures around the reported system delays. It comes with a significant
+  /// increase in AEC complexity, but is much more robust to unreliable reported
+  /// delays.
+  /// </div>
+  bool enable_extended_filter;
+
+  /// <div rustbindgen>
+  /// Enables delay-agnostic echo cancellation. This feature relies on internally
+  /// estimated delays between the process and reverse streams, thus not relying
+  /// on reported system delays.
+  /// </div>
+  bool enable_delay_agnostic;
 
   /// <div rustbindgen>
   /// Sets the delay in ms between process_render_frame() receiving a far-end
@@ -100,7 +112,7 @@ struct GainControl {
       /// Use this where the capture signal level is predictable, so that a
       /// known gain can be applied.
       /// </div>
-      DIGITAL_FIXED,
+      FIXED_DIGITAL,
   };
 
   /// <div rustbindgen>Determines what type of gain control is applied.</div>
@@ -176,23 +188,6 @@ struct Config {
   GainControl gain_control;
   NoiseSuppression noise_suppression;
   VoiceDetection voice_detection;
-
-  /// <div rustbindgen>
-  /// Use to enable the extended filter mode in the AEC, along with robustness
-  /// measures around the reported system delays. It comes with a significant
-  /// increase in AEC complexity, but is much more robust to unreliable reported
-  /// delays.
-  /// </div>
-  /// TODO(skywhale): Move to EchoCancellation.
-  bool enable_extended_filter;
-
-  /// <div rustbindgen>
-  /// Enables delay-agnostic echo cancellation. This feature relies on internally
-  /// estimated delays between the process and reverse streams, thus not relying
-  /// on reported system delays.
-  /// </div>
-  /// TODO(skywhale): Move to EchoCancellation.
-  bool enable_delay_agnostic;
 
   /// <div rustbindgen>
   /// Use to enable experimental transient noise suppression.

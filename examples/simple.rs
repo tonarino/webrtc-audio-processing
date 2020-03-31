@@ -1,4 +1,4 @@
-use webrtc_audio_processing::{ffi::OptionalInt, *};
+use webrtc_audio_processing::*;
 
 fn main() {
     let config = InitializationConfig {
@@ -10,14 +10,15 @@ fn main() {
     let mut ap = Processor::new(&config).unwrap();
 
     let config = Config {
-        echo_cancellation: EchoCancellation {
-            enable: true,
-            suppression_level: EchoCancellation_SuppressionLevel::HIGH,
-            stream_delay_ms: OptionalInt { has_value: false, value: 0 },
-        },
+        echo_cancellation: Some(EchoCancellation {
+            suppression_level: EchoCancellationSuppressionLevel::High,
+            enable_delay_agnostic: false,
+            enable_extended_filter: false,
+            stream_delay_ms: None,
+        }),
         ..Config::default()
     };
-    ap.set_config(&config);
+    ap.set_config(config);
 
     // The render_frame is what is sent to the speakers, and
     // capture_frame is audio captured from a microphone.

@@ -1,6 +1,6 @@
 [package]
 name = "webrtc-audio-processing"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Ryo Kawaguchi <ryo@kawagu.ch>"]
 repository = "https://github.com/tonarino/webrtc-audio-processing"
 edition = "2018"
@@ -19,7 +19,7 @@ derive_serde = ["webrtc-audio-processing-sys/derive_serde"]
 bundled = ["webrtc-audio-processing-sys/bundled"]
 
 [dependencies]
-webrtc-audio-processing-sys = { path = "webrtc-audio-processing-sys", version = "0.2.0" }
+webrtc-audio-processing-sys = { path = "webrtc-audio-processing-sys" }
 
 [dev-dependencies]
 portaudio = "0.7"
