@@ -19,7 +19,7 @@ derive_serde = ["webrtc-audio-processing-sys/derive_serde"]
 bundled = ["webrtc-audio-processing-sys/bundled"]
 
 [dependencies]
-webrtc-audio-processing-sys = { path = "webrtc-audio-processing-sys" }
+webrtc-audio-processing-sys = { path = "webrtc-audio-processing-sys", version = "0.3.0" }
 
 [dev-dependencies]
 portaudio = "0.7"
