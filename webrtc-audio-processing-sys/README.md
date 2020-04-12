@@ -24,3 +24,8 @@ sudo pacman -S webrtc-audio-processing # Arch
 ### Static linking
 
 Static linking can be enabled with the `bundled` feature flag.
+
+The following tools are needed in order to use the `bundled` feature flag:
+
+* libtool (`$ sudo apt install libtool`)
+* autotools (`$ sudo apt install autotools-dev`)
