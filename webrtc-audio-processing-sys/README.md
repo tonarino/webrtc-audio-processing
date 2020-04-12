@@ -23,4 +23,4 @@ sudo pacman -S webrtc-audio-processing # Arch
 
 ### Static linking
 
-Static linking can be enabled with the `bundler` feature flag.
+Static linking can be enabled with the `bundled` feature flag.
