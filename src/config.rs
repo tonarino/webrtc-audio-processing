@@ -6,7 +6,7 @@ pub use ffi::InitializationConfig;
 use serde::{Deserialize, Serialize};
 
 /// A level of echo suppression.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
 pub enum EchoCancellationSuppressionLevel {
     /// Lower suppression level.
@@ -30,7 +30,7 @@ impl From<EchoCancellationSuppressionLevel> for ffi::EchoCancellation_Suppressio
 }
 
 /// Echo cancellation configuration.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
 pub struct EchoCancellation {
     /// Determines the aggressiveness of the suppressor. A higher level trades off
@@ -69,7 +69,7 @@ impl From<EchoCancellation> for ffi::EchoCancellation {
 }
 
 /// Mode of gain control.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
 pub enum GainControlMode {
     /// Bring the signal to an appropriate range by applying an adaptive gain
@@ -94,7 +94,7 @@ impl From<GainControlMode> for ffi::GainControl_Mode {
 }
 
 /// Gain control configuration.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
 pub struct GainControl {
     /// Determines what type of gain control is applied.
@@ -130,7 +130,7 @@ impl From<GainControl> for ffi::GainControl {
 }
 
 /// A level of noise suppression.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
 pub enum NoiseSuppressionLevel {
     /// Lower suppression level.
@@ -155,7 +155,7 @@ impl From<NoiseSuppressionLevel> for ffi::NoiseSuppression_SuppressionLevel {
 }
 
 /// Noise suppression configuration.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
 pub struct NoiseSuppression {
     /// Determines the aggressiveness of the suppression. Increasing the level will
@@ -170,7 +170,7 @@ impl From<NoiseSuppression> for ffi::NoiseSuppression {
 }
 
 /// The sensitivity of the noise detector.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
 pub enum VoiceDetectionLikelihood {
     /// Even lower detection likelihood.
@@ -195,7 +195,7 @@ impl From<VoiceDetectionLikelihood> for ffi::VoiceDetection_DetectionLikelihood 
 }
 
 /// Voice detection configuration.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
 pub struct VoiceDetection {
     /// Specifies the likelihood that a frame will be declared to contain voice. A
@@ -214,7 +214,7 @@ impl From<VoiceDetection> for ffi::VoiceDetection {
 }
 
 /// Config that can be used mid-processing.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
 pub struct Config {
     /// Enable and configure AEC (acoustic echo cancellation).
