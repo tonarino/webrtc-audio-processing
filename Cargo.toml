@@ -15,10 +15,11 @@ travis-ci = { repository = "tonarino/webrtc-audio-processing", branch = "master"
 maintenance = { status = "actively-developed" }
 
 [features]
-derive_serde = ["webrtc-audio-processing-sys/derive_serde"]
+derive_serde = ["webrtc-audio-processing-sys/derive_serde", "serde"]
 bundled = ["webrtc-audio-processing-sys/bundled"]
 
 [dependencies]
+serde = { version = "1", features = ["derive"], optional = true }
 webrtc-audio-processing-sys = { path = "webrtc-audio-processing-sys", version = "0.3.0" }
 
 [dev-dependencies]
