@@ -155,7 +155,7 @@ impl From<NoiseSuppressionLevel> for ffi::NoiseSuppression_SuppressionLevel {
 }
 
 /// Noise suppression configuration.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
 pub struct NoiseSuppression {
     /// Determines the aggressiveness of the suppression. Increasing the level will
@@ -276,6 +276,7 @@ impl From<Config> for ffi::Config {
 
 /// Statistics about the processor state.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
 pub struct Stats {
     /// True if voice is detected in the current frame.
     pub has_voice: Option<bool>,
