@@ -12,6 +12,11 @@ See `examples/simple.rs` for an example of how to use this crate.
 
 ## Building
 
+### Feature Flags
+
+* `bundled` - Build `webrtc-audio-procesing` from the included C++ code
+* `derive_serde` - Derive `serialize` and `deserialize` traits for Serde use
+
 ### Dynamic linking
 
 By default the build will attempt to dynamically link with the library installed via your OS's package manager.
@@ -25,6 +30,10 @@ sudo apt install webrtc-audio-processing-dev # Ubuntu/Debian
 sudo pacman -S webrtc-audio-processing # Arch
 ```
 
-### Static linking
+### Build from source
 
-Static linking can be enabled with the `bundler` feature flag.
+Building from source and static linking can be enabled with the `bundled` feature flag. You need the following tools to build from source:
+
+* `clang` or `gcc`
+* `autotools`
+* `libtoolize` (typically `glibtoolize` on MacOS)
