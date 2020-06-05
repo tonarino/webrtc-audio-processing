@@ -63,6 +63,16 @@ mod webrtc {
         Ok((include_path, lib_path))
     }
 
+    fn get_target() -> String {
+        let target = std::env::var("TARGET").unwrap();
+        let mut target_tuple = target.split("-").collect::<Vec<_>>();
+        // Remove the vendor component.
+        target_tuple.remove(1);
+
+        assert_eq!(3, target_tuple.len());
+        target_tuple.join("-")
+    }
+
     fn copy_source_to_out_dir() -> Result<PathBuf, Error> {
         use fs_extra::dir::CopyOptions;
 
@@ -93,6 +103,7 @@ mod webrtc {
             .cxxflag("-fPIC")
             .disable_shared()
             .enable_static()
+            .host(&get_target())
             .build();
 
         Ok(())
