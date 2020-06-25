@@ -6,6 +6,8 @@
 
 A wrapper around [PulseAudio's repackaging of WebRTC's AudioProcessing module](https://www.freedesktop.org/software/pulseaudio/webrtc-audio-processing/).
 
+`webrtc-audio-processing` can remove echo from an audio input stream in the situation where a speaker is feeding back into a microphone, as well as noise-removal, auto-gain-control, voice-activity-detection, and more!
+
 ## Example Usage
 
 See `examples/simple.rs` for an example of how to use this crate.
