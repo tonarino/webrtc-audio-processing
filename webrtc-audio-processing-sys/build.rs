@@ -150,7 +150,12 @@ fn main() -> Result<(), Error> {
 
     println!("cargo:rustc-link-search=native={}", webrtc_lib.display());
     println!("cargo:rustc-link-lib=static=webrtc_audio_processing_wrapper");
-    println!("cargo:rustc-link-lib=dylib=webrtc_audio_processing");
+
+    if cfg!(feature = "bundled") {
+        println!("cargo:rustc-link-lib=static=webrtc_audio_processing");
+    } else {
+        println!("cargo:rustc-link-lib=dylib=webrtc_audio_processing");
+    }
 
     if cfg!(target_os = "macos") {
         println!("cargo:rustc-link-lib=dylib=c++");
