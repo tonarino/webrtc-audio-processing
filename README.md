@@ -39,3 +39,9 @@ Building from source and static linking can be enabled with the `bundled` featur
 * `clang` or `gcc`
 * `autotools`
 * `libtoolize` (typically `glibtoolize` on MacOS)
+
+## Contributing
+
+### Version increment
+
+We are using semantic versioning. When incrementing a version, please do so in a separate commit, and also mark it with a Github tag.
