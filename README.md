@@ -39,6 +39,7 @@ Building from source and static linking can be enabled with the `bundled` featur
 * `clang` or `gcc`
 * `autotools`
 * `libtoolize` (typically `glibtoolize` on MacOS)
+* `pkg-config`
 
 ## Contributing
 
