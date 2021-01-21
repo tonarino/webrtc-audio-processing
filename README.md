@@ -34,12 +34,14 @@ sudo pacman -S webrtc-audio-processing # Arch
 
 ### Build from source
 
+The webrtc source code is included as a git submodule. Be sure to clone this repo with the `--recursive` flag, or pull the submodule with `git submodule update --init`.
+
 Building from source and static linking can be enabled with the `bundled` feature flag. You need the following tools to build from source:
 
 * `clang` or `gcc`
-* `autotools`
-* `libtoolize` (typically `glibtoolize` on MacOS)
-* `pkg-config`
+* `autotools` (MacOS: `brew install automake`, `brew install autoconf`)
+* `libtoolize` (typically `glibtoolize` on MacOS: `brew install libtool`)
+* `pkg-config` (MacOS: `brew install pkg-config`)
 
 ## Contributing
 

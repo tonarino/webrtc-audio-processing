@@ -111,7 +111,9 @@ mod webrtc {
             command.args(args);
         }
 
-        let _output = command.output()?;
+        let _output = command.output().map_err(|e| {
+            failure::format_err!("Error running command '{}' with args '{:?}' - {:?}", cmd, args_opt, e)
+        })?;
 
         Ok(())
     }
