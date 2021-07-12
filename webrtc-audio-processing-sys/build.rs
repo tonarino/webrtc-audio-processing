@@ -77,6 +77,11 @@ mod webrtc {
 
     pub(super) fn build_if_necessary() -> Result<(), Error> {
         let build_dir = copy_source_to_out_dir()?;
+        if build_dir.read_dir()?.next().is_none() {
+            eprintln!("The webrtc-audio-processing build directory is empty");
+            eprintln!("See the crate README for installation instructions");
+            eprintln!("Remember to clone the repo recursively if building from source.");
+        }
 
         if cfg!(target_os = "macos") {
             run_command(&build_dir, "glibtoolize", None)?;
