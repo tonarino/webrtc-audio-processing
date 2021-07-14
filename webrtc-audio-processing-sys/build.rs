@@ -71,7 +71,7 @@ mod webrtc {
             eprintln!("The webrtc-audio-processing source directory is empty.");
             eprintln!("See the crate README for installation instructions.");
             eprintln!("Remember to clone the repo recursively if building from source.");
-            panic!("Aborting compilation because bundled source directory is empty.")
+            bail!("Aborting compilation because bundled source directory is empty.");
         }
 
         let out_dir = out_dir();
