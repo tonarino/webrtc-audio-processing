@@ -55,6 +55,7 @@ mod webrtc {
 #[cfg(feature = "bundled")]
 mod webrtc {
     use super::*;
+
     const BUNDLED_SOURCE_PATH: &str = "./webrtc-audio-processing";
 
     pub(super) fn get_build_paths() -> Result<(PathBuf, PathBuf), Error> {
@@ -65,6 +66,13 @@ mod webrtc {
 
     fn copy_source_to_out_dir() -> Result<PathBuf, Error> {
         use fs_extra::dir::CopyOptions;
+
+        if Path::new(BUNDLED_SOURCE_PATH).read_dir()?.next().is_none() {
+            eprintln!("The webrtc-audio-processing source directory is empty.");
+            eprintln!("See the crate README for installation instructions.");
+            eprintln!("Remember to clone the repo recursively if building from source.");
+            bail!("Aborting compilation because bundled source directory is empty.");
+        }
 
         let out_dir = out_dir();
         let mut options = CopyOptions::new();
