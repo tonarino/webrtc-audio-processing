@@ -1,11 +1,5 @@
 use anyhow::Result;
-use regex::Regex;
-use std::{
-    env,
-    fs::File,
-    io::{Read, Write},
-    path::{Path, PathBuf},
-};
+use std::{env, path::PathBuf};
 
 const DEPLOYMENT_TARGET_VAR: &str = "MACOSX_DEPLOYMENT_TARGET";
 
@@ -13,35 +7,38 @@ fn out_dir() -> PathBuf {
     std::env::var("OUT_DIR").expect("OUT_DIR environment var not set.").into()
 }
 
+fn src_dir() -> PathBuf {
+    std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR environment var not set.").into()
+}
+
 #[cfg(not(feature = "bundled"))]
 mod webrtc {
     use super::*;
-    use anyhow::bail;
+    use anyhow::{bail, Result};
 
-    const LIB_NAME: &str = "webrtc-audio-processing";
+    const LIB_NAME: &str = "webrtc-audio-processing-2";
+    const LIB_MIN_VERSION: &str = "2.1";
 
-    pub(super) fn get_build_paths() -> Result<(PathBuf, PathBuf)> {
+    pub(super) fn get_build_paths() -> Result<(Vec<PathBuf>, Vec<PathBuf>)> {
         let (pkgconfig_include_path, pkgconfig_lib_path) = find_pkgconfig_paths()?;
 
         let include_path = std::env::var("WEBRTC_AUDIO_PROCESSING_INCLUDE")
             .ok()
-            .map(|x| x.into())
+            .map(PathBuf::from)
             .or(pkgconfig_include_path);
         let lib_path = std::env::var("WEBRTC_AUDIO_PROCESSING_LIB")
             .ok()
-            .map(|x| x.into())
+            .map(PathBuf::from)
             .or(pkgconfig_lib_path);
 
-        println!("{:?}, {:?}", include_path, lib_path);
-
-        match (include_path, lib_path) {
-            (Some(include_path), Some(lib_path)) => Ok((include_path, lib_path)),
-            _ => {
-                eprintln!("Couldn't find either header or lib files for {}.", LIB_NAME);
-                eprintln!("See the crate README for installation instructions, or use the 'bundled' feature to statically compile.");
-                bail!("Aborting compilation due to linker failure.");
-            },
+        if include_path.is_none() || lib_path.is_none() {
+            bail!(
+                "Couldn't find {}. Please install it or set WEBRTC_AUDIO_PROCESSING_INCLUDE and WEBRTC_AUDIO_PROCESSING_LIB environment variables.",
+                LIB_NAME
+            );
         }
+
+        Ok((vec![include_path.unwrap()], vec![lib_path.unwrap()]))
     }
 
     pub(super) fn build_if_necessary() -> Result<()> {
@@ -49,28 +46,67 @@ mod webrtc {
     }
 
     fn find_pkgconfig_paths() -> Result<(Option<PathBuf>, Option<PathBuf>)> {
-        Ok(pkg_config::Config::new()
+        let lib = match pkg_config::Config::new()
+            .atleast_version(LIB_MIN_VERSION)
+            .statik(false)
             .probe(LIB_NAME)
-            .and_then(|mut lib| Ok((lib.include_paths.pop(), lib.link_paths.pop())))?)
+        {
+            Ok(lib) => lib,
+            Err(e) => {
+                eprintln!("Couldn't find {LIB_NAME} with pkg-config:");
+                eprintln!("{e}");
+                return Ok((None, None));
+            },
+        };
+
+        Ok((lib.include_paths.first().cloned(), lib.link_paths.first().cloned()))
     }
 }
 
 #[cfg(feature = "bundled")]
 mod webrtc {
     use super::*;
-    use anyhow::{anyhow, bail};
+    use anyhow::{bail, Context};
+    use std::{path::Path, process::Command};
 
     const BUNDLED_SOURCE_PATH: &str = "./webrtc-audio-processing";
 
-    pub(super) fn get_build_paths() -> Result<(PathBuf, PathBuf)> {
-        let include_path = out_dir().join(BUNDLED_SOURCE_PATH);
-        let lib_path = out_dir().join("lib");
-        Ok((include_path, lib_path))
+    pub(super) fn get_build_paths() -> Result<(Vec<PathBuf>, Vec<PathBuf>)> {
+        let mut include_paths = vec![
+            out_dir().join("include"),
+            out_dir().join("include").join("webrtc-audio-processing-2"),
+            src_dir().join("webrtc-audio-processing"),
+            src_dir().join("webrtc-audio-processing").join("webrtc"),
+        ];
+        let mut lib_paths = vec![out_dir().join("lib")];
+
+        if let Ok(mut lib) =
+            pkg_config::Config::new().atleast_version("20250814").probe("absl_base")
+        {
+            // If abseil package is installed locally, meson would have linked it for
+            // webrtc-audio-processing-2. Use the same library for our wrapper, too.
+            include_paths.append(&mut lib.include_paths);
+            lib_paths.append(&mut lib.link_paths);
+        } else {
+            // Otherwise use the local build fetched and built by meson.
+            include_paths.push(
+                src_dir()
+                    .join("webrtc-audio-processing")
+                    .join("subprojects")
+                    .join("abseil-cpp-20250814.1"),
+            );
+            lib_paths.push(
+                out_dir()
+                    .join("webrtc-audio-processing")
+                    .join("subprojects")
+                    .join("abseil-cpp-20250814.1"),
+            );
+        }
+
+        Ok((include_paths, lib_paths))
     }
 
-    fn copy_source_to_out_dir() -> Result<PathBuf> {
-        use fs_extra::dir::CopyOptions;
-
+    pub(super) fn build_if_necessary() -> Result<()> {
         if Path::new(BUNDLED_SOURCE_PATH).read_dir()?.next().is_none() {
             eprintln!("The webrtc-audio-processing source directory is empty.");
             eprintln!("See the crate README for installation instructions.");
@@ -78,82 +114,65 @@ mod webrtc {
             bail!("Aborting compilation because bundled source directory is empty.");
         }
 
-        let out_dir = out_dir();
-        let mut options = CopyOptions::new();
-        options.overwrite = true;
+        let build_dir = out_dir();
+        let install_dir = out_dir();
 
-        fs_extra::dir::copy(BUNDLED_SOURCE_PATH, &out_dir, &options)?;
-
-        Ok(out_dir.join(BUNDLED_SOURCE_PATH))
-    }
-
-    pub(super) fn build_if_necessary() -> Result<()> {
-        let build_dir = copy_source_to_out_dir()?;
+        let webrtc_build_dir = build_dir.join(BUNDLED_SOURCE_PATH);
+        let mut meson = Command::new("meson");
+        meson.args(&["setup", "--prefix", install_dir.to_str().unwrap()]);
+        meson.arg("--reconfigure");
 
         if cfg!(target_os = "macos") {
-            run_command(&build_dir, "glibtoolize", None)?;
-        } else {
-            run_command(&build_dir, "libtoolize", None)?;
+            let link_args = "['-framework', 'CoreFoundation', '-framework', 'Foundation']";
+            meson.arg(&format!("-Dc_link_args={}", link_args));
+            meson.arg(&format!("-Dcpp_link_args={}", link_args));
         }
 
-        run_command(&build_dir, "aclocal", None)?;
-        run_command(&build_dir, "automake", Some(&["--add-missing", "--copy"]))?;
-        run_command(&build_dir, "autoconf", None)?;
+        let status = meson
+            .arg("-Ddefault_library=static")
+            .arg(BUNDLED_SOURCE_PATH)
+            .arg(webrtc_build_dir.to_str().unwrap())
+            .status()
+            .context("Failed to execute meson. Do you have it installed?")?;
+        assert!(status.success(), "Command failed: {:?}", &meson);
 
-        let target = std::env::var("TARGET").unwrap();
-        autotools::Config::new(build_dir)
-            .cflag("-fPIC")
-            .cxxflag("-fPIC")
-            .config_option("host", Some(&target))
-            .disable_shared()
-            .enable_static()
-            .build();
+        let mut ninja = Command::new("ninja");
+        let status = ninja
+            .current_dir(&webrtc_build_dir)
+            .status()
+            .context("Failed to execute ninja. Do you have it installed?")?;
+        assert!(status.success(), "Command failed: {:?}", &ninja);
+
+        let mut install = Command::new("ninja");
+        let status = install
+            .current_dir(&webrtc_build_dir)
+            .arg("install")
+            .status()
+            .context("Failed to execute ninja install")?;
+        assert!(status.success(), "Command failed: {:?}", &install);
 
         Ok(())
     }
-
-    fn run_command<P: AsRef<Path>>(
-        curr_dir: P,
-        cmd: &str,
-        args_opt: Option<&[&str]>,
-    ) -> Result<()> {
-        let mut command = std::process::Command::new(cmd);
-
-        command.current_dir(curr_dir);
-
-        if let Some(args) = args_opt {
-            command.args(args);
-        }
-
-        let _output = command.output().map_err(|e| {
-            anyhow!("Error running command '{}' with args '{:?}' - {:?}", cmd, args_opt, e)
-        })?;
-
-        Ok(())
-    }
-}
-
-// TODO: Consider fixing this with the upstream.
-// https://github.com/rust-lang/rust-bindgen/issues/1089
-// https://github.com/rust-lang/rust-bindgen/issues/1301
-fn derive_serde(binding_file: &Path) -> Result<()> {
-    let mut contents = String::new();
-    File::open(binding_file)?.read_to_string(&mut contents)?;
-
-    let new_contents = format!(
-        "use serde::{{Serialize, Deserialize}};\n{}",
-        Regex::new(r"#\s*\[\s*derive\s*\((?P<d>[^)]+)\)\s*\]\s*pub\s*(?P<s>struct|enum)")?
-            .replace_all(&contents, "#[derive($d, Serialize, Deserialize)] pub $s")
-    );
-
-    File::create(binding_file)?.write_all(new_contents.as_bytes())?;
-
-    Ok(())
 }
 
 fn main() -> Result<()> {
     webrtc::build_if_necessary()?;
-    let (webrtc_include, webrtc_lib) = webrtc::get_build_paths()?;
+    let (include_dirs, lib_dirs) = webrtc::get_build_paths()?;
+
+    for dir in &lib_dirs {
+        println!("cargo:rustc-link-search=native={}", dir.display());
+    }
+
+    if cfg!(feature = "bundled") {
+        println!("cargo:rustc-link-lib=static=webrtc-audio-processing-2");
+        println!("cargo:rustc-link-lib=absl_strings");
+    } else {
+        println!("cargo:rustc-link-lib=dylib=webrtc-audio-processing-2");
+    }
+
+    if cfg!(target_os = "macos") {
+        println!("cargo:rustc-link-lib=framework=CoreFoundation");
+    }
 
     let mut cc_build = cc::Build::new();
 
@@ -179,48 +198,41 @@ fn main() -> Result<()> {
     cc_build
         .cpp(true)
         .file("src/wrapper.cpp")
-        .include(&webrtc_include)
+        .includes(&include_dirs)
+        .flag("-std=c++17")
         .flag("-Wno-unused-parameter")
         .flag("-Wno-deprecated-declarations")
-        .flag("-std=c++11")
-        .out_dir(out_dir())
+        .flag("-Wno-nullability-completeness")
+        .out_dir(&out_dir())
         .compile("webrtc_audio_processing_wrapper");
 
-    println!("cargo:rustc-link-search=native={}", webrtc_lib.display());
     println!("cargo:rustc-link-lib=static=webrtc_audio_processing_wrapper");
 
-    println!("cargo:rerun-if-env-changed={}", DEPLOYMENT_TARGET_VAR);
-
-    if cfg!(feature = "bundled") {
-        println!("cargo:rustc-link-lib=static=webrtc_audio_processing");
-    } else {
-        println!("cargo:rustc-link-lib=dylib=webrtc_audio_processing");
-    }
-
-    if cfg!(target_os = "macos") {
-        println!("cargo:rustc-link-lib=dylib=c++");
-    } else {
-        println!("cargo:rustc-link-lib=dylib=stdc++");
-    }
-
     let binding_file = out_dir().join("bindings.rs");
-    bindgen::Builder::default()
+    let mut builder = bindgen::Builder::default()
         .header("src/wrapper.hpp")
+        .clang_args(&["-x", "c++", "-std=c++17", "-fparse-all-comments"])
         .generate_comments(true)
-        .rustified_enum(".*")
+        .enable_cxx_namespaces()
+        .allowlist_type("webrtc::AudioProcessing_Error")
+        .allowlist_type("webrtc::AudioProcessing_Config")
+        .allowlist_type("webrtc::AudioProcessing_RealtimeSetting")
+        .allowlist_type("webrtc::StreamConfig")
+        .allowlist_type("webrtc::ProcessingConfig")
+        .allowlist_function("webrtc_audio_processing_wrapper::.*")
+        // The functions returns std::string, and is not FFI-safe.
+        .blocklist_item("webrtc::AudioProcessing_Config_ToString")
+        .opaque_type("std::.*")
         .derive_debug(true)
-        .derive_default(true)
-        .derive_partialeq(true)
-        .clang_arg(format!("-I{}", &webrtc_include.display()))
-        .disable_name_namespacing()
+        .derive_default(true);
+    for dir in &include_dirs {
+        builder = builder.clang_arg(&format!("-I{}", dir.display()));
+    }
+    builder
         .generate()
         .expect("Unable to generate bindings")
         .write_to_file(&binding_file)
         .expect("Couldn't write bindings!");
-
-    if cfg!(feature = "derive_serde") {
-        derive_serde(&binding_file).expect("Failed to modify derive macros");
-    }
 
     Ok(())
 }
