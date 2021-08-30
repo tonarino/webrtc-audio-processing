@@ -1,8 +1,8 @@
 // This example loops the microphone input back to the speakers, while applying echo cancellation,
 // creating an experience similar to Karaoke microphones. It uses PortAudio as an interface to the
 // underlying audio devices.
+use anyhow::Error;
 use ctrlc;
-use failure::Error;
 use portaudio;
 use std::{
     sync::{
@@ -21,26 +21,17 @@ const SAMPLE_RATE: f64 = 48_000.0;
 const FRAMES_PER_BUFFER: u32 = 480;
 
 fn create_processor(
-    num_capture_channels: i32,
-    num_render_channels: i32,
+    num_capture_channels: usize,
+    num_render_channels: usize,
 ) -> Result<Processor, Error> {
     let mut processor = Processor::new(&InitializationConfig {
         num_capture_channels,
         num_render_channels,
-        ..InitializationConfig::default()
+        sample_rate_hz: SAMPLE_RATE as u32,
     })?;
 
-    // High pass filter is a prerequisite to running echo cancellation.
-    let config = Config {
-        echo_cancellation: Some(EchoCancellation {
-            suppression_level: EchoCancellationSuppressionLevel::Low,
-            stream_delay_ms: Some(0),
-            enable_delay_agnostic: true,
-            enable_extended_filter: true,
-        }),
-        enable_high_pass_filter: true,
-        ..Config::default()
-    };
+    // The default AEC configuration enables HPF, too.
+    let config = Config { echo_canceller: Some(EchoCanceller::default()), ..Config::default() };
     processor.set_config(config);
 
     Ok(processor)
@@ -74,8 +65,8 @@ fn main() -> Result<(), Error> {
     let pa = portaudio::PortAudio::new()?;
 
     let stream_settings = pa.default_duplex_stream_settings(
-        input_channels,
-        output_channels,
+        input_channels as i32,
+        output_channels as i32,
         SAMPLE_RATE,
         FRAMES_PER_BUFFER,
     )?;

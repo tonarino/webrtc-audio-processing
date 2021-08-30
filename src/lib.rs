@@ -6,12 +6,13 @@
 #![warn(missing_docs)]
 
 mod config;
+mod stats;
 
 use std::{error, fmt, sync::Arc};
 use webrtc_audio_processing_sys as ffi;
 
 pub use config::*;
-pub use ffi::NUM_SAMPLES_PER_FRAME;
+pub use stats::*;
 
 /// Represents an error inside webrtc::AudioProcessing.
 /// See the documentation of [`webrtc::AudioProcessing::Error`](https://cgit.freedesktop.org/pulseaudio/webrtc-audio-processing/tree/webrtc/modules/audio_processing/include/audio_processing.h?id=9def8cf10d3c97640d32f1328535e881288f700f)
@@ -47,15 +48,17 @@ impl Processor {
     /// Creates a new `Processor`. `InitializationConfig` is only used on
     /// instantiation, however new configs can be be passed to `set_config()`
     /// at any time during processing.
-    pub fn new(config: &ffi::InitializationConfig) -> Result<Self, Error> {
+    pub fn new(config: &InitializationConfig) -> Result<Self, Error> {
+        let inner = Arc::new(AudioProcessing::new(config)?);
+        let num_samples = inner.num_samples_per_frame();
         Ok(Self {
-            inner: Arc::new(AudioProcessing::new(config)?),
+            inner,
             deinterleaved_capture_frame: vec![
-                vec![0f32; NUM_SAMPLES_PER_FRAME as usize];
+                vec![0f32; num_samples];
                 config.num_capture_channels as usize
             ],
             deinterleaved_render_frame: vec![
-                vec![0f32; NUM_SAMPLES_PER_FRAME as usize];
+                vec![0f32; num_samples];
                 config.num_render_channels as usize
             ],
         })
@@ -105,6 +108,11 @@ impl Processor {
     /// Returns statistics from the last `process_capture_frame()` call.
     pub fn get_stats(&self) -> Stats {
         self.inner.get_stats()
+    }
+
+    /// Returns the number of samples per frame based on the sample rate and frame size.
+    pub fn num_samples_per_frame(&self) -> usize {
+        self.inner.num_samples_per_frame()
     }
 
     /// Immediately updates the configurations of the internal signal processor.
@@ -174,9 +182,16 @@ struct AudioProcessing {
 }
 
 impl AudioProcessing {
-    fn new(config: &ffi::InitializationConfig) -> Result<Self, Error> {
+    fn new(config: &InitializationConfig) -> Result<Self, Error> {
         let mut code = 0;
-        let inner = unsafe { ffi::audio_processing_create(config, &mut code) };
+        let inner = unsafe {
+            ffi::audio_processing_create(
+                config.num_capture_channels as i32,
+                config.num_render_channels as i32,
+                config.sample_rate_hz as i32,
+                &mut code,
+            )
+        };
         if !inner.is_null() {
             Ok(Self { inner })
         } else {
@@ -212,6 +227,10 @@ impl AudioProcessing {
         unsafe { ffi::get_stats(self.inner).into() }
     }
 
+    fn num_samples_per_frame(&self) -> usize {
+        unsafe { ffi::get_num_samples_per_frame(self.inner) as usize }
+    }
+
     fn set_config(&self, config: Config) {
         unsafe {
             ffi::set_config(self.inner, &config.into());
@@ -239,8 +258,8 @@ impl Drop for AudioProcessing {
     }
 }
 
-// ffi::AudioProcessing provides thread safety with a few exceptions around
-// the concurrent usage of its getters and setters e.g. `set_stream_delay_ms()`.
+// ffi::AudioProcessing provides thread safety with a few exceptions around the concurrent usage of
+// its corresponding getters and setters.
 unsafe impl Sync for AudioProcessing {}
 unsafe impl Send for AudioProcessing {}
 
@@ -249,20 +268,23 @@ mod tests {
     use super::*;
     use std::{thread, time::Duration};
 
+    fn init_config(num_channels: usize) -> InitializationConfig {
+        InitializationConfig {
+            num_capture_channels: num_channels,
+            num_render_channels: num_channels,
+            sample_rate_hz: 48_000,
+        }
+    }
+
     #[test]
     fn test_create_failure() {
-        let config =
-            InitializationConfig { num_capture_channels: 0, ..InitializationConfig::default() };
+        let config = init_config(0);
         assert!(Processor::new(&config).is_err());
     }
 
     #[test]
     fn test_create_drop() {
-        let config = InitializationConfig {
-            num_capture_channels: 1,
-            num_render_channels: 1,
-            ..InitializationConfig::default()
-        };
+        let config = init_config(1);
         let _p = Processor::new(&config).unwrap();
     }
 
@@ -281,8 +303,8 @@ mod tests {
         assert_eq!(interleaved, interleaved_out);
     }
 
-    fn sample_stereo_frames() -> (Vec<f32>, Vec<f32>) {
-        let num_samples_per_frame = NUM_SAMPLES_PER_FRAME as usize;
+    fn sample_stereo_frames(ap: &Processor) -> (Vec<f32>, Vec<f32>) {
+        let num_samples_per_frame = ap.num_samples_per_frame();
 
         // Stereo frame with a lower frequency cosine wave.
         let mut render_frame = Vec::with_capacity(num_samples_per_frame * 2);
@@ -304,25 +326,14 @@ mod tests {
 
     #[test]
     fn test_nominal() {
-        let config = InitializationConfig {
-            num_capture_channels: 2,
-            num_render_channels: 2,
-            ..InitializationConfig::default()
-        };
+        let config = init_config(2);
         let mut ap = Processor::new(&config).unwrap();
 
-        let config = Config {
-            echo_cancellation: Some(EchoCancellation {
-                suppression_level: EchoCancellationSuppressionLevel::High,
-                stream_delay_ms: None,
-                enable_delay_agnostic: false,
-                enable_extended_filter: false,
-            }),
-            ..Config::default()
-        };
+        let config =
+            Config { echo_canceller: Some(EchoCanceller::default()), ..Default::default() };
         ap.set_config(config);
 
-        let (render_frame, capture_frame) = sample_stereo_frames();
+        let (render_frame, capture_frame) = sample_stereo_frames(&ap);
 
         let mut render_frame_output = render_frame.clone();
         ap.process_render_frame(&mut render_frame_output).unwrap();
@@ -345,28 +356,17 @@ mod tests {
     #[test]
     #[ignore]
     fn test_nominal_threaded() {
-        let config = InitializationConfig {
-            num_capture_channels: 2,
-            num_render_channels: 2,
-            ..InitializationConfig::default()
-        };
+        let config = init_config(2);
         let ap = Processor::new(&config).unwrap();
 
-        let (render_frame, capture_frame) = sample_stereo_frames();
+        let (render_frame, capture_frame) = sample_stereo_frames(&ap);
 
         let mut config_ap = ap.clone();
         let config_thread = thread::spawn(move || {
             thread::sleep(Duration::from_millis(100));
 
-            let config = Config {
-                echo_cancellation: Some(EchoCancellation {
-                    suppression_level: EchoCancellationSuppressionLevel::High,
-                    stream_delay_ms: None,
-                    enable_delay_agnostic: false,
-                    enable_extended_filter: false,
-                }),
-                ..Config::default()
-            };
+            let config =
+                Config { echo_canceller: Some(EchoCanceller::default()), ..Default::default() };
             config_ap.set_config(config);
         });
 

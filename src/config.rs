@@ -1,150 +1,146 @@
 use webrtc_audio_processing_sys as ffi;
 
-pub use ffi::InitializationConfig;
-
 #[cfg(feature = "derive_serde")]
 use serde::{Deserialize, Serialize};
 
-/// A level of non-linear suppression during AEC (aka NLP).
+/// A configuration for initializing a Processor instance.
+#[derive(Debug, Clone, PartialEq)]
+pub struct InitializationConfig {
+    /// Number of the input and output channels for the capture frame.
+    pub num_capture_channels: usize,
+    /// Number of the input and output channels for the render frame.
+    pub num_render_channels: usize,
+    /// Sampling rate of the capture and render frames. Accepts an arbitrary value, but the maximum
+    /// internal processing rate is 48000, so the audio quality is capped as such.
+    pub sample_rate_hz: u32,
+}
+
+/// Internal processing rate.
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
-pub enum EchoCancellationSuppressionLevel {
-    /// Lowest suppression level.
-    /// Minimum overdrive exponent = 1.0 (zero suppression).
-    Lowest,
-    /// Lower suppression level.
-    /// Minimum overdrive exponent = 2.0.
-    Lower,
-    /// Low suppression level.
-    /// Minimum overdrive exponent = 3.0.
-    Low,
-    /// Moderate suppression level.
-    /// Minimum overdrive exponent = 6.0.
-    Moderate,
-    /// Higher suppression level.
-    /// Minimum overdrive exponent = 15.0.
-    High,
+pub enum PipelineProcessingRate {
+    /// Limit the rate to 32k Hz.
+    Max32000Hz = 32_000,
+    /// Limit the rate to 48k Hz.
+    Max48000Hz = 48_000,
 }
 
-impl From<EchoCancellationSuppressionLevel> for ffi::EchoCancellation_SuppressionLevel {
-    fn from(other: EchoCancellationSuppressionLevel) -> ffi::EchoCancellation_SuppressionLevel {
-        match other {
-            EchoCancellationSuppressionLevel::Lowest => {
-                ffi::EchoCancellation_SuppressionLevel::LOWEST
-            },
-            EchoCancellationSuppressionLevel::Lower => {
-                ffi::EchoCancellation_SuppressionLevel::LOWER
-            },
-            EchoCancellationSuppressionLevel::Low => ffi::EchoCancellation_SuppressionLevel::LOW,
-            EchoCancellationSuppressionLevel::Moderate => {
-                ffi::EchoCancellation_SuppressionLevel::MODERATE
-            },
-            EchoCancellationSuppressionLevel::High => ffi::EchoCancellation_SuppressionLevel::HIGH,
+impl Default for PipelineProcessingRate {
+    fn default() -> Self {
+        // cf. https://gitlab.freedesktop.org/pulseaudio/webrtc-audio-processing/-/blob/master/webrtc/modules/audio_processing/include/audio_processing.cc#L55
+        if cfg!(target_arch = "arm") {
+            Self::Max32000Hz
+        } else {
+            Self::Max48000Hz
         }
     }
 }
 
-/// Echo cancellation configuration.
+/// Audio processing pipeline configuration.
+#[derive(Debug, Default, Clone, PartialEq)]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+pub struct Pipeline {
+    /// Maximum allowed processing rate used internally. The default rate is currently selected
+    /// based on the CPU architecture.
+    pub maximum_internal_processing_rate: PipelineProcessingRate,
+
+    /// Allow multi-channel processing of capture audio when AEC3 is active.
+    pub multi_channel_capture: bool,
+
+    /// Allow multi-channel processing of render audio.
+    pub multi_channel_render: bool,
+}
+
+impl From<Pipeline> for ffi::AudioProcessing_Config_Pipeline {
+    fn from(other: Pipeline) -> Self {
+        Self {
+            maximum_internal_processing_rate: other.maximum_internal_processing_rate as i32,
+            multi_channel_capture: other.multi_channel_capture,
+            multi_channel_render: other.multi_channel_render,
+        }
+    }
+}
+
+/// Pre-amplifier configuration.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
-pub struct EchoCancellation {
-    /// Determines the aggressiveness of the suppressor. A higher level trades off
-    /// double-talk performance for increased echo suppression.
-    pub suppression_level: EchoCancellationSuppressionLevel,
-
-    /// Use to enable the extended filter mode in the AEC, along with robustness
-    /// measures around the reported system delays. It comes with a significant
-    /// increase in AEC complexity, but is much more robust to unreliable reported
-    /// delays.
-    pub enable_extended_filter: bool,
-
-    /// Enables delay-agnostic echo cancellation. This feature relies on internally
-    /// estimated delays between the process and reverse streams, thus not relying
-    /// on reported system delays.
-    pub enable_delay_agnostic: bool,
-
-    /// Sets the delay in ms between process_render_frame() receiving a far-end
-    /// frame and process_capture_frame() receiving a near-end frame containing
-    /// the corresponding echo. You should set this only if you are certain that
-    /// the delay will be stable and constant. enable_delay_agnostic will be
-    /// ignored when this option is set.
-    pub stream_delay_ms: Option<i32>,
+pub struct PreAmplifier {
+    /// Fixed linear gain multiplifier. The default is 1.0 (no effect).
+    pub fixed_gain_factor: f32,
 }
 
-impl From<EchoCancellation> for ffi::EchoCancellation {
-    fn from(other: EchoCancellation) -> ffi::EchoCancellation {
-        ffi::EchoCancellation {
-            enable: true,
-            suppression_level: other.suppression_level.into(),
-            enable_extended_filter: other.enable_extended_filter,
-            enable_delay_agnostic: other.enable_delay_agnostic,
-            stream_delay_ms: other.stream_delay_ms.into(),
-        }
+impl Default for PreAmplifier {
+    fn default() -> Self {
+        Self { fixed_gain_factor: 1.0 }
     }
 }
 
-/// Mode of gain control.
-#[derive(Debug, Copy, Clone, PartialEq)]
-#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
-pub enum GainControlMode {
-    /// Bring the signal to an appropriate range by applying an adaptive gain
-    /// control. The volume is dynamically amplified with a microphone with
-    /// small pickup and vice versa.
-    AdaptiveDigital,
-
-    /// Unlike ADAPTIVE_DIGITAL, it only compresses (i.e. gradually reduces
-    /// gain with increasing level) the input signal when at higher levels.
-    /// Use this where the capture signal level is predictable, so that a
-    /// known gain can be applied.
-    FixedDigital,
-}
-
-impl From<GainControlMode> for ffi::GainControl_Mode {
-    fn from(other: GainControlMode) -> ffi::GainControl_Mode {
-        match other {
-            GainControlMode::AdaptiveDigital => ffi::GainControl_Mode::ADAPTIVE_DIGITAL,
-            GainControlMode::FixedDigital => ffi::GainControl_Mode::FIXED_DIGITAL,
-        }
+impl From<PreAmplifier> for ffi::AudioProcessing_Config_PreAmplifier {
+    fn from(other: PreAmplifier) -> Self {
+        Self { enabled: true, fixed_gain_factor: other.fixed_gain_factor }
     }
 }
 
-/// Gain control configuration.
+/// HPF (high-pass fitler) configuration.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
-pub struct GainControl {
-    /// Determines what type of gain control is applied.
-    pub mode: GainControlMode,
-
-    /// Sets the target peak level (or envelope) of the AGC in dBFs (decibels from
-    /// digital full-scale). The convention is to use positive values.
-    /// For instance, passing in a value of 3 corresponds to -3 dBFs, or a target
-    /// level 3 dB below full-scale. Limited to [0, 31].
-    pub target_level_dbfs: i32,
-
-    /// Sets the maximum gain the digital compression stage may apply, in dB. A
-    /// higher number corresponds to greater compression, while a value of 0 will
-    /// leave the signal uncompressed. Limited to [0, 90].
-    pub compression_gain_db: i32,
-
-    /// When enabled, the compression stage will hard limit the signal to the
-    /// target level. Otherwise, the signal will be compressed but not limited
-    /// above the target level.
-    pub enable_limiter: bool,
+pub struct HighPassFilter {
+    /// HPF should be applied in the full-band (i.e. 20 – 20,000 Hz).
+    pub apply_in_full_band: bool,
 }
 
-impl From<GainControl> for ffi::GainControl {
-    fn from(other: GainControl) -> ffi::GainControl {
-        ffi::GainControl {
-            enable: true,
-            mode: other.mode.into(),
-            target_level_dbfs: other.target_level_dbfs,
-            compression_gain_db: other.compression_gain_db,
-            enable_limiter: other.enable_limiter,
+impl Default for HighPassFilter {
+    fn default() -> Self {
+        Self { apply_in_full_band: true }
+    }
+}
+
+impl From<HighPassFilter> for ffi::AudioProcessing_Config_HighPassFilter {
+    fn from(other: HighPassFilter) -> Self {
+        Self { enabled: true, apply_in_full_band: other.apply_in_full_band }
+    }
+}
+
+/// AEC (acoustic echo cancellation) configuration.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+pub enum EchoCanceller {
+    /// Uses low-complexity AEC implementation that is optimized for mobile.
+    Mobile,
+
+    /// Uses the full AEC3 implementation.
+    Full {
+        /// Enforce the highpass filter to be on. It has no effect for the mobile mode.
+        enforce_high_pass_filtering: bool,
+    },
+}
+
+impl Default for EchoCanceller {
+    fn default() -> Self {
+        Self::Full { enforce_high_pass_filtering: true }
+    }
+}
+
+impl From<EchoCanceller> for ffi::AudioProcessing_Config_EchoCanceller {
+    fn from(other: EchoCanceller) -> Self {
+        match other {
+            EchoCanceller::Mobile => Self {
+                enabled: true,
+                mobile_mode: true,
+                enforce_high_pass_filtering: false,
+                export_linear_aec_output: false,
+            },
+            EchoCanceller::Full { enforce_high_pass_filtering } => Self {
+                enabled: true,
+                mobile_mode: false,
+                enforce_high_pass_filtering,
+                export_linear_aec_output: false,
+            },
         }
     }
 }
 
-/// A level of noise suppression.
+/// Noise suppression level.
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
 pub enum NoiseSuppressionLevel {
@@ -158,13 +154,17 @@ pub enum NoiseSuppressionLevel {
     VeryHigh,
 }
 
-impl From<NoiseSuppressionLevel> for ffi::NoiseSuppression_SuppressionLevel {
-    fn from(other: NoiseSuppressionLevel) -> ffi::NoiseSuppression_SuppressionLevel {
+impl From<NoiseSuppressionLevel> for ffi::AudioProcessing_Config_NoiseSuppression_Level {
+    fn from(other: NoiseSuppressionLevel) -> Self {
         match other {
-            NoiseSuppressionLevel::Low => ffi::NoiseSuppression_SuppressionLevel::LOW,
-            NoiseSuppressionLevel::Moderate => ffi::NoiseSuppression_SuppressionLevel::MODERATE,
-            NoiseSuppressionLevel::High => ffi::NoiseSuppression_SuppressionLevel::HIGH,
-            NoiseSuppressionLevel::VeryHigh => ffi::NoiseSuppression_SuppressionLevel::VERY_HIGH,
+            NoiseSuppressionLevel::Low => ffi::AudioProcessing_Config_NoiseSuppression_Level_kLow,
+            NoiseSuppressionLevel::Moderate => {
+                ffi::AudioProcessing_Config_NoiseSuppression_Level_kModerate
+            },
+            NoiseSuppressionLevel::High => ffi::AudioProcessing_Config_NoiseSuppression_Level_kHigh,
+            NoiseSuppressionLevel::VeryHigh => {
+                ffi::AudioProcessing_Config_NoiseSuppression_Level_kVeryHigh
+            },
         }
     }
 }
@@ -173,186 +173,241 @@ impl From<NoiseSuppressionLevel> for ffi::NoiseSuppression_SuppressionLevel {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
 pub struct NoiseSuppression {
-    /// Determines the aggressiveness of the suppression. Increasing the level will
-    /// reduce the noise level at the expense of a higher speech distortion.
-    pub suppression_level: NoiseSuppressionLevel,
+    /// Determines the aggressiveness of the suppression. Increasing the level will reduce the
+    /// noise level at the expense of a higher speech distortion.
+    pub level: NoiseSuppressionLevel,
+    /// Analyze the output of the linear AEC instead of the capture frame. Has no effect if echo
+    /// cancellation is not enabled.
+    pub analyze_linear_aec_output: bool,
 }
 
-impl From<NoiseSuppression> for ffi::NoiseSuppression {
-    fn from(other: NoiseSuppression) -> ffi::NoiseSuppression {
-        ffi::NoiseSuppression { enable: true, suppression_level: other.suppression_level.into() }
+impl Default for NoiseSuppression {
+    fn default() -> Self {
+        Self { level: NoiseSuppressionLevel::Moderate, analyze_linear_aec_output: false }
     }
 }
 
-/// The sensitivity of the noise detector.
+impl From<NoiseSuppression> for ffi::AudioProcessing_Config_NoiseSuppression {
+    fn from(other: NoiseSuppression) -> Self {
+        Self {
+            enabled: true,
+            level: other.level.into(),
+            analyze_linear_aec_output_when_available: other.analyze_linear_aec_output,
+        }
+    }
+}
+
+/// Gain control mode.
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
-pub enum VoiceDetectionLikelihood {
-    /// Even lower detection likelihood.
-    VeryLow,
-    /// Lower detection likelihood.
-    Low,
-    /// Moderate detection likelihood.
-    Moderate,
-    /// Higher detection likelihood.
-    High,
+pub enum GainControllerMode {
+    /// Adaptive mode intended for use if an analog volume control is available on the capture
+    /// device. It will require the user to provide coupling between the OS mixer controls and AGC
+    /// through the stream_analog_level() functions. It consists of an analog gain prescription for
+    /// the audio device and a digital compression stage.
+    /// TODO: this mode is not supported yet.
+    AdaptiveAnalog,
+    /// Adaptive mode intended for situations in which an analog volume control is unavailable. It
+    /// operates in a similar fashion to the adaptive analog mode, but with scaling instead applied
+    /// in the digital domain. As with the analog mode, it additionally uses a digital compression
+    /// stage.
+    AdaptiveDigital,
+    /// Fixed mode which enables only the digital compression stage also used by the two adaptive
+    /// modes. It is distinguished from the adaptive modes by considering only a short time-window
+    /// of the input signal. It applies a fixed gain through most of the input level range, and
+    /// compresses (gradually reduces gain with increasing level) the input signal at higher
+    /// levels. This mode is preferred on embedded devices where the capture signal level is
+    /// predictable, so that a known gain can be applied.
+    FixedDigital,
 }
 
-impl From<VoiceDetectionLikelihood> for ffi::VoiceDetection_DetectionLikelihood {
-    fn from(other: VoiceDetectionLikelihood) -> ffi::VoiceDetection_DetectionLikelihood {
+impl From<GainControllerMode> for ffi::AudioProcessing_Config_GainController1_Mode {
+    fn from(other: GainControllerMode) -> Self {
         match other {
-            VoiceDetectionLikelihood::VeryLow => ffi::VoiceDetection_DetectionLikelihood::VERY_LOW,
-            VoiceDetectionLikelihood::Low => ffi::VoiceDetection_DetectionLikelihood::LOW,
-            VoiceDetectionLikelihood::Moderate => ffi::VoiceDetection_DetectionLikelihood::MODERATE,
-            VoiceDetectionLikelihood::High => ffi::VoiceDetection_DetectionLikelihood::HIGH,
+            GainControllerMode::AdaptiveAnalog => {
+                ffi::AudioProcessing_Config_GainController1_Mode_kAdaptiveAnalog
+            },
+            GainControllerMode::AdaptiveDigital => {
+                ffi::AudioProcessing_Config_GainController1_Mode_kAdaptiveDigital
+            },
+            GainControllerMode::FixedDigital => {
+                ffi::AudioProcessing_Config_GainController1_Mode_kFixedDigital
+            },
         }
     }
 }
 
-/// Voice detection configuration.
+/// AGC (automatic gain control) configuration.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
-pub struct VoiceDetection {
-    /// Specifies the likelihood that a frame will be declared to contain voice. A
-    /// higher value makes it more likely that speech will not be clipped, at the
-    /// expense of more noise being detected as voice.
-    pub detection_likelihood: VoiceDetectionLikelihood,
+pub struct GainController {
+    /// AGC mode.
+    pub mode: GainControllerMode,
+
+    /// Sets the target peak level (or envelope) of the AGC in dBFs (decibels from digital
+    /// full-scale). The convention is to use positive values. For instance, passing in a value of
+    /// 3 corresponds to -3 dBFs, or a target level 3 dB below full-scale. Limited to [0, 31].
+    pub target_level_dbfs: u8,
+
+    /// Sets the maximum gain the digital compression stage may apply, in dB. A higher number
+    /// corresponds to greater compression, while a value of 0 will leave the signal uncompressed.
+    /// Limited to [0, 90]. For updates after APM setup, use a RuntimeSetting instead.
+    pub compression_gain_db: u8,
+
+    /// When enabled, the compression stage will hard limit the signal to the target level.
+    /// Otherwise, the signal will be compressed but not limited above the target level.
+    pub enable_limiter: bool,
 }
 
-impl From<VoiceDetection> for ffi::VoiceDetection {
-    fn from(other: VoiceDetection) -> ffi::VoiceDetection {
-        ffi::VoiceDetection {
-            enable: true,
-            detection_likelihood: other.detection_likelihood.into(),
+impl Default for GainController {
+    fn default() -> Self {
+        Self {
+            mode: GainControllerMode::AdaptiveDigital,
+            target_level_dbfs: 3,
+            compression_gain_db: 9,
+            enable_limiter: true,
         }
     }
 }
 
-/// Config that can be used mid-processing.
+impl From<GainController> for ffi::AudioProcessing_Config_GainController1 {
+    fn from(other: GainController) -> Self {
+        Self {
+            enabled: true,
+            mode: other.mode.into(),
+            target_level_dbfs: other.target_level_dbfs as i32,
+            compression_gain_db: other.compression_gain_db as i32,
+            enable_limiter: other.enable_limiter,
+            ..Default::default()
+        }
+    }
+}
+
+/// The parameters to control reporting of selected field in [`Stats`].
+#[derive(Debug, Default, Clone, PartialEq)]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+pub struct ReportingConfig {
+    /// Enables reporting of [`voice_detected`] in [`Stats`].
+    pub enable_voice_detection: bool,
+
+    /// Enables reporting of [`residual_echo_likelihood`] and
+    /// [`residual_echo_likelihood_recent_max`] in [`Stats`].
+    pub enable_residual_echo_detector: bool,
+
+    /// Enables reporting of [`output_rms_dbfs`] in [`Stats`].
+    pub enable_level_estimation: bool,
+}
+
+/// The parameters and behavior of the audio processing module are controlled
+/// by changing the default values in this `Config` struct.
+/// The config is applied by passing the struct to the [`set_config`] method.
 #[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
 pub struct Config {
-    /// Enable and configure AEC (acoustic echo cancellation).
-    pub echo_cancellation: Option<EchoCancellation>,
+    /// Sets the properties of the audio processing pipeline.
+    #[serde(default)]
+    pub pipeline: Pipeline,
 
-    /// Enable and configure AGC (automatic gain control).
-    pub gain_control: Option<GainControl>,
+    /// Enables and configures the pre-amplifier. It amplifies the capture signal before any other
+    /// processing is done.
+    #[serde(default)]
+    pub pre_amplifier: Option<PreAmplifier>,
 
-    /// Enable and configure noise suppression.
+    /// Enables and configures high pass filter.
+    #[serde(default)]
+    pub high_pass_filter: Option<HighPassFilter>,
+
+    /// Enables and configures acoustic echo cancellation.
+    #[serde(default)]
+    pub echo_canceller: Option<EchoCanceller>,
+
+    /// Enables and configures background noise suppression.
+    #[serde(default)]
     pub noise_suppression: Option<NoiseSuppression>,
 
-    /// Enable and configure voice detection.
-    pub voice_detection: Option<VoiceDetection>,
+    /// Enables transient noise suppression.
+    #[serde(default)]
+    pub enable_transient_suppression: bool,
 
-    /// Use to enable experimental transient noise suppression.
-    #[cfg_attr(feature = "derive_serde", serde(default))]
-    pub enable_transient_suppressor: bool,
+    /// Enables and configures automatic gain control.
+    /// TODO: Experiment with and migrate to GainController2.
+    #[serde(default)]
+    pub gain_controller: Option<GainController>,
 
-    /// Use to enable a filtering component which removes DC offset and
-    /// low-frequency noise.
-    #[cfg_attr(feature = "derive_serde", serde(default))]
-    pub enable_high_pass_filter: bool,
+    /// Toggles reporting of selected fields in [`Stats`].
+    #[serde(default)]
+    pub reporting: ReportingConfig,
 }
 
-impl From<Config> for ffi::Config {
-    fn from(other: Config) -> ffi::Config {
-        let echo_cancellation = if let Some(enabled_value) = other.echo_cancellation {
-            enabled_value.into()
+impl From<Config> for ffi::AudioProcessing_Config {
+    fn from(other: Config) -> Self {
+        let pre_amplifier = if let Some(config) = other.pre_amplifier {
+            config.into()
         } else {
-            ffi::EchoCancellation { enable: false, ..ffi::EchoCancellation::default() }
+            ffi::AudioProcessing_Config_PreAmplifier { enabled: false, ..Default::default() }
         };
 
-        let gain_control = if let Some(enabled_value) = other.gain_control {
-            enabled_value.into()
+        let high_pass_filter = if let Some(config) = other.high_pass_filter {
+            config.into()
         } else {
-            ffi::GainControl { enable: false, ..ffi::GainControl::default() }
+            ffi::AudioProcessing_Config_HighPassFilter { enabled: false, ..Default::default() }
         };
 
-        let noise_suppression = if let Some(enabled_value) = other.noise_suppression {
-            enabled_value.into()
+        let echo_canceller = if let Some(config) = other.echo_canceller {
+            let mut echo_canceller = ffi::AudioProcessing_Config_EchoCanceller::from(config);
+            echo_canceller.export_linear_aec_output = if let Some(ns) = &other.noise_suppression {
+                ns.analyze_linear_aec_output
+            } else {
+                false
+            };
+            echo_canceller
         } else {
-            ffi::NoiseSuppression { enable: false, ..ffi::NoiseSuppression::default() }
+            ffi::AudioProcessing_Config_EchoCanceller { enabled: false, ..Default::default() }
         };
 
-        let voice_detection = if let Some(enabled_value) = other.voice_detection {
-            enabled_value.into()
+        let noise_suppression = if let Some(config) = other.noise_suppression {
+            config.into()
         } else {
-            ffi::VoiceDetection { enable: false, ..ffi::VoiceDetection::default() }
+            ffi::AudioProcessing_Config_NoiseSuppression { enabled: false, ..Default::default() }
         };
 
-        ffi::Config {
-            echo_cancellation,
-            gain_control,
+        let transient_suppression = ffi::AudioProcessing_Config_TransientSuppression {
+            enabled: other.enable_transient_suppression,
+        };
+
+        let voice_detection = ffi::AudioProcessing_Config_VoiceDetection {
+            enabled: other.reporting.enable_voice_detection,
+        };
+
+        let gain_controller1 = if let Some(config) = other.gain_controller {
+            config.into()
+        } else {
+            ffi::AudioProcessing_Config_GainController1 { enabled: false, ..Default::default() }
+        };
+
+        let gain_controller2 =
+            ffi::AudioProcessing_Config_GainController2 { enabled: false, ..Default::default() };
+
+        let residual_echo_detector = ffi::AudioProcessing_Config_ResidualEchoDetector {
+            enabled: other.reporting.enable_residual_echo_detector,
+        };
+
+        let level_estimation = ffi::AudioProcessing_Config_LevelEstimation {
+            enabled: other.reporting.enable_level_estimation,
+        };
+
+        Self {
+            pipeline: other.pipeline.into(),
+            pre_amplifier,
+            high_pass_filter,
+            echo_canceller,
             noise_suppression,
+            transient_suppression,
             voice_detection,
-            enable_transient_suppressor: other.enable_transient_suppressor,
-            enable_high_pass_filter: other.enable_high_pass_filter,
-        }
-    }
-}
-
-/// Statistics about the processor state.
-#[derive(Debug, Clone)]
-#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
-pub struct Stats {
-    /// True if voice is detected in the current frame.
-    pub has_voice: Option<bool>,
-
-    /// False if the current frame almost certainly contains no echo and true if it
-    /// _might_ contain echo.
-    pub has_echo: Option<bool>,
-
-    /// Root mean square (RMS) level in dBFs (decibels from digital full-scale), or
-    /// alternately dBov. It is computed over all primary stream frames since the
-    /// last call to |get_stats()|. The returned value is constrained to [-127, 0],
-    /// where -127 indicates muted.
-    pub rms_dbfs: Option<i32>,
-
-    /// Prior speech probability of the current frame averaged over output
-    /// channels, internally computed by noise suppressor.
-    pub speech_probability: Option<f64>,
-
-    /// RERL = ERL + ERLE
-    pub residual_echo_return_loss: Option<f64>,
-
-    /// ERL = 10log_10(P_far / P_echo)
-    pub echo_return_loss: Option<f64>,
-
-    /// ERLE = 10log_10(P_echo / P_out)
-    pub echo_return_loss_enhancement: Option<f64>,
-
-    /// (Pre non-linear processing suppression) A_NLP = 10log_10(P_echo / P_a)
-    pub a_nlp: Option<f64>,
-
-    /// Median of the measured delay in ms. The values are aggregated until the
-    /// first call to |get_stats()| and afterwards aggregated and updated every
-    /// second.
-    pub delay_median_ms: Option<i32>,
-
-    /// Standard deviation of the measured delay in ms. The values are aggregated
-    /// until the first call to |get_stats()| and afterwards aggregated and updated
-    /// every second.
-    pub delay_standard_deviation_ms: Option<i32>,
-
-    /// The fraction of delay estimates that can make the echo cancellation perform
-    /// poorly.
-    pub delay_fraction_poor_delays: Option<f64>,
-}
-
-impl From<ffi::Stats> for Stats {
-    fn from(other: ffi::Stats) -> Stats {
-        Stats {
-            has_voice: other.has_voice.into(),
-            has_echo: other.has_echo.into(),
-            rms_dbfs: other.rms_dbfs.into(),
-            speech_probability: other.speech_probability.into(),
-            residual_echo_return_loss: other.residual_echo_return_loss.into(),
-            echo_return_loss: other.echo_return_loss.into(),
-            echo_return_loss_enhancement: other.echo_return_loss_enhancement.into(),
-            a_nlp: other.a_nlp.into(),
-            delay_median_ms: other.delay_median_ms.into(),
-            delay_standard_deviation_ms: other.delay_standard_deviation_ms.into(),
-            delay_fraction_poor_delays: other.delay_fraction_poor_delays.into(),
+            gain_controller1,
+            gain_controller2,
+            residual_echo_detector,
+            level_estimation,
         }
     }
 }
