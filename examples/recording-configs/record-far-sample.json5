@@ -6,10 +6,6 @@
     },
     render: {
         device_name: "^MacBook Pro Speakers$",
-        num_channels: 1,
-    },
-    config: {
-        enable_transient_suppressor: false,
-        enable_high_pass_filter: false,
-    },
+        num_channels: 2,
+    }
 }
