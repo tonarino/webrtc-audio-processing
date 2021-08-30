@@ -11,7 +11,7 @@ tag-prefix = ""
 
 [package]
 name = "webrtc-audio-processing"
-version = "0.5.0"
+version = "0.6.0"
 authors = ["Ryo Kawaguchi <ryo@kawagu.ch>"]
 repository = "https://github.com/tonarino/webrtc-audio-processing"
 edition = "2018"
@@ -31,19 +31,23 @@ bundled = ["webrtc-audio-processing-sys/bundled"]
 
 [dependencies]
 serde = { version = "1", features = ["derive"], optional = true }
-webrtc-audio-processing-sys = { path = "webrtc-audio-processing-sys", version = "0.5.0" }
+webrtc-audio-processing-sys = { path = "webrtc-audio-processing-sys", version = "0.6.0" }
 
 [[example]]
 name = "recording"
+required-features = ["derive_serde"]
+
+[[example]]
+name = "karaoke"
 required-features = ["derive_serde"]
 
 [dev-dependencies]
 anyhow = "1"
 crossbeam-channel = "0.5"
 ctrlc = { version = "3", features = ["termination"] }
-hound = "3.4"
-json5 = "0.3"
-portaudio = "0.7"
+hound = "3"
+json5 = "0.4"
+portaudio = "0.8"
 regex = "1"
 serde = { version = "1", features = ["derive"] }
 structopt = "0.3"
