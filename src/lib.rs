@@ -6,11 +6,13 @@
 #![warn(missing_docs)]
 
 mod config;
+mod stats;
 
 use std::{error, fmt, sync::Arc};
 use webrtc_audio_processing_sys as ffi;
 
 pub use config::*;
+pub use stats::*;
 
 /// Represents an error inside webrtc::AudioProcessing.
 /// See the documentation of [`webrtc::AudioProcessing::Error`](https://cgit.freedesktop.org/pulseaudio/webrtc-audio-processing/tree/webrtc/modules/audio_processing/include/audio_processing.h?id=9def8cf10d3c97640d32f1328535e881288f700f)
