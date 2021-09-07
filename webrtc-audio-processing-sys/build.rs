@@ -10,8 +10,8 @@ mod webrtc {
     use super::*;
     use failure::bail;
 
-    const LIB_NAME: &str = "webrtc-audio-processing";
-    const LIB_MIN_VERSION: &str = "1.0.0";
+    const LIB_NAME: &str = "webrtc-audio-processing-1";
+    const LIB_MIN_VERSION: &str = "1.0";
 
     pub(super) fn get_build_paths() -> Result<(Vec<PathBuf>, Vec<PathBuf>), Error> {
         let (pkgconfig_include_path, pkgconfig_lib_path) = find_pkgconfig_paths()?;

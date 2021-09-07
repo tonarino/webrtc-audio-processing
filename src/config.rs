@@ -15,41 +15,48 @@ pub struct InitializationConfig {
     pub sample_rate_hz: u32,
 }
 
+/// Internal processing rate.
+#[derive(Debug, Copy, Clone, PartialEq)]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+pub enum PipelineProcessingRate {
+    /// Limit the rate to 32k Hz.
+    Max32000Hz = 32_000,
+    /// Limit the rate to 48k Hz.
+    Max48000Hz = 48_000,
+}
+
+impl Default for PipelineProcessingRate {
+    fn default() -> Self {
+        // cf. https://gitlab.freedesktop.org/pulseaudio/webrtc-audio-processing/-/blob/master/webrtc/modules/audio_processing/include/audio_processing.cc#L55
+        if cfg!(target_arch = "arm") {
+            Self::Max32000Hz
+        } else {
+            Self::Max48000Hz
+        }
+    }
+}
+
 /// Audio processing pipeline configuration.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
 pub struct Pipeline {
-    /// Maximum allowed processing rate used internally. May only be set to 32000 or 48000 and any
-    /// differing values will be treated as 48000. The default rate is currently selected based on
-    /// the CPU architecture.
-    pub maximum_internal_processing_rate: u32,
-
-    /// Allow multi-channel processing of render audio.
-    pub multi_channel_render: bool,
+    /// Maximum allowed processing rate used internally. The default rate is currently selected
+    /// based on the CPU architecture.
+    pub maximum_internal_processing_rate: PipelineProcessingRate,
 
     /// Allow multi-channel processing of capture audio when AEC3 is active.
     pub multi_channel_capture: bool,
-}
 
-impl Default for Pipeline {
-    fn default() -> Self {
-        // cf. https://gitlab.freedesktop.org/pulseaudio/webrtc-audio-processing/-/blob/master/webrtc/modules/audio_processing/include/audio_processing.cc#L55
-        let maximum_internal_processing_rate =
-            if cfg!(target_arch = "arm") { 32_000 } else { 48_000 };
-        Self {
-            maximum_internal_processing_rate,
-            multi_channel_render: false,
-            multi_channel_capture: false,
-        }
-    }
+    /// Allow multi-channel processing of render audio.
+    pub multi_channel_render: bool,
 }
 
 impl From<Pipeline> for ffi::AudioProcessing_Config_Pipeline {
     fn from(other: Pipeline) -> Self {
         Self {
             maximum_internal_processing_rate: other.maximum_internal_processing_rate as i32,
-            multi_channel_render: other.multi_channel_render,
             multi_channel_capture: other.multi_channel_capture,
+            multi_channel_render: other.multi_channel_render,
         }
     }
 }
@@ -58,7 +65,7 @@ impl From<Pipeline> for ffi::AudioProcessing_Config_Pipeline {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
 pub struct PreAmplifier {
-    /// Fixed linear gain multiplifier. The default has no effect.
+    /// Fixed linear gain multiplifier. The default is 1.0 (no effect).
     pub fixed_gain_factor: f32,
 }
 
@@ -97,32 +104,38 @@ impl From<HighPassFilter> for ffi::AudioProcessing_Config_HighPassFilter {
 /// AEC (acoustic echo cancellation) configuration.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
-pub struct EchoCanceller {
-    /// Uses AEC implementation that is optimized for mobile.
-    pub mobile_mode: bool,
-    /// Export the output of linear AEC for custom processing.
-    pub export_linear_aec_output: bool,
-    /// Enforce the highpass filter to be on. It has no effect for the mobile mode.
-    pub enforce_high_pass_filtering: bool,
+pub enum EchoCanceller {
+    /// Uses low-complexity AEC implementation that is optimized for mobile.
+    Mobile,
+
+    /// Uses the full AEC3 implementation.
+    Full {
+        /// Enforce the highpass filter to be on. It has no effect for the mobile mode.
+        enforce_high_pass_filtering: bool,
+    },
 }
 
 impl Default for EchoCanceller {
     fn default() -> Self {
-        Self {
-            mobile_mode: false,
-            export_linear_aec_output: false,
-            enforce_high_pass_filtering: true,
-        }
+        Self::Full { enforce_high_pass_filtering: true }
     }
 }
 
 impl From<EchoCanceller> for ffi::AudioProcessing_Config_EchoCanceller {
     fn from(other: EchoCanceller) -> Self {
-        Self {
-            enabled: true,
-            mobile_mode: other.mobile_mode,
-            export_linear_aec_output: other.export_linear_aec_output,
-            enforce_high_pass_filtering: other.enforce_high_pass_filtering,
+        match other {
+            EchoCanceller::Mobile => Self {
+                enabled: true,
+                mobile_mode: true,
+                enforce_high_pass_filtering: false,
+                export_linear_aec_output: false,
+            },
+            EchoCanceller::Full { enforce_high_pass_filtering } => Self {
+                enabled: true,
+                mobile_mode: false,
+                enforce_high_pass_filtering,
+                export_linear_aec_output: false,
+            },
         }
     }
 }
@@ -163,17 +176,14 @@ pub struct NoiseSuppression {
     /// Determines the aggressiveness of the suppression. Increasing the level will reduce the
     /// noise level at the expense of a higher speech distortion.
     pub level: NoiseSuppressionLevel,
-    /// Analyze the output of the linear AEC instead of the capture frame. Has no effect if
-    /// echo_canceller.export_linear_aec_output is false.
-    pub analyze_linear_aec_output_when_available: bool,
+    /// Analyze the output of the linear AEC instead of the capture frame. Has no effect if echo
+    /// cancellation is not enabled.
+    pub analyze_linear_aec_output: bool,
 }
 
 impl Default for NoiseSuppression {
     fn default() -> Self {
-        Self {
-            level: NoiseSuppressionLevel::Moderate,
-            analyze_linear_aec_output_when_available: false,
-        }
+        Self { level: NoiseSuppressionLevel::Moderate, analyze_linear_aec_output: false }
     }
 }
 
@@ -182,8 +192,7 @@ impl From<NoiseSuppression> for ffi::AudioProcessing_Config_NoiseSuppression {
         Self {
             enabled: true,
             level: other.level.into(),
-            analyze_linear_aec_output_when_available: other
-                .analyze_linear_aec_output_when_available,
+            analyze_linear_aec_output_when_available: other.analyze_linear_aec_output,
         }
     }
 }
@@ -238,12 +247,12 @@ pub struct GainController {
     /// Sets the target peak level (or envelope) of the AGC in dBFs (decibels from digital
     /// full-scale). The convention is to use positive values. For instance, passing in a value of
     /// 3 corresponds to -3 dBFs, or a target level 3 dB below full-scale. Limited to [0, 31].
-    pub target_level_dbfs: u32,
+    pub target_level_dbfs: u8,
 
     /// Sets the maximum gain the digital compression stage may apply, in dB. A higher number
     /// corresponds to greater compression, while a value of 0 will leave the signal uncompressed.
     /// Limited to [0, 90]. For updates after APM setup, use a RuntimeSetting instead.
-    pub compression_gain_db: u32,
+    pub compression_gain_db: u8,
 
     /// When enabled, the compression stage will hard limit the signal to the target level.
     /// Otherwise, the signal will be compressed but not limited above the target level.
@@ -274,6 +283,21 @@ impl From<GainController> for ffi::AudioProcessing_Config_GainController1 {
     }
 }
 
+/// The parameters to control reporting of selected field in [`Stats`].
+#[derive(Debug, Default, Clone, PartialEq)]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+pub struct ReportingConfig {
+    /// Enables reporting of [`voice_detected`] in [`Stats`].
+    pub enable_voice_detection: bool,
+
+    /// Enables reporting of [`residual_echo_likelihood`] and
+    /// [`residual_echo_likelihood_recent_max`] in [`Stats`].
+    pub enable_residual_echo_detector: bool,
+
+    /// Enables reporting of [`output_rms_dbfs`] in [`Stats`].
+    pub enable_level_estimation: bool,
+}
+
 /// The parameters and behavior of the audio processing module are controlled
 /// by changing the default values in this `Config` struct.
 /// The config is applied by passing the struct to the [`set_config`] method.
@@ -299,19 +323,12 @@ pub struct Config {
     /// Enables transient noise suppression.
     pub enable_transient_suppression: bool,
 
-    /// Enables reporting of [`voice_detected`] in [`Stats`].
-    pub enable_voice_detection: bool,
-
     /// Enables and configures automatic gain control.
     /// TODO: Experiment with and migrate to GainController2.
     pub gain_controller: Option<GainController>,
 
-    /// Enables reporting of [`residual_echo_likelihood`] and
-    /// [`residual_echo_likelihood_recent_max`] in [`Stats`].
-    pub enable_residual_echo_detector: bool,
-
-    /// Enables reporting of [`output_rms_dbfs`] in [`Stats`].
-    pub enable_level_estimation: bool,
+    /// Toggles reporting of selected fields in [`Stats`].
+    pub reporting: ReportingConfig,
 }
 
 impl From<Config> for ffi::AudioProcessing_Config {
@@ -329,7 +346,13 @@ impl From<Config> for ffi::AudioProcessing_Config {
         };
 
         let echo_canceller = if let Some(config) = other.echo_canceller {
-            config.into()
+            let mut echo_canceller = ffi::AudioProcessing_Config_EchoCanceller::from(config);
+            echo_canceller.export_linear_aec_output = if let Some(ns) = &other.noise_suppression {
+                ns.analyze_linear_aec_output
+            } else {
+                false
+            };
+            echo_canceller
         } else {
             ffi::AudioProcessing_Config_EchoCanceller { enabled: false, ..Default::default() }
         };
@@ -344,8 +367,9 @@ impl From<Config> for ffi::AudioProcessing_Config {
             enabled: other.enable_transient_suppression,
         };
 
-        let voice_detection =
-            ffi::AudioProcessing_Config_VoiceDetection { enabled: other.enable_voice_detection };
+        let voice_detection = ffi::AudioProcessing_Config_VoiceDetection {
+            enabled: other.reporting.enable_voice_detection,
+        };
 
         let gain_controller1 = if let Some(config) = other.gain_controller {
             config.into()
@@ -357,11 +381,12 @@ impl From<Config> for ffi::AudioProcessing_Config {
             ffi::AudioProcessing_Config_GainController2 { enabled: false, ..Default::default() };
 
         let residual_echo_detector = ffi::AudioProcessing_Config_ResidualEchoDetector {
-            enabled: other.enable_residual_echo_detector,
+            enabled: other.reporting.enable_residual_echo_detector,
         };
 
-        let level_estimation =
-            ffi::AudioProcessing_Config_LevelEstimation { enabled: other.enable_level_estimation };
+        let level_estimation = ffi::AudioProcessing_Config_LevelEstimation {
+            enabled: other.reporting.enable_level_estimation,
+        };
 
         Self {
             pipeline: other.pipeline.into(),
@@ -375,63 +400,6 @@ impl From<Config> for ffi::AudioProcessing_Config {
             gain_controller2,
             residual_echo_detector,
             level_estimation,
-        }
-    }
-}
-
-/// Statistics about the processor state.
-#[derive(Debug, Clone)]
-#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
-pub struct Stats {
-    /// The root mean square (RMS) level in dBFS (decibels from digital full-scale) of the last
-    /// capture frame, after processing. It is constrained to [-127, 0]. The computation follows:
-    /// https://tools.ietf.org/html/rfc6465 with the intent that it can provide the RTP audio level
-    /// indication. Only reported if level estimation is enabled in [`Config`].
-    pub output_rms_dbfs: Option<i32>,
-
-    /// True if voice is detected in the last capture frame, after processing. It is conservative
-    /// in flagging audio as speech, with low likelihood of incorrectly flagging a frame as voice.
-    /// Only reported if voice detection is enabled in [`Config`].
-    pub voice_detected: Option<bool>,
-
-    /// AEC stats: ERL = 10log_10(P_far / P_echo)
-    pub echo_return_loss: Option<f64>,
-    /// AEC stats: ERLE = 10log_10(P_echo / P_out)
-    pub echo_return_loss_enhancement: Option<f64>,
-    /// AEC stats: Fraction of time that the AEC linear filter is divergent, in a 1-second
-    /// non-overlapped aggregation window.
-    pub divergent_filter_fraction: Option<f64>,
-
-    /// The delay median in milliseconds. The values are aggregated until the first call to
-    /// [`get_stats()`] and afterwards aggregated and updated every second.
-    pub delay_median_ms: Option<i32>,
-    /// The delay standard deviation in milliseconds. The values are aggregated until the first
-    /// call to [`get_stats()`] and afterwards aggregated and updated every second.
-    pub delay_standard_deviation_ms: Option<i32>,
-
-    /// Residual echo detector likelihood.
-    pub residual_echo_likelihood: Option<f64>,
-    /// Maximum residual echo likelihood from the last time period.
-    pub residual_echo_likelihood_recent_max: Option<f64>,
-
-    /// The instantaneous delay estimate produced in the AEC. The unit is in milliseconds and the
-    /// value is the instantaneous value at the time of the call to [`get_stats()`].
-    pub delay_ms: Option<i32>,
-}
-
-impl From<ffi::Stats> for Stats {
-    fn from(other: ffi::Stats) -> Self {
-        Self {
-            output_rms_dbfs: other.output_rms_dbfs.into(),
-            voice_detected: other.voice_detected.into(),
-            echo_return_loss: other.echo_return_loss.into(),
-            echo_return_loss_enhancement: other.echo_return_loss_enhancement.into(),
-            divergent_filter_fraction: other.divergent_filter_fraction.into(),
-            delay_median_ms: other.delay_median_ms.into(),
-            delay_standard_deviation_ms: other.delay_standard_deviation_ms.into(),
-            residual_echo_likelihood: other.residual_echo_likelihood.into(),
-            residual_echo_likelihood_recent_max: other.residual_echo_likelihood_recent_max.into(),
-            delay_ms: other.delay_ms.into(),
         }
     }
 }

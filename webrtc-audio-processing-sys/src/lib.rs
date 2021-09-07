@@ -8,30 +8,30 @@ include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
 pub use root::{webrtc::*, webrtc_audio_processing_wrapper::*};
 
-impl Into<Option<bool>> for OptionalBool {
-    fn into(self) -> Option<bool> {
-        if self.has_value {
-            Some(self.value)
+impl From<OptionalBool> for Option<bool> {
+    fn from(other: OptionalBool) -> Option<bool> {
+        if other.has_value {
+            Some(other.value)
         } else {
             None
         }
     }
 }
 
-impl Into<Option<i32>> for OptionalInt {
-    fn into(self) -> Option<i32> {
-        if self.has_value {
-            Some(self.value)
+impl From<OptionalInt> for Option<i32> {
+    fn from(other: OptionalInt) -> Option<i32> {
+        if other.has_value {
+            Some(other.value)
         } else {
             None
         }
     }
 }
 
-impl Into<Option<f64>> for OptionalDouble {
-    fn into(self) -> Option<f64> {
-        if self.has_value {
-            Some(self.value)
+impl From<OptionalDouble> for Option<f64> {
+    fn from(other: OptionalDouble) -> Option<f64> {
+        if other.has_value {
+            Some(other.value)
         } else {
             None
         }
