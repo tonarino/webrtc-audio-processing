@@ -2,8 +2,6 @@
 // including any complex header files to keep Rust interoperability simple.
 // The provided functions are thread-safe.
 //
-// TODO: Try binding AudioProcessing class directly. This will probably work now as it's an
-// interface class without non-POD class members.
 // TODO: Add support for AEC dump. webrtc-audio-processing library does not include TaskQueue
 // implementation, which is needed.
 
