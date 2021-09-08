@@ -35,8 +35,8 @@ fn create_processor(
         echo_cancellation: Some(EchoCancellation {
             suppression_level: EchoCancellationSuppressionLevel::Low,
             stream_delay_ms: Some(0),
-            enable_delay_agnostic: false,
-            enable_extended_filter: false,
+            enable_delay_agnostic: true,
+            enable_extended_filter: true,
         }),
         enable_high_pass_filter: true,
         ..Config::default()
@@ -64,10 +64,10 @@ fn wait_ctrlc() -> Result<(), Error> {
 }
 
 fn main() -> Result<(), Error> {
-    // Stereo microphones.
-    let input_channels = 2;
-    // Stereo speakers.
-    let output_channels = 2;
+    // Monoral microphone.
+    let input_channels = 1;
+    // Monoral speaker.
+    let output_channels = 1;
 
     let mut processor = create_processor(input_channels, output_channels)?;
 
