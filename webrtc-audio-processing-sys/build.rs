@@ -55,6 +55,7 @@ mod webrtc {
 #[cfg(feature = "bundled")]
 mod webrtc {
     use super::*;
+    use failure::bail;
 
     const BUNDLED_SOURCE_PATH: &str = "./webrtc-audio-processing";
 
@@ -120,7 +121,12 @@ mod webrtc {
         }
 
         let _output = command.output().map_err(|e| {
-            failure::format_err!("Error running command '{}' with args '{:?}' - {:?}", cmd, args_opt, e)
+            failure::format_err!(
+                "Error running command '{}' with args '{:?}' - {:?}",
+                cmd,
+                args_opt,
+                e
+            )
         })?;
 
         Ok(())
