@@ -1,6 +1,6 @@
 [package]
 name = "webrtc-audio-processing"
-version = "0.3.3"
+version = "0.4.0"
 authors = ["Ryo Kawaguchi <ryo@kawagu.ch>"]
 repository = "https://github.com/tonarino/webrtc-audio-processing"
 edition = "2018"
