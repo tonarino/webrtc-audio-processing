@@ -84,6 +84,7 @@ mod webrtc {
             .out_dir(abseil_build_dir)
             .define("CMAKE_INSTALL_PREFIX", install_dir.to_str().unwrap())
             .uses_cxx11()
+            .cxxflag("-std=c++11")
             .build();
 
         let webrtc_build_dir = build_dir.join(BUNDLED_SOURCE_PATH);
@@ -125,7 +126,6 @@ fn main() -> Result<(), Error> {
         println!("cargo:rustc-link-lib=static=absl_flags_marshalling");
         println!("cargo:rustc-link-lib=static=absl_flags_parse");
         println!("cargo:rustc-link-lib=static=absl_flags_program_name");
-        println!("cargo:rustc-link-lib=static=absl_flags_registry");
         println!("cargo:rustc-link-lib=static=absl_flags_usage");
         println!("cargo:rustc-link-lib=static=absl_flags_usage_internal");
         println!("cargo:rustc-link-lib=static=absl_int128");
