@@ -305,29 +305,37 @@ pub struct ReportingConfig {
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
 pub struct Config {
     /// Sets the properties of the audio processing pipeline.
+    #[serde(default)]
     pub pipeline: Pipeline,
 
     /// Enables and configures the pre-amplifier. It amplifies the capture signal before any other
     /// processing is done.
+    #[serde(default)]
     pub pre_amplifier: Option<PreAmplifier>,
 
     /// Enables and configures high pass filter.
+    #[serde(default)]
     pub high_pass_filter: Option<HighPassFilter>,
 
     /// Enables and configures acoustic echo cancellation.
+    #[serde(default)]
     pub echo_canceller: Option<EchoCanceller>,
 
     /// Enables and configures background noise suppression.
+    #[serde(default)]
     pub noise_suppression: Option<NoiseSuppression>,
 
     /// Enables transient noise suppression.
+    #[serde(default)]
     pub enable_transient_suppression: bool,
 
     /// Enables and configures automatic gain control.
     /// TODO: Experiment with and migrate to GainController2.
+    #[serde(default)]
     pub gain_controller: Option<GainController>,
 
     /// Toggles reporting of selected fields in [`Stats`].
+    #[serde(default)]
     pub reporting: ReportingConfig,
 }
 

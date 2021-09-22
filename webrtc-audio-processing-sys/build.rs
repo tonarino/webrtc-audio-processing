@@ -117,6 +117,7 @@ fn main() -> Result<(), Error> {
 
     if cfg!(feature = "bundled") {
         // From meson.build file, plus absl_graphcycles_internal.
+        // TODO: Can we use the cmake trick? https://gitlab.freedesktop.org/pulseaudio/webrtc-audio-processing/-/commit/3f9907f93d3983033e176e95f5134a57900a7f6e
         println!("cargo:rustc-link-lib=static=absl_bad_optional_access");
         println!("cargo:rustc-link-lib=static=absl_base");
         println!("cargo:rustc-link-lib=static=absl_flags_config");
