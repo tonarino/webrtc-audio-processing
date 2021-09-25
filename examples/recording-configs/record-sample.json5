@@ -1,0 +1,16 @@
+{
+    capture: {
+        device_name: "^MacBook Pro Microphone$",
+        num_channels: 1,
+        preprocess_sink_path: "capture.wav",
+    },
+    render: {
+        device_name: "^MacBook Pro Speakers$",
+        num_channels: 1,
+        source_path: "render.wav",
+    },
+    config: {
+        enable_transient_suppressor: false,
+        enable_high_pass_filter: false,
+    },
+}
