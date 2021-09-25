@@ -12,10 +12,7 @@
         mute: true,
     },
     config: {
-        echo_canceller: {
-            Full: {
-                enforce_high_pass_filtering: true,
-            },
-        },
+        enable_transient_suppressor: false,
+        enable_high_pass_filter: true,
     },
 }

@@ -9,5 +9,7 @@
         num_channels: 1,
     },
     config: {
+        enable_transient_suppressor: false,
+        enable_high_pass_filter: false,
     },
 }
