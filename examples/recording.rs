@@ -101,6 +101,7 @@ fn match_device(
 
 fn create_stream_settings(
     pa: &portaudio::PortAudio,
+    processor: &Processor,
     opt: &Options,
 ) -> Result<portaudio::DuplexStreamSettings<f32, f32>, Error> {
     let input_device = match_device(pa, Regex::new(&opt.capture.device_name)?)?;
@@ -127,7 +128,7 @@ fn create_stream_settings(
         input_params,
         output_params,
         f64::from(AUDIO_SAMPLE_RATE),
-        NUM_SAMPLES_PER_FRAME as u32,
+        processor.num_samples_per_frame() as u32,
     ))
 }
 
@@ -181,9 +182,9 @@ fn main() -> Result<(), Error> {
     let pa = portaudio::PortAudio::new()?;
 
     let mut processor = Processor::new(&InitializationConfig {
-        num_capture_channels: opt.capture.num_channels as i32,
-        num_render_channels: opt.render.num_channels as i32,
-        ..Default::default()
+        num_capture_channels: opt.capture.num_channels as usize,
+        num_render_channels: opt.render.num_channels as usize,
+        sample_rate_hz: AUDIO_SAMPLE_RATE,
     })?;
 
     processor.set_config(opt.config.clone());
@@ -208,13 +209,13 @@ fn main() -> Result<(), Error> {
     let audio_callback = {
         // Allocate buffers outside the performance-sensitive audio loop.
         let mut input_mut =
-            vec![0f32; NUM_SAMPLES_PER_FRAME as usize * opt.capture.num_channels as usize];
+            vec![0f32; processor.num_samples_per_frame() * opt.capture.num_channels as usize];
 
         let running = running.clone();
         let mute = opt.render.mute;
         let mut processor = processor.clone();
         move |portaudio::DuplexStreamCallbackArgs { in_buffer, out_buffer, frames, .. }| {
-            assert_eq!(frames, NUM_SAMPLES_PER_FRAME as usize);
+            assert_eq!(frames, processor.num_samples_per_frame());
 
             let mut should_continue = true;
 
@@ -263,7 +264,7 @@ fn main() -> Result<(), Error> {
         }
     };
 
-    let stream_settings = create_stream_settings(&pa, &opt)?;
+    let stream_settings = create_stream_settings(&pa, &processor, &opt)?;
     let mut stream = pa.open_non_blocking_stream(stream_settings, audio_callback)?;
     stream.start()?;
 
