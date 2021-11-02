@@ -114,6 +114,12 @@ impl Processor {
         self.inner.set_config(config);
     }
 
+    /// Signals the AEC and AGC that the audio output will be / is muted.
+    /// They may use the hint to improve their parameter adaptation.
+    pub fn set_output_will_be_muted(&self, muted: bool) {
+        self.inner.set_output_will_be_muted(muted);
+    }
+
     /// De-interleaves multi-channel frame `src` into `dst`.
     ///
     /// ```text
@@ -204,6 +210,12 @@ impl AudioProcessing {
     fn set_config(&self, config: Config) {
         unsafe {
             ffi::set_config(self.inner, &config.into());
+        }
+    }
+
+    fn set_output_will_be_muted(&self, muted: bool) {
+        unsafe {
+            ffi::set_output_will_be_muted(self.inner, muted);
         }
     }
 }

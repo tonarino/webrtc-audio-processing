@@ -5,21 +5,36 @@ pub use ffi::InitializationConfig;
 #[cfg(feature = "derive_serde")]
 use serde::{Deserialize, Serialize};
 
-/// A level of echo suppression.
+/// A level of non-linear suppression during AEC (aka NLP).
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
 pub enum EchoCancellationSuppressionLevel {
+    /// Lowest suppression level.
+    /// Minimum overdrive exponent = 1.0 (zero suppression).
+    Lowest,
     /// Lower suppression level.
+    /// Minimum overdrive exponent = 1.5.
+    Lower,
+    /// Low suppression level.
+    /// Minimum overdrive exponent = 3.0.
     Low,
     /// Moderate suppression level.
+    /// Minimum overdrive exponent = 6.0.
     Moderate,
     /// Higher suppression level.
+    /// Minimum overdrive exponent = 15.0.
     High,
 }
 
 impl From<EchoCancellationSuppressionLevel> for ffi::EchoCancellation_SuppressionLevel {
     fn from(other: EchoCancellationSuppressionLevel) -> ffi::EchoCancellation_SuppressionLevel {
         match other {
+            EchoCancellationSuppressionLevel::Lowest => {
+                ffi::EchoCancellation_SuppressionLevel::LOWEST
+            },
+            EchoCancellationSuppressionLevel::Lower => {
+                ffi::EchoCancellation_SuppressionLevel::LOWER
+            },
             EchoCancellationSuppressionLevel::Low => ffi::EchoCancellation_SuppressionLevel::LOW,
             EchoCancellationSuppressionLevel::Moderate => {
                 ffi::EchoCancellation_SuppressionLevel::MODERATE
@@ -230,10 +245,12 @@ pub struct Config {
     pub voice_detection: Option<VoiceDetection>,
 
     /// Use to enable experimental transient noise suppression.
+    #[cfg_attr(feature = "derive_serde", serde(default))]
     pub enable_transient_suppressor: bool,
 
     /// Use to enable a filtering component which removes DC offset and
     /// low-frequency noise.
+    #[cfg_attr(feature = "derive_serde", serde(default))]
     pub enable_high_pass_filter: bool,
 }
 
