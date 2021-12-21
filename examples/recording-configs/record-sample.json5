@@ -9,5 +9,8 @@
         num_channels: 1,
         source_path: "render.wav",
     },
-    config: {},
+    config: {
+        enable_transient_suppressor: false,
+        enable_high_pass_filter: false,
+    },
 }
