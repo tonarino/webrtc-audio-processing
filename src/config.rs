@@ -13,7 +13,7 @@ pub enum EchoCancellationSuppressionLevel {
     /// Minimum overdrive exponent = 1.0 (zero suppression).
     Lowest,
     /// Lower suppression level.
-    /// Minimum overdrive exponent = 1.5.
+    /// Minimum overdrive exponent = 2.0.
     Lower,
     /// Low suppression level.
     /// Minimum overdrive exponent = 3.0.
