@@ -229,6 +229,10 @@ void set_config(AudioProcessing* ap, const Config& config) {
   p->level_estimator()->Enable(true);
 }
 
+void set_output_will_be_muted(AudioProcessing* ap, bool muted) {
+  ap->processor->set_output_will_be_muted(muted);
+}
+
 void audio_processing_delete(AudioProcessing* ap) {
   delete ap;
 }

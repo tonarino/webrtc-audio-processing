@@ -51,6 +51,8 @@ struct EchoCancellation {
 
   /// <div rustbindgen>A level of echo suppression.</div>
   enum SuppressionLevel {
+      LOWEST,
+      LOWER,
       LOW,
       MODERATE,
       HIGH,
@@ -288,6 +290,10 @@ Stats get_stats(AudioProcessing* ap);
 // Immediately updates the configurations of the signal processor.
 // May be called multiple times after the initialization and during processing.
 void set_config(AudioProcessing* ap, const Config& config);
+
+// Signals the AEC and AGC that the audio output will be / is muted.
+// They may use the hint to improve their parameter adaptation.
+void set_output_will_be_muted(AudioProcessing* ap, bool muted);
 
 // Every processor created by |audio_processing_create()| needs to destroyed by
 // this function.

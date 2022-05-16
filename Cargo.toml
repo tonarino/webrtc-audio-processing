@@ -1,6 +1,6 @@
 [package]
 name = "webrtc-audio-processing"
-version = "0.3.3"
+version = "0.4.0"
 authors = ["Ryo Kawaguchi <ryo@kawagu.ch>"]
 repository = "https://github.com/tonarino/webrtc-audio-processing"
 edition = "2018"
@@ -20,7 +20,7 @@ bundled = ["webrtc-audio-processing-sys/bundled"]
 
 [dependencies]
 serde = { version = "1", features = ["derive"], optional = true }
-webrtc-audio-processing-sys = { path = "webrtc-audio-processing-sys", version = "0.3.2" }
+webrtc-audio-processing-sys = { path = "webrtc-audio-processing-sys", version = "0.4.0" }
 
 [[example]]
 name = "recording"
