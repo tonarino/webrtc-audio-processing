@@ -43,6 +43,16 @@ Building from source and static linking can be enabled with the `bundled` featur
 * `libtoolize` (typically `glibtoolize` on MacOS: `brew install libtool`)
 * `pkg-config` (MacOS: `brew install pkg-config`)
 
+## Publishing
+
+```bash
+cargo login
+cd ./webrtc-audio-processing-sys
+cargo publish --features derive_serde --features bundled
+cd ../
+cargo publish --features derive_serde --features bundled
+```
+
 ## Contributing
 
 ### Version increment
