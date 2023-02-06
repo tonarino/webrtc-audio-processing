@@ -1,10 +1,13 @@
 use failure::Error;
 use regex::Regex;
 use std::{
+    env,
     fs::File,
     io::{Read, Write},
     path::{Path, PathBuf},
 };
+
+const DEPLOYMENT_TARGET_VAR: &str = "MACOSX_DEPLOYMENT_TARGET";
 
 fn out_dir() -> PathBuf {
     std::env::var("OUT_DIR").expect("OUT_DIR environment var not set.").into()
@@ -155,17 +158,41 @@ fn main() -> Result<(), Error> {
     webrtc::build_if_necessary()?;
     let (webrtc_include, webrtc_lib) = webrtc::get_build_paths()?;
 
-    cc::Build::new()
+    let mut cc_build = cc::Build::new();
+
+    // set mac minimum version
+    if cfg!(target_os = "macos") {
+        let min_version = match env::var(DEPLOYMENT_TARGET_VAR) {
+            Ok(ver) => ver,
+            Err(_) => {
+                String::from(match std::env::var("CARGO_CFG_TARGET_ARCH").unwrap().as_str() {
+                    "x86_64" => "10.10", // Using what I found here https://github.com/webrtc-uwp/chromium-build/blob/master/config/mac/mac_sdk.gni#L17
+                    "aarch64" => "11.0", // Apple silicon started here.
+                    arch => panic!("unknown arch: {}", arch),
+                })
+            },
+        };
+
+        // `cc` doesn't try to pick up on this automatically, but `clang` needs it to
+        // generate a "correct" Objective-C symbol table which better matches XCode.
+        // See https://github.com/h4llow3En/mac-notification-sys/issues/45.
+        cc_build.flag(&format!("-mmacos-version-min={}", min_version));
+    }
+
+    cc_build
         .cpp(true)
         .file("src/wrapper.cpp")
         .include(&webrtc_include)
         .flag("-Wno-unused-parameter")
+        .flag("-Wno-deprecated-declarations")
         .flag("-std=c++11")
         .out_dir(&out_dir())
         .compile("webrtc_audio_processing_wrapper");
 
     println!("cargo:rustc-link-search=native={}", webrtc_lib.display());
     println!("cargo:rustc-link-lib=static=webrtc_audio_processing_wrapper");
+
+    println!("cargo:rerun-if-env-changed={}", DEPLOYMENT_TARGET_VAR);
 
     if cfg!(feature = "bundled") {
         println!("cargo:rustc-link-lib=static=webrtc_audio_processing");
