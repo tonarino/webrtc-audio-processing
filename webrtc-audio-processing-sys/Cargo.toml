@@ -21,10 +21,10 @@ derive_serde = ["serde"]
 bundled = []
 
 [build-dependencies]
-bindgen = "0.59"
+anyhow = "1"
+bindgen = "0.69"
 cc = "1"
 cmake = "0.1"
-failure = "0.1"
 pkg-config = "0.3"
 
 [dependencies]

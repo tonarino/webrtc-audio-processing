@@ -1,4 +1,4 @@
-use failure::Error;
+use anyhow::{bail, Context, Error, Result};
 use std::path::PathBuf;
 
 fn out_dir() -> PathBuf {
@@ -8,7 +8,6 @@ fn out_dir() -> PathBuf {
 #[cfg(not(feature = "bundled"))]
 mod webrtc {
     use super::*;
-    use failure::bail;
 
     const LIB_NAME: &str = "webrtc-audio-processing-1";
     const LIB_MIN_VERSION: &str = "1.0";
@@ -53,7 +52,6 @@ mod webrtc {
 #[cfg(feature = "bundled")]
 mod webrtc {
     use super::*;
-    use failure::bail;
     use std::{path::Path, process::Command};
 
     const BUNDLED_SOURCE_PATH: &str = "./webrtc-audio-processing";
@@ -82,12 +80,16 @@ mod webrtc {
             .arg("-Ddefault_library=static")
             .arg(BUNDLED_SOURCE_PATH)
             .arg(webrtc_build_dir.to_str().unwrap())
-            .status()?;
+            .status()
+            .context("Failed to execute meson. Do you have it installed?")?;
         assert!(status.success(), "Command failed: {:?}", &meson);
 
         let mut ninja = Command::new("ninja");
-        let status =
-            ninja.args(&["-C", webrtc_build_dir.to_str().unwrap()]).arg("install").status()?;
+        let status = ninja
+            .args(&["-C", webrtc_build_dir.to_str().unwrap()])
+            .arg("install")
+            .status()
+            .context("Failed to execute ninja. Do you have it installed?")?;
         assert!(status.success(), "Command failed: {:?}", &ninja);
 
         Ok(())
