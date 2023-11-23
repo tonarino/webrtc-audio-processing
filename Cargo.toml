@@ -27,11 +27,11 @@ name = "recording"
 required-features = ["derive_serde"]
 
 [dev-dependencies]
+anyhow = "1"
 crossbeam-channel = "0.5"
 ctrlc = { version = "3", features = ["termination"] }
-failure = "0.1"
-hound = "3.4"
-json5 = "0.3"
+hound = "3"
+json5 = "0.4"
 portaudio = "0.7"
 regex = "1"
 serde = { version = "1", features = ["derive"]}

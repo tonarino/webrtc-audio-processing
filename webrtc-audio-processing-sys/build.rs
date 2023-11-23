@@ -111,10 +111,12 @@ fn main() -> Result<(), Error> {
     }
 
     if cfg!(target_os = "macos") {
+        // TODO: Remove after confirming this is not necessary.
         //println!("cargo:rustc-link-lib=dylib=c++");
-        //println!("cargo:rustc-link-lib=framework=CoreFoundation");
+        println!("cargo:rustc-link-lib=framework=CoreFoundation");
     } else {
-        println!("cargo:rustc-link-lib=dylib=stdc++");
+        // TODO: Remove after confirming this is not necessary.
+        //println!("cargo:rustc-link-lib=dylib=stdc++");
     }
 
     cc::Build::new()
