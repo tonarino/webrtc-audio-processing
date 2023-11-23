@@ -57,7 +57,6 @@ mod webrtc {
     use std::{path::Path, process::Command};
 
     const BUNDLED_SOURCE_PATH: &str = "./webrtc-audio-processing";
-    const BUNDLED_SOURCE_PATH_ABSEIL: &str = "./abseil-cpp";
 
     pub(super) fn get_build_paths() -> Result<(Vec<PathBuf>, Vec<PathBuf>), Error> {
         let include_path = out_dir().join("include");
@@ -66,10 +65,8 @@ mod webrtc {
     }
 
     pub(super) fn build_if_necessary() -> Result<(), Error> {
-        if Path::new(BUNDLED_SOURCE_PATH).read_dir()?.next().is_none()
-            || Path::new(BUNDLED_SOURCE_PATH_ABSEIL).read_dir()?.next().is_none()
-        {
-            eprintln!("The webrtc-audio-processing or abseil-cpp source directory is empty.");
+        if Path::new(BUNDLED_SOURCE_PATH).read_dir()?.next().is_none() {
+            eprintln!("The webrtc-audio-processing source directory is empty.");
             eprintln!("See the crate README for installation instructions.");
             eprintln!("Remember to clone the repo recursively if building from source.");
             bail!("Aborting compilation because bundled source directory is empty.");
@@ -78,24 +75,13 @@ mod webrtc {
         let build_dir = out_dir();
         let install_dir = out_dir();
 
-        let abseil_build_dir = build_dir.join(BUNDLED_SOURCE_PATH_ABSEIL);
-        std::fs::create_dir_all(&abseil_build_dir)?;
-        cmake::Config::new(BUNDLED_SOURCE_PATH_ABSEIL)
-            .out_dir(abseil_build_dir)
-            .define("CMAKE_INSTALL_PREFIX", install_dir.to_str().unwrap())
-            .uses_cxx11()
-            .cxxflag("-std=c++11")
-            .build();
-
         let webrtc_build_dir = build_dir.join(BUNDLED_SOURCE_PATH);
         let mut meson = Command::new("meson");
         let status = meson
-            .env("LIBRARY_PATH", install_dir.join("lib"))
-            .env("CPPFLAGS", format!("-I{}", install_dir.join("include").display()))
             .args(&["--prefix", install_dir.to_str().unwrap()])
             .arg("-Ddefault_library=static")
-            .arg(webrtc_build_dir.to_str().unwrap())
             .arg(BUNDLED_SOURCE_PATH)
+            .arg(webrtc_build_dir.to_str().unwrap())
             .status()?;
         assert!(status.success(), "Command failed: {:?}", &meson);
 
@@ -117,39 +103,14 @@ fn main() -> Result<(), Error> {
     }
 
     if cfg!(feature = "bundled") {
-        // From meson.build file, plus absl_graphcycles_internal.
-        // TODO: Can we use the cmake trick? https://gitlab.freedesktop.org/pulseaudio/webrtc-audio-processing/-/commit/3f9907f93d3983033e176e95f5134a57900a7f6e
-        println!("cargo:rustc-link-lib=static=absl_bad_optional_access");
-        println!("cargo:rustc-link-lib=static=absl_base");
-        println!("cargo:rustc-link-lib=static=absl_flags_config");
-        println!("cargo:rustc-link-lib=static=absl_flags_internal");
-        println!("cargo:rustc-link-lib=static=absl_flags_marshalling");
-        println!("cargo:rustc-link-lib=static=absl_flags_parse");
-        println!("cargo:rustc-link-lib=static=absl_flags_program_name");
-        println!("cargo:rustc-link-lib=static=absl_flags_usage");
-        println!("cargo:rustc-link-lib=static=absl_flags_usage_internal");
-        println!("cargo:rustc-link-lib=static=absl_int128");
-        println!("cargo:rustc-link-lib=static=absl_graphcycles_internal");
-        println!("cargo:rustc-link-lib=static=absl_malloc_internal");
-        println!("cargo:rustc-link-lib=static=absl_raw_logging_internal");
-        println!("cargo:rustc-link-lib=static=absl_spinlock_wait");
-        println!("cargo:rustc-link-lib=static=absl_stacktrace");
-        println!("cargo:rustc-link-lib=static=absl_str_format_internal");
-        println!("cargo:rustc-link-lib=static=absl_strings");
-        println!("cargo:rustc-link-lib=static=absl_symbolize");
-        println!("cargo:rustc-link-lib=static=absl_synchronization");
-        println!("cargo:rustc-link-lib=static=absl_throw_delegate");
-        println!("cargo:rustc-link-lib=static=absl_time");
-        println!("cargo:rustc-link-lib=static=absl_time_zone");
-
         println!("cargo:rustc-link-lib=static=webrtc-audio-processing-1");
     } else {
         println!("cargo:rustc-link-lib=dylib=webrtc-audio-processing-1");
     }
 
     if cfg!(target_os = "macos") {
-        println!("cargo:rustc-link-lib=dylib=c++");
-        println!("cargo:rustc-link-lib=framework=CoreFoundation");
+        //println!("cargo:rustc-link-lib=dylib=c++");
+        //println!("cargo:rustc-link-lib=framework=CoreFoundation");
     } else {
         println!("cargo:rustc-link-lib=dylib=stdc++");
     }
@@ -157,7 +118,7 @@ fn main() -> Result<(), Error> {
     cc::Build::new()
         .cpp(true)
         .file("src/wrapper.cpp")
-        .flag("-std=c++11")
+        .flag("-std=c++17")
         .flag("-Wno-unused-parameter")
         .includes(&include_dirs)
         .out_dir(&out_dir())
@@ -168,7 +129,7 @@ fn main() -> Result<(), Error> {
     let binding_file = out_dir().join("bindings.rs");
     let mut builder = bindgen::Builder::default()
         .header("src/wrapper.hpp")
-        .clang_args(&["-x", "c++", "-std=c++11", "-fparse-all-comments"])
+        .clang_args(&["-x", "c++", "-std=c++17", "-fparse-all-comments"])
         .generate_comments(true)
         .enable_cxx_namespaces()
         .allowlist_type("webrtc::AudioProcessing_Error")
