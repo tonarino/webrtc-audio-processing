@@ -1,25 +1,8 @@
-/// An example binary to help evaluate webrtc audio processing pipeline, in particular its echo
-/// canceller. You can use it to record a sample with your audio setup, and you can run the
-/// pipeline repeatedly using the sampled audio, to test different configurations of the pipeline.
-///
-/// # Record a sample
-///
-/// Play back a pre-recorded audio stream from your speakers, while recording the microphone
-/// input as a WAV file.
+/// An example binary to help evaluate webrtc audio processing pipeline in a crosstalk scenario.
 ///
 /// ```
-/// $ cargo run --example recording --features bundled --features derive_serde -- --config-file \
-///     examples/recording-configs/record-sample.json5
-/// ```
-///
-/// # Run the pipeline with the sample
-///
-/// Run the audio processing pipeline with the recorded capture and render frames. You can then
-/// analyze the capture-processed.wav to understand the effect produced by the pipeline.
-///
-/// ```
-/// $ cargo run --example recording --features bundled --features derive_serde -- --config-file \
-///     examples/recording-configs/record-pipeline.json5
+/// $ cargo run --example crosstalk-benchmark --features derive_serde -- \
+///     --config-file examples/crosstalk-benchmark.json5
 /// ```
 use failure::{format_err, Error};
 use hound::{WavIntoSamples, WavReader, WavWriter};
@@ -56,8 +39,6 @@ struct CaptureOptions {
     device_name: String,
     /// The number of audio capture channels.
     num_channels: u16,
-    /// If specified, it reads the capture stream from the WAV file instead of the device.
-    source_path: Option<PathBuf>,
     /// If specified, it writes the capture stream to the WAV file before applying the processing.
     preprocess_sink_path: Option<PathBuf>,
     /// If specified, it writes the capture stream to the WAV file after applying the processing.
@@ -72,17 +53,14 @@ struct RenderOptions {
     num_channels: u16,
     /// If specified, it plays back the audio stream from the WAV file. Otherwise, a stream of
     /// zeros are sent to the audio device.
-    source_path: Option<PathBuf>,
-    /// If true, the output is muted.
-    #[serde(default)]
-    mute: bool,
+    source_path: PathBuf,
 }
 
 #[derive(Deserialize, Serialize, Default, Clone, Debug)]
 struct PlaybackOptions {
-    /// Played from the tonari speakers as if comming from the far end.
+    /// Played from the tonari speakers as if coming from the far end.
     far_end: RenderOptions,
-    /// Played from a testing speaker placed *in front of* tonari to simulate a local signal source like a person.
+    /// Played from a testing speaker placed *in front of* tonari to simulate a local sound source like a person.
     near_end: RenderOptions,
 }
 
@@ -199,17 +177,9 @@ fn create_output_callback(
     move |portaudio::OutputStreamCallbackArgs { buffer, frames, .. }| {
         assert_eq!(frames, NUM_SAMPLES_PER_FRAME as usize);
 
-        let mut should_continue = true;
-
-        if !copy_stream(&mut source, buffer) {
-            should_continue = false;
-        }
+        let should_continue = copy_stream(&mut source, buffer);
 
         processor.process_render_frame(buffer).unwrap();
-
-        // if mute {
-        //     buffer.iter_mut().for_each(|m| *m = 0.0)
-        // }
 
         if should_continue {
             portaudio::Continue
@@ -236,33 +206,26 @@ fn main() -> Result<(), Error> {
 
     let running = Arc::new(AtomicBool::new(true));
 
-    let mut capture_preprocess_sink = if let Some(path) = &opt.capture.preprocess_sink_path {
-        Some(open_wav_writer(path, opt.capture.num_channels)?)
-    } else {
-        None
-    };
-    let mut capture_postprocess_sink = if let Some(path) = &opt.capture.postprocess_sink_path {
-        Some(open_wav_writer(path, opt.capture.num_channels)?)
-    } else {
-        None
-    };
-    let mut far_end_source = if let Some(path) = &opt.playback.far_end.source_path {
-        Some(open_wav_reader(path)?)
-    } else {
-        None
-    };
-    let mut near_end_source = if let Some(path) = &opt.playback.near_end.source_path {
-        Some(open_wav_reader(path)?)
-    } else {
-        None
-    };
+    let mut capture_preprocess_sink = opt
+        .capture
+        .preprocess_sink_path
+        .as_ref()
+        .map(|path| open_wav_writer(path, opt.capture.num_channels))
+        .transpose()?;
+    let mut capture_postprocess_sink = opt
+        .capture
+        .postprocess_sink_path
+        .as_ref()
+        .map(|path| open_wav_writer(path, opt.capture.num_channels))
+        .transpose()?;
+    let far_end_source = open_wav_reader(&opt.playback.far_end.source_path)?;
+    let near_end_source = open_wav_reader(&opt.playback.near_end.source_path)?;
 
     let input_stream_settings = create_input_stream_settings(&pa, &opt.capture)?;
-    // Allocate buffers outside the performance-sensitive audio loop.
-    let mut input_mut =
-        vec![0f32; NUM_SAMPLES_PER_FRAME as usize * opt.capture.num_channels as usize];
-    let mut input_stream = pa.open_non_blocking_stream(
-        input_stream_settings,
+    let mut input_stream = pa.open_non_blocking_stream(input_stream_settings, {
+        let mut processor = processor.clone();
+        let mut input_mut =
+            vec![0f32; NUM_SAMPLES_PER_FRAME as usize * opt.capture.num_channels as usize];
         move |portaudio::InputStreamCallbackArgs { buffer, frames, .. }| {
             assert_eq!(frames, NUM_SAMPLES_PER_FRAME as usize);
 
@@ -283,21 +246,19 @@ fn main() -> Result<(), Error> {
             }
 
             portaudio::Continue
-        },
-    )?;
-
-    let running = running.clone();
+        }
+    })?;
 
     let far_end_stream_settings = create_output_stream_settings(&pa, &opt.playback.far_end)?;
     let mut far_end_stream = pa.open_non_blocking_stream(
         far_end_stream_settings,
-        create_output_callback(far_end_source.unwrap(), processor.clone(), running.clone()),
+        create_output_callback(far_end_source, processor.clone(), running.clone()),
     )?;
 
     let near_end_stream_settings = create_output_stream_settings(&pa, &opt.playback.near_end)?;
     let mut near_end_stream = pa.open_non_blocking_stream(
         near_end_stream_settings,
-        create_output_callback(near_end_source.unwrap(), processor.clone(), running.clone()),
+        create_output_callback(near_end_source, processor.clone(), running.clone()),
     )?;
 
     input_stream.start()?;

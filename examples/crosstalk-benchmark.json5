@@ -12,9 +12,9 @@
             source_path: "examples/captures/pure-speech-m22/2023-11-24_11-57-35_mixed_egress_mono.wav",
         },
         near_end: {
-            device_name: " NFJ USB Audio",
+            device_name: "NFJ USB Audio",
             num_channels: 1,
-            source_path: "examples/captures/pure-speech-m22/2023-11-24_11-57-35_raw_near_end.wav",
+            source_path: "examples/captures/pure-speech-m22/2023-11-24_11-57-35_raw_near_end_mono.wav",
         },
     },
     config: {
