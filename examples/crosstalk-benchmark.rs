@@ -6,7 +6,7 @@
 ///
 /// ```
 /// $ cargo run --example crosstalk-benchmark --features derive_serde -- \
-///     --config-file examples/crosstalk-benchmark.json5
+///     --config-file examples/recording-configs/crosstalk-benchmark.json5
 /// ```
 use failure::{format_err, Error};
 use hound::{WavIntoSamples, WavReader, WavWriter};
