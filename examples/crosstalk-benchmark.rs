@@ -1,5 +1,9 @@
 /// An example binary to help evaluate webrtc audio processing pipeline in a crosstalk scenario.
 ///
+/// It plays one track from tonari built-in speakers, another track from an external speaker
+/// that is to be placed in front of tonari and then it records the mixed result and individual
+/// processing steps done on it.
+///
 /// ```
 /// $ cargo run --example crosstalk-benchmark --features derive_serde -- \
 ///     --config-file examples/crosstalk-benchmark.json5
