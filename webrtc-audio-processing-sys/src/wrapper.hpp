@@ -295,6 +295,9 @@ void set_config(AudioProcessing* ap, const Config& config);
 // They may use the hint to improve their parameter adaptation.
 void set_output_will_be_muted(AudioProcessing* ap, bool muted);
 
+/// Signals the AEC and AGC that the next frame will contain key press sound
+void set_stream_key_pressed(AudioProcessing* ap, bool pressed);
+
 // Every processor created by |audio_processing_create()| needs to destroyed by
 // this function.
 void audio_processing_delete(AudioProcessing* ap);

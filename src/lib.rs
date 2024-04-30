@@ -120,6 +120,11 @@ impl Processor {
         self.inner.set_output_will_be_muted(muted);
     }
 
+    /// Signals the AEC and AGC that the next frame will contain key press sound
+    pub fn set_stream_key_pressed(&self, pressed: bool) {
+        self.inner.set_stream_key_pressed(pressed);
+    }
+
     /// De-interleaves multi-channel frame `src` into `dst`.
     ///
     /// ```text
@@ -216,6 +221,12 @@ impl AudioProcessing {
     fn set_output_will_be_muted(&self, muted: bool) {
         unsafe {
             ffi::set_output_will_be_muted(self.inner, muted);
+        }
+    }
+
+    fn set_stream_key_pressed(&self, pressed: bool) {
+        unsafe {
+            ffi::set_stream_key_pressed(self.inner, pressed);
         }
     }
 }
@@ -392,4 +403,29 @@ mod tests {
         render_thread.join().unwrap();
         capture_thread.join().unwrap();
     }
+
+    #[test]
+    fn test_tweak_processor_params() {
+        let config = InitializationConfig {
+            num_capture_channels: 2,
+            num_render_channels: 2,
+            ..InitializationConfig::default()
+        };
+        let mut ap = Processor::new(&config).unwrap();
+        
+        // tweak params outside of config 
+        ap.set_output_will_be_muted(true);
+        ap.set_stream_key_pressed(true);
+
+        // test one process call
+        let (render_frame, capture_frame) = sample_stereo_frames();
+
+        let mut render_frame_output = render_frame.clone();
+        ap.process_render_frame(&mut render_frame_output).unwrap();
+        let mut capture_frame_output = capture_frame.clone();
+        ap.process_capture_frame(&mut capture_frame_output).unwrap();
+
+        // it shouldn't crash
+    }
+
 }

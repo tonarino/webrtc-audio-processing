@@ -233,6 +233,10 @@ void set_output_will_be_muted(AudioProcessing* ap, bool muted) {
   ap->processor->set_output_will_be_muted(muted);
 }
 
+void set_stream_key_pressed(AudioProcessing* ap, bool pressed) {
+  ap->processor->set_stream_key_pressed(pressed);
+}
+
 void audio_processing_delete(AudioProcessing* ap) {
   delete ap;
 }
