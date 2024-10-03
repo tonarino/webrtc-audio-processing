@@ -42,6 +42,7 @@ Building from source and static linking can be enabled with the `bundled` featur
 * `autotools` (MacOS: `brew install automake`, `brew install autoconf`)
 * `libtoolize` (typically `glibtoolize` on MacOS: `brew install libtool`)
 * `pkg-config` (MacOS: `brew install pkg-config`)
+* `automake` (MacOS: `brew install automake`)
 
 ## Publishing
 
