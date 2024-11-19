@@ -28,7 +28,7 @@ You can specify an include path yourself by setting the environment variable `WE
 ### Packages
 
 ```sh
-sudo apt install webrtc-audio-processing-dev # Ubuntu/Debian
+sudo apt install libwebrtc-audio-processing-dev # Ubuntu/Debian
 sudo pacman -S webrtc-audio-processing # Arch
 ```
 
