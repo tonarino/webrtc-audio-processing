@@ -55,6 +55,7 @@ mod webrtc {
     use std::{path::Path, process::Command};
 
     const BUNDLED_SOURCE_PATH: &str = "./webrtc-audio-processing";
+    const ABSEIL_SOURCE_PATH: &str = "./abseil-cpp";
 
     pub(super) fn get_build_paths() -> Result<(Vec<PathBuf>, Vec<PathBuf>), Error> {
         let include_path = out_dir().join("include");
@@ -72,14 +73,44 @@ mod webrtc {
 
         let build_dir = out_dir();
         let install_dir = out_dir();
-
         let webrtc_build_dir = build_dir.join(BUNDLED_SOURCE_PATH);
+
+        // Build Abseil
+        let abseil_dir = Path::new(ABSEIL_SOURCE_PATH);
+        if abseil_dir.exists() {
+            let mut cmake = Command::new("cmake");
+            let status = cmake
+                .current_dir(&abseil_dir)
+                .arg("-B")
+                .arg(build_dir.join("abseil-build"))
+                .arg("-DCMAKE_INSTALL_PREFIX=".to_owned() + install_dir.to_str().unwrap())
+                .arg("-DABSL_PROPAGATE_CXX_STD=ON")
+                .status()
+                .context("Failed to configure Abseil with CMake")?;
+            assert!(status.success(), "Failed to configure Abseil");
+
+            let status = Command::new("cmake")
+                .args(&["--build", build_dir.join("abseil-build").to_str().unwrap()])
+                .arg("--target")
+                .arg("install")
+                .status()
+                .context("Failed to build Abseil")?;
+            assert!(status.success(), "Failed to build Abseil");
+        } else {
+            eprintln!("Warning: Abseil directory not found at {}", abseil_dir.display());
+            eprintln!("Make sure you have cloned the repository with submodules");
+            bail!("Missing Abseil dependency");
+        }
+
+        // Build WebRTC audio processing
         let mut meson = Command::new("meson");
         let status = meson
             .args(&["--prefix", install_dir.to_str().unwrap()])
             .arg("-Ddefault_library=static")
             .arg(BUNDLED_SOURCE_PATH)
             .arg(webrtc_build_dir.to_str().unwrap())
+            .env("PKG_CONFIG_PATH", format!("{}/lib/pkgconfig", install_dir.display()))
+            .env("CXXFLAGS", "-I".to_owned() + install_dir.join("include").to_str().unwrap())
             .status()
             .context("Failed to execute meson. Do you have it installed?")?;
         assert!(status.success(), "Command failed: {:?}", &meson);
@@ -106,6 +137,11 @@ fn main() -> Result<(), Error> {
 
     if cfg!(feature = "bundled") {
         println!("cargo:rustc-link-lib=static=webrtc-audio-processing-1");
+
+        // Add Abseil library linkage & options
+        println!("cargo:rustc-link-lib=static=absl_bad_optional_access");
+        println!("cargo:rustc-link-lib=static=absl_base");
+        println!("cargo:rustc-link-lib=static=absl_throw_delegate");
     } else {
         println!("cargo:rustc-link-lib=dylib=webrtc-audio-processing-1");
     }
