@@ -83,6 +83,40 @@ impl From<PreAmplifier> for ffi::AudioProcessing_Config_PreAmplifier {
     }
 }
 
+/// General level adjustment in the capture pipeline.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+pub struct CaptureLevelAdjustment {
+    /// Scales the signal before any processing is done.
+    pub pre_gain_factor: f32,
+
+    /// Scales the signal after all processing is done.
+    pub post_gain_factor: f32,
+}
+
+impl Default for CaptureLevelAdjustment {
+    fn default() -> Self {
+        Self { pre_gain_factor: 1.0, post_gain_factor: 1.0 }
+    }
+}
+
+impl From<CaptureLevelAdjustment> for ffi::AudioProcessing_Config_CaptureLevelAdjustment {
+    fn from(other: CaptureLevelAdjustment) -> Self {
+        let analog_mic_gain_emulation =
+            ffi::AudioProcessing_Config_CaptureLevelAdjustment_AnalogMicGainEmulation {
+                enabled: false,
+                initial_level: 255,
+            };
+
+        Self {
+            enabled: true,
+            pre_gain_factor: other.pre_gain_factor,
+            post_gain_factor: other.post_gain_factor,
+            analog_mic_gain_emulation,
+        }
+    }
+}
+
 /// HPF (high-pass fitler) configuration.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
@@ -295,10 +329,9 @@ pub struct Config {
     #[serde(default)]
     pub pipeline: Pipeline,
 
-    /// Enables and configures the pre-amplifier. It amplifies the capture signal before any other
-    /// processing is done.
+    /// Enables and configures level adjustment in the capture pipeline.
     #[serde(default)]
-    pub pre_amplifier: Option<PreAmplifier>,
+    pub capture_level_adjustment: Option<CaptureLevelAdjustment>,
 
     /// Enables and configures high pass filter.
     #[serde(default)]
@@ -320,16 +353,17 @@ pub struct Config {
 
 impl From<Config> for ffi::AudioProcessing_Config {
     fn from(other: Config) -> Self {
-        let pre_amplifier = if let Some(config) = other.pre_amplifier {
+        // PreAmplifier is being deprecated.
+        let pre_amplifier =
+            ffi::AudioProcessing_Config_PreAmplifier { enabled: false, ..Default::default() };
+
+        let capture_level_adjustment = if let Some(config) = other.capture_level_adjustment {
             config.into()
         } else {
-            ffi::AudioProcessing_Config_PreAmplifier { enabled: false, ..Default::default() }
-        };
-
-        // TODO:
-        let capture_level_adjustment = ffi::AudioProcessing_Config_CaptureLevelAdjustment {
-            enabled: false,
-            ..Default::default()
+            ffi::AudioProcessing_Config_CaptureLevelAdjustment {
+                enabled: false,
+                ..Default::default()
+            }
         };
 
         let high_pass_filter = if let Some(config) = other.high_pass_filter {
