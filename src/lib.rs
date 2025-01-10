@@ -8,7 +8,7 @@
 mod config;
 mod stats;
 
-use std::{error, fmt, sync::Arc};
+use std::{error, fmt, ptr::null, sync::Arc};
 use webrtc_audio_processing_sys as ffi;
 
 pub use config::*;
@@ -49,7 +49,15 @@ impl Processor {
     /// instantiation, however new configs can be be passed to `set_config()`
     /// at any time during processing.
     pub fn new(config: &InitializationConfig) -> Result<Self, Error> {
-        let inner = Arc::new(AudioProcessing::new(config)?);
+        Self::with_aec3_config(config, None)
+    }
+
+    /// Creates a new `Processor` with custom AEC3 configuration.
+    pub fn with_aec3_config(
+        config: &InitializationConfig,
+        aec3_config: Option<EchoCanceller3Config>,
+    ) -> Result<Self, Error> {
+        let inner = Arc::new(AudioProcessing::new(config, aec3_config)?);
         let num_samples = inner.num_samples_per_frame();
         Ok(Self {
             inner,
@@ -62,6 +70,13 @@ impl Processor {
                 config.num_render_channels as usize
             ],
         })
+    }
+
+    /// Initializes internal states, while retaining all user settings. This should be called before
+    /// beginning to process a new audio stream. However, it is not necessary to call before processing
+    /// the first stream after creation.
+    pub fn initialize(&mut self) {
+        self.inner.initialize()
     }
 
     /// Processes and modifies the audio frame from a capture device by applying
@@ -182,13 +197,23 @@ struct AudioProcessing {
 }
 
 impl AudioProcessing {
-    fn new(config: &InitializationConfig) -> Result<Self, Error> {
+    fn new(
+        config: &InitializationConfig,
+        aec3_config: Option<EchoCanceller3Config>,
+    ) -> Result<Self, Error> {
+        let aec3_config = if let Some(aec3_config) = aec3_config {
+            &aec3_config.into() as *const ffi::EchoCanceller3ConfigOverride
+        } else {
+            null()
+        };
+
         let mut code = 0;
         let inner = unsafe {
             ffi::audio_processing_create(
                 config.num_capture_channels as i32,
                 config.num_render_channels as i32,
                 config.sample_rate_hz as i32,
+                aec3_config,
                 &mut code,
             )
         };
@@ -197,6 +222,10 @@ impl AudioProcessing {
         } else {
             Err(Error { code })
         }
+    }
+
+    fn initialize(&self) {
+        unsafe { ffi::initialize(self.inner) }
     }
 
     fn process_capture_frame(&self, frame: &mut Vec<Vec<f32>>) -> Result<(), Error> {
@@ -412,8 +441,8 @@ mod tests {
             ..InitializationConfig::default()
         };
         let mut ap = Processor::new(&config).unwrap();
-        
-        // tweak params outside of config 
+
+        // tweak params outside of config
         ap.set_output_will_be_muted(true);
         ap.set_stream_key_pressed(true);
 
@@ -427,5 +456,4 @@ mod tests {
 
         // it shouldn't crash
     }
-
 }

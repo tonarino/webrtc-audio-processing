@@ -101,6 +101,28 @@ impl From<HighPassFilter> for ffi::AudioProcessing_Config_HighPassFilter {
     }
 }
 
+/// [Highly Experimental] Configurations of internal AEC3 implementation.
+/// TODO(skywhale): Add more parameters from:
+/// https://gitlab.freedesktop.org/pulseaudio/webrtc-audio-processing/-/blob/master/webrtc/api/audio/echo_canceller3_config.h
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+pub struct EchoCanceller3Config {
+    /// Number of linear filters to apply.
+    pub num_filters: usize,
+}
+
+impl Default for EchoCanceller3Config {
+    fn default() -> Self {
+        Self { num_filters: 5 }
+    }
+}
+
+impl From<EchoCanceller3Config> for ffi::EchoCanceller3ConfigOverride {
+    fn from(other: EchoCanceller3Config) -> Self {
+        Self { num_filters: other.num_filters as i32 }
+    }
+}
+
 /// AEC (acoustic echo cancellation) configuration.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
