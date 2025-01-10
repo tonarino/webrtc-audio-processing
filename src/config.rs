@@ -57,6 +57,8 @@ impl From<Pipeline> for ffi::AudioProcessing_Config_Pipeline {
             maximum_internal_processing_rate: other.maximum_internal_processing_rate as i32,
             multi_channel_capture: other.multi_channel_capture,
             multi_channel_render: other.multi_channel_render,
+            capture_downmix_method:
+                ffi::AudioProcessing_Config_Pipeline_DownmixMethod_kAverageChannels,
         }
     }
 }
@@ -78,6 +80,40 @@ impl Default for PreAmplifier {
 impl From<PreAmplifier> for ffi::AudioProcessing_Config_PreAmplifier {
     fn from(other: PreAmplifier) -> Self {
         Self { enabled: true, fixed_gain_factor: other.fixed_gain_factor }
+    }
+}
+
+/// General level adjustment in the capture pipeline.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+pub struct CaptureLevelAdjustment {
+    /// Scales the signal before any processing is done.
+    pub pre_gain_factor: f32,
+
+    /// Scales the signal after all processing is done.
+    pub post_gain_factor: f32,
+}
+
+impl Default for CaptureLevelAdjustment {
+    fn default() -> Self {
+        Self { pre_gain_factor: 1.0, post_gain_factor: 1.0 }
+    }
+}
+
+impl From<CaptureLevelAdjustment> for ffi::AudioProcessing_Config_CaptureLevelAdjustment {
+    fn from(other: CaptureLevelAdjustment) -> Self {
+        let analog_mic_gain_emulation =
+            ffi::AudioProcessing_Config_CaptureLevelAdjustment_AnalogMicGainEmulation {
+                enabled: false,
+                initial_level: 255,
+            };
+
+        Self {
+            enabled: true,
+            pre_gain_factor: other.pre_gain_factor,
+            post_gain_factor: other.post_gain_factor,
+            analog_mic_gain_emulation,
+        }
     }
 }
 
@@ -283,21 +319,6 @@ impl From<GainController> for ffi::AudioProcessing_Config_GainController1 {
     }
 }
 
-/// The parameters to control reporting of selected field in [`Stats`].
-#[derive(Debug, Default, Clone, PartialEq)]
-#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
-pub struct ReportingConfig {
-    /// Enables reporting of [`voice_detected`] in [`Stats`].
-    pub enable_voice_detection: bool,
-
-    /// Enables reporting of [`residual_echo_likelihood`] and
-    /// [`residual_echo_likelihood_recent_max`] in [`Stats`].
-    pub enable_residual_echo_detector: bool,
-
-    /// Enables reporting of [`output_rms_dbfs`] in [`Stats`].
-    pub enable_level_estimation: bool,
-}
-
 /// The parameters and behavior of the audio processing module are controlled
 /// by changing the default values in this `Config` struct.
 /// The config is applied by passing the struct to the [`set_config`] method.
@@ -308,10 +329,9 @@ pub struct Config {
     #[serde(default)]
     pub pipeline: Pipeline,
 
-    /// Enables and configures the pre-amplifier. It amplifies the capture signal before any other
-    /// processing is done.
+    /// Enables and configures level adjustment in the capture pipeline.
     #[serde(default)]
-    pub pre_amplifier: Option<PreAmplifier>,
+    pub capture_level_adjustment: Option<CaptureLevelAdjustment>,
 
     /// Enables and configures high pass filter.
     #[serde(default)]
@@ -325,26 +345,25 @@ pub struct Config {
     #[serde(default)]
     pub noise_suppression: Option<NoiseSuppression>,
 
-    /// Enables transient noise suppression.
-    #[serde(default)]
-    pub enable_transient_suppression: bool,
-
     /// Enables and configures automatic gain control.
     /// TODO: Experiment with and migrate to GainController2.
     #[serde(default)]
     pub gain_controller: Option<GainController>,
-
-    /// Toggles reporting of selected fields in [`Stats`].
-    #[serde(default)]
-    pub reporting: ReportingConfig,
 }
 
 impl From<Config> for ffi::AudioProcessing_Config {
     fn from(other: Config) -> Self {
-        let pre_amplifier = if let Some(config) = other.pre_amplifier {
+        // PreAmplifier is being deprecated.
+        let pre_amplifier =
+            ffi::AudioProcessing_Config_PreAmplifier { enabled: false, ..Default::default() };
+
+        let capture_level_adjustment = if let Some(config) = other.capture_level_adjustment {
             config.into()
         } else {
-            ffi::AudioProcessing_Config_PreAmplifier { enabled: false, ..Default::default() }
+            ffi::AudioProcessing_Config_CaptureLevelAdjustment {
+                enabled: false,
+                ..Default::default()
+            }
         };
 
         let high_pass_filter = if let Some(config) = other.high_pass_filter {
@@ -371,12 +390,10 @@ impl From<Config> for ffi::AudioProcessing_Config {
             ffi::AudioProcessing_Config_NoiseSuppression { enabled: false, ..Default::default() }
         };
 
+        // Transient suppressor is being deprecated.
         let transient_suppression = ffi::AudioProcessing_Config_TransientSuppression {
-            enabled: other.enable_transient_suppression,
-        };
-
-        let voice_detection = ffi::AudioProcessing_Config_VoiceDetection {
-            enabled: other.reporting.enable_voice_detection,
+            enabled: false,
+            ..Default::default()
         };
 
         let gain_controller1 = if let Some(config) = other.gain_controller {
@@ -388,26 +405,16 @@ impl From<Config> for ffi::AudioProcessing_Config {
         let gain_controller2 =
             ffi::AudioProcessing_Config_GainController2 { enabled: false, ..Default::default() };
 
-        let residual_echo_detector = ffi::AudioProcessing_Config_ResidualEchoDetector {
-            enabled: other.reporting.enable_residual_echo_detector,
-        };
-
-        let level_estimation = ffi::AudioProcessing_Config_LevelEstimation {
-            enabled: other.reporting.enable_level_estimation,
-        };
-
         Self {
             pipeline: other.pipeline.into(),
             pre_amplifier,
+            capture_level_adjustment,
             high_pass_filter,
             echo_canceller,
             noise_suppression,
             transient_suppression,
-            voice_detection,
             gain_controller1,
             gain_controller2,
-            residual_echo_detector,
-            level_estimation,
         }
     }
 }

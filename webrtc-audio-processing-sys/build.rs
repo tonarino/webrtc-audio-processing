@@ -7,12 +7,16 @@ fn out_dir() -> PathBuf {
     std::env::var("OUT_DIR").expect("OUT_DIR environment var not set.").into()
 }
 
+fn src_dir() -> PathBuf {
+    std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR environment var not set.").into()
+}
+
 #[cfg(not(feature = "bundled"))]
 mod webrtc {
     use super::*;
 
-    const LIB_NAME: &str = "webrtc-audio-processing-1";
-    const LIB_MIN_VERSION: &str = "1.0";
+    const LIB_NAME: &str = "webrtc-audio-processing-2";
+    const LIB_MIN_VERSION: &str = "2.0";
 
     pub(super) fn get_build_paths() -> Result<(Vec<PathBuf>, Vec<PathBuf>), Error> {
         let (pkgconfig_include_path, pkgconfig_lib_path) = find_pkgconfig_paths()?;
@@ -61,13 +65,19 @@ mod webrtc {
     pub(super) fn get_build_paths() -> Result<(Vec<PathBuf>, Vec<PathBuf>), Error> {
         let mut include_paths = vec![
             out_dir().join("include"),
-            out_dir().join("include").join("webrtc-audio-processing-1"),
+            out_dir().join("include").join("webrtc-audio-processing-2"),
+            src_dir()
+                .join("webrtc-audio-processing")
+                .join("subprojects")
+                .join("abseil-cpp-20240722.0"),
         ];
         let mut lib_paths = vec![out_dir().join("lib")];
 
         // If abseil package is installed locally, meson would have picked it for building
-        // webrtc-audio-processing-1. Use the same resource for ourselves, too.
-        if let Ok(mut lib) = pkg_config::Config::new().probe("absl_base") {
+        // webrtc-audio-processing-2. Use the same resource for ourselves, too.
+        if let Ok(mut lib) =
+            pkg_config::Config::new().atleast_version("20240722").probe("absl_base")
+        {
             include_paths.append(&mut lib.include_paths);
             lib_paths.append(&mut lib.link_paths);
         }
@@ -120,9 +130,9 @@ fn main() -> Result<(), Error> {
     }
 
     if cfg!(feature = "bundled") {
-        println!("cargo:rustc-link-lib=static=webrtc-audio-processing-1");
+        println!("cargo:rustc-link-lib=static=webrtc-audio-processing-2");
     } else {
-        println!("cargo:rustc-link-lib=dylib=webrtc-audio-processing-1");
+        println!("cargo:rustc-link-lib=dylib=webrtc-audio-processing-2");
     }
 
     if cfg!(target_os = "macos") {

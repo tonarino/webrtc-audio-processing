@@ -8,24 +8,17 @@
 namespace webrtc_audio_processing_wrapper {
 namespace {
 
-OptionalDouble from_absl_optional(const absl::optional<double>& optional) {
+OptionalDouble from_absl_optional(const std::optional<double>& optional) {
   OptionalDouble rv;
   rv.has_value = optional.has_value();
   rv.value = optional.value_or(0.0);
   return rv;
 }
 
-OptionalInt from_absl_optional(const absl::optional<int>& optional) {
+OptionalInt from_absl_optional(const std::optional<int>& optional) {
   OptionalInt rv;
   rv.has_value = optional.has_value();
   rv.value = optional.value_or(0);
-  return rv;
-}
-
-OptionalBool from_absl_optional(const absl::optional<bool>& optional) {
-  OptionalBool rv;
-  rv.has_value = optional.has_value();
-  rv.value = optional.value_or(false);
   return rv;
 }
 
@@ -36,7 +29,7 @@ struct AudioProcessing {
   webrtc::AudioProcessing::Config config;
   webrtc::StreamConfig capture_stream_config;
   webrtc::StreamConfig render_stream_config;
-  absl::optional<int> stream_delay_ms;
+  std::optional<int> stream_delay_ms;
 };
 
 AudioProcessing* audio_processing_create(
@@ -45,13 +38,12 @@ AudioProcessing* audio_processing_create(
     int sample_rate_hz,
     int* error) {
   AudioProcessing* ap = new AudioProcessing;
-  ap->processor.reset(webrtc::AudioProcessingBuilder().Create());
+  ap->processor.reset(webrtc::AudioProcessingBuilder().Create().release());
 
-  const bool has_keyboard = false;
   ap->capture_stream_config = webrtc::StreamConfig(
-      sample_rate_hz, num_capture_channels, has_keyboard);
+      sample_rate_hz, num_capture_channels);
   ap->render_stream_config = webrtc::StreamConfig(
-      sample_rate_hz, num_render_channels, has_keyboard);
+      sample_rate_hz, num_render_channels);
 
   // The input and output streams must have the same number of channels.
   webrtc::ProcessingConfig pconfig = {
@@ -93,8 +85,6 @@ Stats get_stats(AudioProcessing* ap) {
   const webrtc::AudioProcessingStats& stats = ap->processor->GetStatistics();
 
   return Stats {
-      from_absl_optional(stats.output_rms_dbfs),
-      from_absl_optional(stats.voice_detected),
       from_absl_optional(stats.echo_return_loss),
       from_absl_optional(stats.echo_return_loss_enhancement),
       from_absl_optional(stats.divergent_filter_fraction),
