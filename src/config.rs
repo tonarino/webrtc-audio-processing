@@ -57,6 +57,8 @@ impl From<Pipeline> for ffi::AudioProcessing_Config_Pipeline {
             maximum_internal_processing_rate: other.maximum_internal_processing_rate as i32,
             multi_channel_capture: other.multi_channel_capture,
             multi_channel_render: other.multi_channel_render,
+            capture_downmix_method:
+                ffi::AudioProcessing_Config_Pipeline_DownmixMethod_kAverageChannels,
         }
     }
 }
@@ -283,21 +285,6 @@ impl From<GainController> for ffi::AudioProcessing_Config_GainController1 {
     }
 }
 
-/// The parameters to control reporting of selected field in [`Stats`].
-#[derive(Debug, Default, Clone, PartialEq)]
-#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
-pub struct ReportingConfig {
-    /// Enables reporting of [`voice_detected`] in [`Stats`].
-    pub enable_voice_detection: bool,
-
-    /// Enables reporting of [`residual_echo_likelihood`] and
-    /// [`residual_echo_likelihood_recent_max`] in [`Stats`].
-    pub enable_residual_echo_detector: bool,
-
-    /// Enables reporting of [`output_rms_dbfs`] in [`Stats`].
-    pub enable_level_estimation: bool,
-}
-
 /// The parameters and behavior of the audio processing module are controlled
 /// by changing the default values in this `Config` struct.
 /// The config is applied by passing the struct to the [`set_config`] method.
@@ -325,18 +312,10 @@ pub struct Config {
     #[serde(default)]
     pub noise_suppression: Option<NoiseSuppression>,
 
-    /// Enables transient noise suppression.
-    #[serde(default)]
-    pub enable_transient_suppression: bool,
-
     /// Enables and configures automatic gain control.
     /// TODO: Experiment with and migrate to GainController2.
     #[serde(default)]
     pub gain_controller: Option<GainController>,
-
-    /// Toggles reporting of selected fields in [`Stats`].
-    #[serde(default)]
-    pub reporting: ReportingConfig,
 }
 
 impl From<Config> for ffi::AudioProcessing_Config {
@@ -345,6 +324,12 @@ impl From<Config> for ffi::AudioProcessing_Config {
             config.into()
         } else {
             ffi::AudioProcessing_Config_PreAmplifier { enabled: false, ..Default::default() }
+        };
+
+        // TODO:
+        let capture_level_adjustment = ffi::AudioProcessing_Config_CaptureLevelAdjustment {
+            enabled: false,
+            ..Default::default()
         };
 
         let high_pass_filter = if let Some(config) = other.high_pass_filter {
@@ -371,12 +356,10 @@ impl From<Config> for ffi::AudioProcessing_Config {
             ffi::AudioProcessing_Config_NoiseSuppression { enabled: false, ..Default::default() }
         };
 
+        // Transient suppressor is being deprecated.
         let transient_suppression = ffi::AudioProcessing_Config_TransientSuppression {
-            enabled: other.enable_transient_suppression,
-        };
-
-        let voice_detection = ffi::AudioProcessing_Config_VoiceDetection {
-            enabled: other.reporting.enable_voice_detection,
+            enabled: false,
+            ..Default::default()
         };
 
         let gain_controller1 = if let Some(config) = other.gain_controller {
@@ -388,26 +371,16 @@ impl From<Config> for ffi::AudioProcessing_Config {
         let gain_controller2 =
             ffi::AudioProcessing_Config_GainController2 { enabled: false, ..Default::default() };
 
-        let residual_echo_detector = ffi::AudioProcessing_Config_ResidualEchoDetector {
-            enabled: other.reporting.enable_residual_echo_detector,
-        };
-
-        let level_estimation = ffi::AudioProcessing_Config_LevelEstimation {
-            enabled: other.reporting.enable_level_estimation,
-        };
-
         Self {
             pipeline: other.pipeline.into(),
             pre_amplifier,
+            capture_level_adjustment,
             high_pass_filter,
             echo_canceller,
             noise_suppression,
             transient_suppression,
-            voice_detection,
             gain_controller1,
             gain_controller2,
-            residual_echo_detector,
-            level_estimation,
         }
     }
 }
