@@ -1,5 +1,12 @@
 #include "wrapper.hpp"
 
+// These definitions shouldn't affect the implementation of AEC3.
+// We are defining them to work around some build-time assertions
+// when including the internal header file of echo_canceller3.h
+#define WEBRTC_APM_DEBUG_DUMP 0
+#define WEBRTC_POSIX
+#include <modules/audio_processing/aec3/echo_canceller3.h>
+
 #include <algorithm>
 #include <memory>
 
@@ -29,6 +36,32 @@ OptionalBool from_absl_optional(const absl::optional<bool>& optional) {
   return rv;
 }
 
+webrtc::EchoCanceller3Config build_aec3_config(const EchoCanceller3ConfigOverride& override) {
+    webrtc::EchoCanceller3Config config;
+    config.delay.num_filters = override.num_filters;
+    return config;
+}
+
+class EchoCanceller3Factory : public webrtc::EchoControlFactory {
+ public:
+  explicit EchoCanceller3Factory(const webrtc::EchoCanceller3Config& config)
+      : config_(config) {}
+
+  std::unique_ptr<webrtc::EchoControl> Create(
+      int sample_rate_hz,
+      int num_render_channels,
+      int num_capture_channels) override {
+    return std::unique_ptr<webrtc::EchoControl>(new webrtc::EchoCanceller3(
+        config_,
+        sample_rate_hz,
+        num_render_channels,
+        num_capture_channels));
+  }
+
+ private:
+  webrtc::EchoCanceller3Config config_;
+};
+
 }  // namespace
 
 struct AudioProcessing {
@@ -43,9 +76,16 @@ AudioProcessing* audio_processing_create(
     int num_capture_channels,
     int num_render_channels,
     int sample_rate_hz,
+    const EchoCanceller3ConfigOverride* aec3_config_override,
     int* error) {
   AudioProcessing* ap = new AudioProcessing;
-  ap->processor.reset(webrtc::AudioProcessingBuilder().Create());
+
+  webrtc::AudioProcessingBuilder builder;
+  if (aec3_config_override != nullptr) {
+      auto* factory = new EchoCanceller3Factory(build_aec3_config(*aec3_config_override));
+      builder.SetEchoControlFactory(std::unique_ptr<webrtc::EchoControlFactory>(factory));
+  }
+  ap->processor.reset(builder.Create());
 
   const bool has_keyboard = false;
   ap->capture_stream_config = webrtc::StreamConfig(

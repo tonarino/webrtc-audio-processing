@@ -7,6 +7,10 @@ fn out_dir() -> PathBuf {
     std::env::var("OUT_DIR").expect("OUT_DIR environment var not set.").into()
 }
 
+fn src_dir() -> PathBuf {
+    std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR environment var not set.").into()
+}
+
 #[cfg(not(feature = "bundled"))]
 mod webrtc {
     use super::*;
@@ -62,6 +66,7 @@ mod webrtc {
         let mut include_paths = vec![
             out_dir().join("include"),
             out_dir().join("include").join("webrtc-audio-processing-1"),
+            src_dir().join("webrtc-audio-processing").join("webrtc"),
         ];
         let mut lib_paths = vec![out_dir().join("lib")];
 

@@ -41,11 +41,18 @@ struct Stats {
   OptionalInt delay_ms;
 };
 
+// A slimmed-down version of webrtc::EchoCanceller3Config.
+// We can not just expose the webrtc variant as the binding loses all the default values.
+struct EchoCanceller3ConfigOverride {
+    int num_filters;
+};
+
 // Creates a new instance of AudioProcessing.
 AudioProcessing* audio_processing_create(
     int num_capture_channels,
     int num_render_channels,
     int sample_rate_hz,
+    const EchoCanceller3ConfigOverride* aec3_config_override,
     int* error);
 
 // Processes and modifies the audio frame from a capture device.
