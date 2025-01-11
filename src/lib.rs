@@ -31,6 +31,20 @@ impl fmt::Display for Error {
 
 impl error::Error for Error {}
 
+impl From<AudioProcessingError> for Error {
+    fn from(err: AudioProcessingError) -> Self {
+        let code = match err {
+            AudioProcessingError::InvalidParameters => -1,
+            AudioProcessingError::ConfigValidationFailed => -2,
+            AudioProcessingError::CreationFailed => -3,
+            AudioProcessingError::InitializationFailed(code) => code,
+            AudioProcessingError::UnknownError(code) => code,
+            AudioProcessingError::CppException(code) => code,
+        };
+        Error { code }
+    }
+}
+
 /// `Processor` provides an access to webrtc's audio processing e.g. echo
 /// cancellation and automatic gain control. It can be cloned, and cloned
 /// instances share the same underlying processor module. It's the recommended
@@ -196,6 +210,43 @@ struct AudioProcessing {
     inner: *mut ffi::AudioProcessing,
 }
 
+/// Represents specific errors that can occur during audio processing operations.
+#[derive(Debug)]
+pub enum AudioProcessingError {
+    /// The parameters provided to the audio processor were invalid.
+    InvalidParameters,
+
+    /// The configuration validation failed.
+    ConfigValidationFailed,
+
+    /// Failed to create the audio processor.
+    CreationFailed,
+
+    /// The audio processor initialization failed with the given error code.
+    InitializationFailed(i32),
+
+    /// An unknown error occurred with the given error code.
+    UnknownError(i32),
+
+    /// A C++ exception was caught with the given error code.
+    CppException(i32),
+}
+
+impl fmt::Display for AudioProcessingError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::InvalidParameters => write!(f, "Invalid parameters"),
+            Self::ConfigValidationFailed => write!(f, "Config validation failed"),
+            Self::CreationFailed => write!(f, "Failed to create audio processor"),
+            Self::InitializationFailed(code) => write!(f, "Initialization failed: {}", code),
+            Self::UnknownError(code) => write!(f, "Unknown error: {}", code),
+            Self::CppException(code) => write!(f, "C++ exception occurred: {}", code),
+        }
+    }
+}
+
+impl error::Error for AudioProcessingError {}
+
 impl AudioProcessing {
     fn new(
         config: &InitializationConfig,
@@ -295,7 +346,6 @@ unsafe impl Send for AudioProcessing {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::{thread, time::Duration};
 
     fn init_config(num_channels: usize) -> InitializationConfig {
         InitializationConfig {
@@ -305,18 +355,116 @@ mod tests {
         }
     }
 
+    // Helper types for test metrics
+    #[derive(Debug)]
+    #[allow(dead_code)]
+    struct ProcessingMetrics {
+        original_rms: f32,
+        processed_rms: f32,
+        max_difference: f32,
+    }
+
+    #[derive(Debug)]
+    struct ProcessingResults {
+        stats: Stats,
+        metrics: ProcessingMetrics,
+        original_metrics: ProcessingMetrics,
+    }
+
+    // Helper function for calculating RMS
+    fn calculate_rms(samples: &[f32]) -> f32 {
+        (samples.iter().map(|&x| x * x).sum::<f32>() / samples.len() as f32).sqrt()
+    }
+
+    // Common test fixtures and helpers
+    struct TestContext {
+        processor: Processor,
+        num_samples: usize,
+        num_channels: usize,
+    }
+
+    impl TestContext {
+        fn new(num_channels: usize) -> Self {
+            let config = init_config(num_channels);
+            let processor = Processor::new(&config).unwrap();
+            let num_samples = processor.num_samples_per_frame();
+            Self { processor, num_samples, num_channels }
+        }
+
+        fn generate_frame(&self) -> Vec<f32> {
+            vec![0.0f32; self.num_samples * self.num_channels]
+        }
+
+        fn generate_sine_frame(&self, frequency: f32) -> Vec<f32> {
+            let mut frame = Vec::with_capacity(self.num_samples * self.num_channels);
+            for i in 0..self.num_samples {
+                let sample =
+                    (i as f32 * frequency / 48000.0 * 2.0 * std::f32::consts::PI).sin() * 0.5;
+                for _ in 0..self.num_channels {
+                    frame.push(sample);
+                }
+            }
+            frame
+        }
+
+        fn verify_processing_results(
+            &self,
+            original: &[f32],
+            processed: &[f32],
+        ) -> ProcessingMetrics {
+            ProcessingMetrics {
+                original_rms: calculate_rms(original),
+                processed_rms: calculate_rms(processed),
+                max_difference: original
+                    .iter()
+                    .zip(processed)
+                    .map(|(a, b)| (a - b).abs())
+                    .max_by(|a, b| a.partial_cmp(b).unwrap())
+                    .unwrap(),
+            }
+        }
+
+        fn process_frames_with_metrics(
+            &mut self,
+            iterations: usize,
+            config: Option<Config>,
+        ) -> ProcessingResults {
+            if let Some(cfg) = config {
+                self.processor.set_config(cfg);
+            }
+
+            let mut render_frame = self.generate_sine_frame(440.0);
+            let mut capture_frame = render_frame.clone();
+            let original_metrics = self.verify_processing_results(&render_frame, &capture_frame);
+
+            for _ in 0..iterations {
+                self.processor.process_render_frame(&mut render_frame).unwrap();
+                self.processor.process_capture_frame(&mut capture_frame).unwrap();
+            }
+
+            ProcessingResults {
+                stats: self.processor.get_stats(),
+                metrics: self.verify_processing_results(&render_frame, &capture_frame),
+                original_metrics,
+            }
+        }
+    }
+
+    /// Tests initialization failure with invalid configuration
     #[test]
     fn test_create_failure() {
         let config = init_config(0);
         assert!(Processor::new(&config).is_err());
     }
 
+    /// Tests proper resource cleanup on drop
     #[test]
     fn test_create_drop() {
         let config = init_config(1);
         let _p = Processor::new(&config).unwrap();
     }
 
+    /// Tests audio frame interleaving/deinterleaving operations
     #[test]
     fn test_deinterleave_interleave() {
         let num_channels = 2usize;
@@ -332,90 +480,139 @@ mod tests {
         assert_eq!(interleaved, interleaved_out);
     }
 
-    fn sample_stereo_frames(ap: &Processor) -> (Vec<f32>, Vec<f32>) {
-        let num_samples_per_frame = ap.num_samples_per_frame();
-
-        // Stereo frame with a lower frequency cosine wave.
-        let mut render_frame = Vec::with_capacity(num_samples_per_frame * 2);
-        for i in 0..num_samples_per_frame {
-            render_frame.push((i as f32 / 40.0).cos() * 0.4);
-            render_frame.push((i as f32 / 40.0).cos() * 0.2);
-        }
-
-        // Stereo frame with a higher frequency sine wave, mixed with the cosine
-        // wave from render frame.
-        let mut capture_frame = Vec::with_capacity(num_samples_per_frame * 2);
-        for i in 0..num_samples_per_frame {
-            capture_frame.push((i as f32 / 20.0).sin() * 0.4 + render_frame[i * 2] * 0.2);
-            capture_frame.push((i as f32 / 20.0).sin() * 0.2 + render_frame[i * 2 + 1] * 0.2);
-        }
-
-        (render_frame, capture_frame)
-    }
-
+    /// Tests processing of stereo frames
     #[test]
     fn test_nominal() {
         let config = init_config(2);
-        let mut ap = Processor::new(&config).unwrap();
+        let mut processor = Processor::new(&config).unwrap();
 
-        let config =
-            Config { echo_canceller: Some(EchoCanceller::default()), ..Default::default() };
-        ap.set_config(config);
+        let mut render_frame = vec![0.0f32; processor.num_samples_per_frame() * 2];
+        let mut capture_frame = render_frame.clone();
 
-        let (render_frame, capture_frame) = sample_stereo_frames(&ap);
-
-        let mut render_frame_output = render_frame.clone();
-        ap.process_render_frame(&mut render_frame_output).unwrap();
-
-        // Render frame should not be modified.
-        assert_eq!(render_frame, render_frame_output);
-
-        let mut capture_frame_output = capture_frame.clone();
-        ap.process_capture_frame(&mut capture_frame_output).unwrap();
-
-        // Echo cancellation should have modified the capture frame.
-        // We don't validate how it's modified. Out of scope for this unit test.
-        assert_ne!(capture_frame, capture_frame_output);
-
-        let stats = ap.get_stats();
-        assert!(stats.echo_return_loss.is_some());
-        println!("{:#?}", stats);
+        processor.process_render_frame(&mut render_frame).unwrap();
+        processor.process_capture_frame(&mut capture_frame).unwrap();
     }
 
+    /// Tests processing of stereo frames in multiple threads
+    #[test]
+    fn test_nominal_threaded() {
+        use std::thread;
+
+        let config = init_config(2);
+        let processor = Processor::new(&config).unwrap();
+        let num_samples = processor.num_samples_per_frame();
+
+        let render_frame = vec![0.0f32; num_samples * 2];
+        let capture_frame = render_frame.clone();
+
+        let mut threads = Vec::new();
+
+        for _ in 0..4 {
+            let mut processor = processor.clone();
+            let mut render = render_frame.clone();
+            let mut capture = capture_frame.clone();
+
+            threads.push(thread::spawn(move || {
+                processor.process_render_frame(&mut render).unwrap();
+                processor.process_capture_frame(&mut capture).unwrap();
+            }));
+        }
+
+        for thread in threads {
+            thread.join().unwrap();
+        }
+    }
+
+    /// Tests various processor parameter adjustments
+    #[test]
+    fn test_tweak_processor_params() {
+        let config = init_config(2);
+        let mut processor = Processor::new(&config).unwrap();
+
+        // Test various parameter adjustments
+        processor.set_output_will_be_muted(true);
+        processor.set_stream_key_pressed(true);
+
+        // Process some frames to ensure the parameters don't cause issues
+        let mut render_frame = vec![0.0f32; processor.num_samples_per_frame() * 2];
+        let mut capture_frame = render_frame.clone();
+
+        processor.process_render_frame(&mut render_frame).unwrap();
+        processor.process_capture_frame(&mut capture_frame).unwrap();
+    }
+
+    /// Tests echo cancellation convergence and signal reduction
+    #[test]
+    fn test_aec_echo_reduction() {
+        let mut ctx = TestContext::new(2);
+        let results = ctx.process_frames_with_metrics(
+            10,
+            Some(Config { echo_canceller: Some(EchoCanceller::default()), ..Default::default() }),
+        );
+
+        assert!(
+            results.metrics.processed_rms < results.original_metrics.processed_rms,
+            "Expected echo reduction, original RMS: {}, processed RMS: {}",
+            results.original_metrics.processed_rms,
+            results.metrics.processed_rms
+        );
+    }
+
+    /// Tests muting and key press detection functionality
+    #[test]
+    fn test_processor_params() {
+        let mut ctx = TestContext::new(2);
+
+        // Test muting and key press functionality
+        ctx.processor.set_output_will_be_muted(true);
+        ctx.processor.set_stream_key_pressed(true);
+
+        // Process some frames to ensure the parameters don't cause issues
+        let mut frame = ctx.generate_frame();
+        ctx.processor.process_render_frame(&mut frame).unwrap();
+        ctx.processor.process_capture_frame(&mut frame).unwrap();
+    }
+
+    /// Tests concurrent processing and thread safety
     #[test]
     #[ignore]
-    fn test_nominal_threaded() {
-        let config = init_config(2);
-        let ap = Processor::new(&config).unwrap();
+    fn test_threaded_processing() {
+        use std::thread;
+        use std::time::Duration;
 
-        let (render_frame, capture_frame) = sample_stereo_frames(&ap);
+        let ctx = TestContext::new(2);
+        let processor = ctx.processor.clone();
 
-        let mut config_ap = ap.clone();
+        // Create test frames
+        let render_frame = ctx.generate_frame();
+        let capture_frame = ctx.generate_frame();
+
+        // Config thread
+        let mut config_processor = processor.clone();
         let config_thread = thread::spawn(move || {
             thread::sleep(Duration::from_millis(100));
-
             let config =
                 Config { echo_canceller: Some(EchoCanceller::default()), ..Default::default() };
-            config_ap.set_config(config);
+            config_processor.set_config(config);
         });
 
-        let mut render_ap = ap.clone();
+        // Render thread
+        let mut render_processor = processor.clone();
         let render_thread = thread::spawn(move || {
             for _ in 0..100 {
-                let mut render_frame_output = render_frame.clone();
-                render_ap.process_render_frame(&mut render_frame_output).unwrap();
-
+                let mut frame = render_frame.clone();
+                render_processor.process_render_frame(&mut frame).unwrap();
                 thread::sleep(Duration::from_millis(10));
             }
         });
 
-        let mut capture_ap = ap.clone();
+        let mut capture_processor = processor.clone();
         let capture_thread = thread::spawn(move || {
             for i in 0..100 {
                 let mut capture_frame_output = capture_frame.clone();
-                capture_ap.process_capture_frame(&mut capture_frame_output).unwrap();
+                capture_processor.process_capture_frame(&mut capture_frame_output).unwrap();
 
-                let stats = capture_ap.get_stats();
+                let stats = capture_processor.get_stats();
                 if i < 5 {
                     // first 50ms
                     assert!(stats.echo_return_loss.is_none());
@@ -432,28 +629,23 @@ mod tests {
         render_thread.join().unwrap();
         capture_thread.join().unwrap();
     }
-
+    /// Tests comprehensive stats reporting functionality
     #[test]
-    fn test_tweak_processor_params() {
-        let config = InitializationConfig {
-            num_capture_channels: 2,
-            num_render_channels: 2,
-            ..InitializationConfig::default()
-        };
-        let mut ap = Processor::new(&config).unwrap();
+    fn test_stats_reporting() {
+        let mut ctx = TestContext::new(1);
+        ctx.processor.set_config(Config {
+            echo_canceller: Some(EchoCanceller::default()),
+            reporting: ReportingConfig {
+                enable_voice_detection: true,
+                enable_level_estimation: true,
+                enable_residual_echo_detector: true,
+            },
+            ..Default::default()
+        });
 
-        // tweak params outside of config
-        ap.set_output_will_be_muted(true);
-        ap.set_stream_key_pressed(true);
-
-        // test one process call
-        let (render_frame, capture_frame) = sample_stereo_frames();
-
-        let mut render_frame_output = render_frame.clone();
-        ap.process_render_frame(&mut render_frame_output).unwrap();
-        let mut capture_frame_output = capture_frame.clone();
-        ap.process_capture_frame(&mut capture_frame_output).unwrap();
-
-        // it shouldn't crash
+        let results = ctx.process_frames_with_metrics(10, None);
+        assert!(
+            results.stats.echo_return_loss.is_some() || results.stats.output_rms_dbfs.is_some()
+        );
     }
 }

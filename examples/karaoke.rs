@@ -73,6 +73,7 @@ fn main() -> Result<(), Error> {
 
     // Memory allocation should not happen inside the audio loop.
     let mut processed = vec![0f32; FRAMES_PER_BUFFER as usize * input_channels as usize];
+    let mut output_buffer = vec![0f32; FRAMES_PER_BUFFER as usize * output_channels as usize];
 
     let mut stream = pa.open_non_blocking_stream(
         stream_settings,
@@ -83,7 +84,17 @@ fn main() -> Result<(), Error> {
             processor.process_capture_frame(&mut processed).unwrap();
 
             // Play back the processed audio capture.
-            out_buffer.copy_from_slice(&processed);
+            // Handle mono to mono/stereo conversion
+            if output_channels == 1 {
+                out_buffer.copy_from_slice(&processed);
+            } else {
+                for i in 0..frames {
+                    output_buffer[i * 2] = processed[i];
+                    output_buffer[i * 2 + 1] = processed[i];
+                }
+                out_buffer.copy_from_slice(&output_buffer);
+            }
+
             processor.process_render_frame(&mut out_buffer).unwrap();
 
             portaudio::Continue

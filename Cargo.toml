@@ -37,6 +37,7 @@ regex = "1"
 serde = { version = "1", features = ["derive"]}
 structopt = "0.3"
 log = "0.4"
+rand = "0.8.5"
 
 [package.metadata.docs.rs]
 features = [ "bundled" ]
