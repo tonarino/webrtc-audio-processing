@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 /// A configuration for initializing a Processor instance.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "derive_serde", serde(default))]
 pub struct InitializationConfig {
     /// Number of the input and output channels for the capture frame.
     pub num_capture_channels: usize,
@@ -49,6 +50,7 @@ impl Default for PipelineProcessingRate {
 /// Audio processing pipeline configuration.
 #[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "derive_serde", serde(default))]
 pub struct Pipeline {
     /// Maximum allowed processing rate used internally. The default rate is currently selected
     /// based on the CPU architecture.
@@ -74,6 +76,7 @@ impl From<Pipeline> for ffi::AudioProcessing_Config_Pipeline {
 /// Pre-amplifier configuration.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "derive_serde", serde(default))]
 pub struct PreAmplifier {
     /// Fixed linear gain multiplifier. The default is 1.0 (no effect).
     pub fixed_gain_factor: f32,
@@ -94,6 +97,7 @@ impl From<PreAmplifier> for ffi::AudioProcessing_Config_PreAmplifier {
 /// HPF (high-pass fitler) configuration.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "derive_serde", serde(default))]
 pub struct HighPassFilter {
     /// HPF should be applied in the full-band (i.e. 20 – 20,000 Hz).
     pub apply_in_full_band: bool,
@@ -194,6 +198,7 @@ impl From<NoiseSuppressionLevel> for ffi::AudioProcessing_Config_NoiseSuppressio
 /// Noise suppression configuration.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "derive_serde", serde(default))]
 pub struct NoiseSuppression {
     /// Determines the aggressiveness of the suppression. Increasing the level will reduce the
     /// noise level at the expense of a higher speech distortion.
@@ -263,6 +268,7 @@ impl From<GainControllerMode> for ffi::AudioProcessing_Config_GainController1_Mo
 /// AGC (automatic gain control) configuration.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "derive_serde", serde(default))]
 pub struct GainController {
     /// AGC mode.
     pub mode: GainControllerMode,
@@ -309,6 +315,7 @@ impl From<GainController> for ffi::AudioProcessing_Config_GainController1 {
 /// The parameters to control reporting of selected field in [`Stats`].
 #[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "derive_serde", serde(default))]
 pub struct ReportingConfig {
     /// Enables reporting of [`voice_detected`] in [`Stats`].
     pub enable_voice_detection: bool,
@@ -326,6 +333,7 @@ pub struct ReportingConfig {
 /// The config is applied by passing the struct to the [`set_config`] method.
 #[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "derive_serde", serde(default))]
 pub struct Config {
     /// Sets the properties of the audio processing pipeline.
     #[serde(default)]
@@ -435,28 +443,10 @@ impl From<Config> for ffi::AudioProcessing_Config {
     }
 }
 
-/// Suppressor tuning configuration
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
-pub struct SuppressorTuning {
-    /// Masking thresholds for low frequencies
-    pub mask_lf: MaskingThresholds,
-
-    /// Masking thresholds for high frequencies
-    pub mask_hf: MaskingThresholds,
-
-    /// Maximum increment factor for gain changes
-    pub max_inc_factor: f32,
-
-    /// Maximum decrement factor for low frequencies
-    pub max_dec_factor_lf: f32,
-}
-
-// ----
-
 /// [Highly Experimental] Configurations of internal AEC3 implementation.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "derive_serde", serde(default))]
 pub struct EchoCanceller3Config {
     /// Delay configuration
     pub delay: Delay,
@@ -840,6 +830,7 @@ impl EchoCanceller3Config {
 /// Buffering configuration
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "derive_serde", serde(default))]
 pub struct Buffering {
     /// Excess render detection interval in blocks
     pub excess_render_detection_interval_blocks: usize,
@@ -857,6 +848,7 @@ impl Default for Buffering {
 /// Delay configuration
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "derive_serde", serde(default))]
 pub struct Delay {
     /// Initial default delay estimate in blocks
     pub default_delay: usize,
@@ -931,6 +923,7 @@ impl Default for Delay {
 /// Delay selection thresholds configuration
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "derive_serde", serde(default))]
 pub struct DelaySelectionThresholds {
     /// Initial threshold
     pub initial: i32,
@@ -947,6 +940,7 @@ impl Default for DelaySelectionThresholds {
 /// Configuration for filter alignment and mixing settings
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "derive_serde", serde(default))]
 pub struct AlignmentMixing {
     /// Whether to downmix the signal
     pub downmix: bool,
@@ -975,6 +969,7 @@ impl Default for AlignmentMixing {
 /// Configuration for the main adaptive filter component that models the echo path
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "derive_serde", serde(default))]
 pub struct Filter {
     /// Configuration for the refined filter stage
     pub refined: RefinedConfiguration,
@@ -1038,6 +1033,7 @@ impl Default for Filter {
 /// Configuration for the refined filter stage
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "derive_serde", serde(default))]
 pub struct RefinedConfiguration {
     /// Length in blocks
     pub length_blocks: usize,
@@ -1074,6 +1070,7 @@ impl Default for RefinedConfiguration {
 /// Configuration for the coarse filter stage
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "derive_serde", serde(default))]
 pub struct CoarseConfiguration {
     /// Length in blocks
     pub length_blocks: usize,
@@ -1094,6 +1091,7 @@ impl Default for CoarseConfiguration {
 /// ERLE (Echo Return Loss Enhancement) configuration
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "derive_serde", serde(default))]
 pub struct Erle {
     /// Minimum ERLE value
     pub min: f32,
@@ -1135,6 +1133,7 @@ impl Default for Erle {
 /// Controls how the system adapts to changes in the echo path.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "derive_serde", serde(default))]
 pub struct EpStrength {
     /// Default gain value
     pub default_gain: f32,
@@ -1159,6 +1158,7 @@ impl Default for EpStrength {
 /// Controls how the system detects and handles audible echo.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "derive_serde", serde(default))]
 pub struct EchoAudibility {
     /// Low render limit for echo detection
     pub low_render_limit: f32,
@@ -1203,6 +1203,7 @@ impl Default for EchoAudibility {
 /// Render levels configuration
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "derive_serde", serde(default))]
 pub struct RenderLevels {
     /// Active render limit
     pub active_render_limit: f32,
@@ -1231,6 +1232,7 @@ impl Default for RenderLevels {
 /// Echo removal control configuration
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "derive_serde", serde(default))]
 pub struct EchoRemovalControl {
     /// Whether clock drift is present
     pub has_clock_drift: bool,
@@ -1248,6 +1250,7 @@ impl Default for EchoRemovalControl {
 /// Echo model configuration
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "derive_serde", serde(default))]
 pub struct EchoModel {
     /// Noise floor hold time
     pub noise_floor_hold: usize,
@@ -1292,6 +1295,7 @@ impl Default for EchoModel {
 /// Comfort noise configuration
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "derive_serde", serde(default))]
 pub struct ComfortNoise {
     /// Noise floor level in dBFS
     pub noise_floor_dbfs: f32,
@@ -1306,6 +1310,7 @@ impl Default for ComfortNoise {
 /// Configuration for the echo suppressor component, which removes residual echo
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "derive_serde", serde(default))]
 pub struct Suppressor {
     /// Number of blocks to average for nearend detection
     pub nearend_average_blocks: usize,
@@ -1363,6 +1368,7 @@ impl Default for Suppressor {
 /// Masking thresholds configuration
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "derive_serde", serde(default))]
 pub struct MaskingThresholds {
     /// Transparent energy ratio threshold
     pub enr_transparent: f32,
@@ -1384,6 +1390,7 @@ impl Default for MaskingThresholds {
 /// in different frequency bands and how quickly the suppression can change
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "derive_serde", serde(default))]
 pub struct Tuning {
     /// Low-frequency masking thresholds
     pub mask_lf: MaskingThresholds,
@@ -1420,6 +1427,7 @@ impl Default for Tuning {
 /// Configuration for dominant nearend speech detection
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "derive_serde", serde(default))]
 pub struct DominantNearendDetection {
     /// Echo-to-noise ratio threshold
     pub enr_threshold: f32,
@@ -1456,6 +1464,7 @@ impl Default for DominantNearendDetection {
 /// Configuration for subband-based nearend detection
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "derive_serde", serde(default))]
 pub struct SubbandNearendDetection {
     /// Number of blocks to average for nearend detection
     pub nearend_average_blocks: usize,
@@ -1488,6 +1497,7 @@ impl Default for SubbandNearendDetection {
 /// Configuration for a subband frequency region
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "derive_serde", serde(default))]
 pub struct SubbandRegion {
     /// Lower frequency bound of the subband region
     pub low: usize,
@@ -1505,6 +1515,7 @@ impl Default for SubbandRegion {
 /// Configuration for high frequency bands suppression
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "derive_serde", serde(default))]
 pub struct HighBandsSuppression {
     /// Echo-to-noise ratio threshold
     pub enr_threshold: f32,
