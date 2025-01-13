@@ -305,4 +305,64 @@ mod tests {
             audio_processing_delete(ap);
         }
     }
+
+    #[test]
+    fn test_empty_stats() {
+        unsafe {
+            let mut error = 0;
+            let ap = audio_processing_create(1, 1, SAMPLE_RATE_HZ, null(), &mut error);
+            assert!(!ap.is_null());
+            assert_success(error);
+
+            let stats = get_stats(ap);
+            println!("Stats:\n{:#?}", stats);
+            assert!(!stats.output_rms_dbfs.has_value);
+            assert!(!stats.voice_detected.has_value);
+            assert!(!stats.echo_return_loss.has_value);
+            assert!(!stats.echo_return_loss_enhancement.has_value);
+            assert!(!stats.divergent_filter_fraction.has_value);
+            assert!(!stats.delay_median_ms.has_value);
+            assert!(!stats.delay_standard_deviation_ms.has_value);
+            assert!(!stats.residual_echo_likelihood.has_value);
+            assert!(!stats.residual_echo_likelihood_recent_max.has_value);
+            assert!(!stats.delay_ms.has_value);
+
+            audio_processing_delete(ap);
+        }
+    }
+
+    #[test]
+    fn test_some_stats() {
+        unsafe {
+            let mut error = 0;
+            let ap = audio_processing_create(1, 1, SAMPLE_RATE_HZ, null(), &mut error);
+            assert!(!ap.is_null());
+            assert_success(error);
+
+            let config = config_with_all_enabled();
+            set_config(ap, &config);
+
+            let num_samples = get_num_samples_per_frame(ap);
+            let mut frame = vec![vec![0f32; num_samples as usize]; 1];
+            let mut frame_ptr = frame.iter_mut().map(|v| v.as_mut_ptr()).collect::<Vec<*mut f32>>();
+            assert_success(process_render_frame(ap, frame_ptr.as_mut_ptr()));
+            assert_success(process_capture_frame(ap, frame_ptr.as_mut_ptr()));
+
+            let stats = get_stats(ap);
+            println!("Stats:\n{:#?}", stats);
+            assert!(stats.output_rms_dbfs.has_value);
+            assert!(stats.voice_detected.has_value);
+            assert!(stats.echo_return_loss.has_value);
+            assert!(stats.echo_return_loss_enhancement.has_value);
+            assert!(stats.residual_echo_likelihood.has_value);
+            assert!(stats.residual_echo_likelihood_recent_max.has_value);
+            assert!(stats.delay_ms.has_value);
+
+            // TODO: Investigate why these stats are not filled.
+            assert!(!stats.divergent_filter_fraction.has_value);
+            assert!(!stats.delay_median_ms.has_value);
+            assert!(!stats.delay_standard_deviation_ms.has_value);
+            audio_processing_delete(ap);
+        }
+    }
 }

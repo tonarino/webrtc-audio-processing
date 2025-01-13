@@ -219,7 +219,7 @@ int process_capture_frame(AudioProcessing* ap, float** channels);
 
 // Processes and optionally modifies the audio frame from a playback device.
 // Each element in |channels| is an array of float representing a single-channel frame of 10 ms
-// length (i.0. deinterleaved). Returns an error code or |kNoError|.
+// length (i.e. deinterleaved). Returns an error code or |kNoError|.
 int process_render_frame(AudioProcessing* ap, float** channel3);
 
 // Returns statistics from the last |process_capture_frame()| call.
