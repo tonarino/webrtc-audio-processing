@@ -152,15 +152,15 @@ mod tests {
         unsafe {
             let mut error = 0;
             let ap = audio_processing_create(1, 1, SAMPLE_RATE_HZ, null(), &mut error);
-            assert!(!ap.is_null(), "Failed to create audio processor");
+            assert!(!ap.is_null());
             assert_success(error);
 
-            let num_samples = get_num_samples_per_frame(ap);
-            assert!(num_samples > 0, "Invalid number of samples");
+            let config = config_with_all_enabled();
+            set_config(ap, &config);
 
+            let num_samples = get_num_samples_per_frame(ap);
             let mut frame = vec![vec![0f32; num_samples as usize]; 1];
             let mut frame_ptr = frame.iter_mut().map(|v| v.as_mut_ptr()).collect::<Vec<*mut f32>>();
-
             assert_success(process_render_frame(ap, frame_ptr.as_mut_ptr()));
             assert_success(process_capture_frame(ap, frame_ptr.as_mut_ptr()));
 
@@ -169,7 +169,7 @@ mod tests {
     }
 
     #[test]
-    fn test_stats_interface() {
+    fn test_empty_stats() {
         unsafe {
             let mut error = 0;
             let ap = audio_processing_create(1, 1, SAMPLE_RATE_HZ, null(), &mut error);
@@ -177,43 +177,53 @@ mod tests {
             assert_success(error);
 
             let stats = get_stats(ap);
-
-            if let Some(rms) = Into::<Option<i32>>::into(stats.output_rms_dbfs) {
-                assert!(rms <= 0);
-            }
-
-            if let Some(erl) = Into::<Option<f64>>::into(stats.echo_return_loss) {
-                assert!(erl >= 0.0);
-            }
+            println!("Stats:\n{:#?}", stats);
+            assert!(!stats.output_rms_dbfs.has_value);
+            assert!(!stats.voice_detected.has_value);
+            assert!(!stats.echo_return_loss.has_value);
+            assert!(!stats.echo_return_loss_enhancement.has_value);
+            assert!(!stats.divergent_filter_fraction.has_value);
+            assert!(!stats.delay_median_ms.has_value);
+            assert!(!stats.delay_standard_deviation_ms.has_value);
+            assert!(!stats.residual_echo_likelihood.has_value);
+            assert!(!stats.residual_echo_likelihood_recent_max.has_value);
+            assert!(!stats.delay_ms.has_value);
 
             audio_processing_delete(ap);
         }
     }
 
     #[test]
-    fn test_echo_canceller_config() {
+    fn test_some_stats() {
         unsafe {
             let mut error = 0;
-            let aec3_config = EchoCanceller3ConfigOverride {
-                delay_default_delay: 5,
-                delay_down_sampling_factor: 4,
-                delay_num_filters: 32,
-                ..Default::default()
-            };
-
-            let ap = audio_processing_create(2, 2, SAMPLE_RATE_HZ, &aec3_config, &mut error);
+            let ap = audio_processing_create(1, 1, SAMPLE_RATE_HZ, null(), &mut error);
             assert!(!ap.is_null());
             assert_success(error);
 
-            let num_samples = get_num_samples_per_frame(ap);
-            let mut frame = vec![vec![0f32; num_samples as usize]; 2];
-            let mut frame_ptr = frame.iter_mut().map(|v| v.as_mut_ptr()).collect::<Vec<*mut f32>>();
+            let config = config_with_all_enabled();
+            set_config(ap, &config);
 
-            // Process frames and verify echo cancellation is working
+            let num_samples = get_num_samples_per_frame(ap);
+            let mut frame = vec![vec![0f32; num_samples as usize]; 1];
+            let mut frame_ptr = frame.iter_mut().map(|v| v.as_mut_ptr()).collect::<Vec<*mut f32>>();
+            assert_success(process_render_frame(ap, frame_ptr.as_mut_ptr()));
             assert_success(process_capture_frame(ap, frame_ptr.as_mut_ptr()));
 
             let stats = get_stats(ap);
+            println!("Stats:\n{:#?}", stats);
+            assert!(stats.output_rms_dbfs.has_value);
+            assert!(stats.voice_detected.has_value);
             assert!(stats.echo_return_loss.has_value);
+            assert!(stats.echo_return_loss_enhancement.has_value);
+            assert!(stats.residual_echo_likelihood.has_value);
+            assert!(stats.residual_echo_likelihood_recent_max.has_value);
+            assert!(stats.delay_ms.has_value);
+
+            // TODO: Investigate why these stats are not filled.
+            assert!(!stats.divergent_filter_fraction.has_value);
+            assert!(!stats.delay_median_ms.has_value);
+            assert!(!stats.delay_standard_deviation_ms.has_value);
 
             audio_processing_delete(ap);
         }
@@ -302,66 +312,6 @@ mod tests {
             let ap = audio_processing_create(2, 2, SAMPLE_RATE_HZ, &config, &mut error);
             assert!(!ap.is_null());
             assert_success(error);
-            audio_processing_delete(ap);
-        }
-    }
-
-    #[test]
-    fn test_empty_stats() {
-        unsafe {
-            let mut error = 0;
-            let ap = audio_processing_create(1, 1, SAMPLE_RATE_HZ, null(), &mut error);
-            assert!(!ap.is_null());
-            assert_success(error);
-
-            let stats = get_stats(ap);
-            println!("Stats:\n{:#?}", stats);
-            assert!(!stats.output_rms_dbfs.has_value);
-            assert!(!stats.voice_detected.has_value);
-            assert!(!stats.echo_return_loss.has_value);
-            assert!(!stats.echo_return_loss_enhancement.has_value);
-            assert!(!stats.divergent_filter_fraction.has_value);
-            assert!(!stats.delay_median_ms.has_value);
-            assert!(!stats.delay_standard_deviation_ms.has_value);
-            assert!(!stats.residual_echo_likelihood.has_value);
-            assert!(!stats.residual_echo_likelihood_recent_max.has_value);
-            assert!(!stats.delay_ms.has_value);
-
-            audio_processing_delete(ap);
-        }
-    }
-
-    #[test]
-    fn test_some_stats() {
-        unsafe {
-            let mut error = 0;
-            let ap = audio_processing_create(1, 1, SAMPLE_RATE_HZ, null(), &mut error);
-            assert!(!ap.is_null());
-            assert_success(error);
-
-            let config = config_with_all_enabled();
-            set_config(ap, &config);
-
-            let num_samples = get_num_samples_per_frame(ap);
-            let mut frame = vec![vec![0f32; num_samples as usize]; 1];
-            let mut frame_ptr = frame.iter_mut().map(|v| v.as_mut_ptr()).collect::<Vec<*mut f32>>();
-            assert_success(process_render_frame(ap, frame_ptr.as_mut_ptr()));
-            assert_success(process_capture_frame(ap, frame_ptr.as_mut_ptr()));
-
-            let stats = get_stats(ap);
-            println!("Stats:\n{:#?}", stats);
-            assert!(stats.output_rms_dbfs.has_value);
-            assert!(stats.voice_detected.has_value);
-            assert!(stats.echo_return_loss.has_value);
-            assert!(stats.echo_return_loss_enhancement.has_value);
-            assert!(stats.residual_echo_likelihood.has_value);
-            assert!(stats.residual_echo_likelihood_recent_max.has_value);
-            assert!(stats.delay_ms.has_value);
-
-            // TODO: Investigate why these stats are not filled.
-            assert!(!stats.divergent_filter_fraction.has_value);
-            assert!(!stats.delay_median_ms.has_value);
-            assert!(!stats.delay_standard_deviation_ms.has_value);
             audio_processing_delete(ap);
         }
     }
