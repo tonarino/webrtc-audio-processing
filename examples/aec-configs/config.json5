@@ -1,7 +1,4 @@
 {
-  num_capture_channels: 1,
-  num_render_channels: 2,
-
   config: {
     echo_canceller: {
       Full: {

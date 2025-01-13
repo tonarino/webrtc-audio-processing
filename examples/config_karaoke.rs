@@ -28,9 +28,7 @@ struct Args {
 #[derive(Debug, Deserialize)]
 #[serde(default)]
 struct AppConfig {
-    #[serde(default = "default_channels")]
     num_capture_channels: u16,
-    #[serde(default = "default_channels")]
     num_render_channels: u16,
     #[serde(default)]
     config: Config,
@@ -41,8 +39,8 @@ struct AppConfig {
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
-            num_capture_channels: default_channels(),
-            num_render_channels: default_channels(),
+            num_capture_channels: 1,
+            num_render_channels: 1,
             config: Config::default(),
             aec3: EchoCanceller3Config::default(),
         }
@@ -59,10 +57,6 @@ impl AppConfig {
             Ok(Self::default())
         }
     }
-}
-
-fn default_channels() -> u16 {
-    1
 }
 
 fn create_processor(config: &AppConfig) -> Result<Processor, Error> {

@@ -233,7 +233,7 @@ mod tests {
     fn test_config_bindings_coverage() {
         use std::collections::HashSet;
 
-        // Helper to normalize field names into groups
+        // Helper to normalize field names into groups - very ugly
         fn normalize_group_name(field: &str) -> Option<String> {
             let field = field.trim_matches(|c: char| c == '{' || c == '}' || c == ',' || c == ' ');
             if field.is_empty()
@@ -243,6 +243,7 @@ mod tests {
             }
 
             // Handle special cases and normalize the field name
+            // There might be some easier way to do this.
             let group = if field.contains("echo_audibility") {
                 "echo_audibility"
             } else if field.contains("render_levels") {
@@ -277,10 +278,6 @@ mod tests {
                 }
             }
         }
-
-        // Debug output
-        println!("Debug representation:\n{:#?}", config);
-        println!("Found groups: {:?}", found_groups);
 
         // Define expected groups based on C++ header
         let expected_groups = [

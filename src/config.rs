@@ -368,6 +368,10 @@ pub struct Config {
     /// Toggles reporting of selected fields in [`Stats`].
     #[serde(default)]
     pub reporting: ReportingConfig,
+
+    /// Fine-grained AEC3 configuration parameters.
+    #[serde(default)]
+    pub aec3_config: Option<EchoCanceller3Config>,
 }
 
 impl From<Config> for ffi::AudioProcessing_Config {

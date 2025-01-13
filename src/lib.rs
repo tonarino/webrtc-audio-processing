@@ -394,6 +394,7 @@ mod tests {
         }
     }
 
+    /// A context to put abstracted methods commonly reused for tests.
     struct TestContext {
         processor: Processor,
         num_samples: usize,
@@ -441,6 +442,7 @@ mod tests {
             final_erl - initial_erl
         }
 
+        /// Warm up the AEC and then measure ERL
         fn measure_steady_state_performance(
             &mut self,
             render_frame: &[f32],
@@ -456,7 +458,7 @@ mod tests {
                 warmup_iterations,
             );
 
-            // Measure steady state
+            // Measure steady state and sum up the ERL reduction
             let mut total_reduction = 0.0;
             for _ in 0..measurement_count {
                 let mut test_capture = capture_frame.clone();
@@ -608,9 +610,7 @@ mod tests {
     /// Measures baseline echo cancellation performance using industry metrics.
     ///
     /// Uses a pure sine wave to create ideal test conditions. Verifies the AEC
-    /// achieves at least 18dB Echo Return Loss Enhancement (ERLE)
-    ///
-    /// Most echo cancellers are able to apply 18 to 35 dB ERLE.
+    /// achieves at least 18dB ERL.
     #[test]
     fn test_echo_cancellation_effectiveness() {
         let mut context = TestContext::new(1);
@@ -635,7 +635,6 @@ mod tests {
 
     /// Verifies that different AEC configurations produce measurably different results.
     ///
-    /// Compares Mobile vs Full modes under realistic conditions (noise + attenuation).
     /// These modes should have distinct echo cancellation behaviors by design.
     #[test]
     fn test_aec3_configuration_impact() {
@@ -663,11 +662,80 @@ mod tests {
         );
     }
 
+    /// Verifies that unique AEC configurations produce measurably different results.
+    ///
+    /// This test is used to verify that a AEC3 configuration will apply and output
+    /// different results (in this case, 4dB of ERL).
+    #[test]
+    fn test_aec3_configuration_tuning() {
+        // Strong suppression configuration
+        let strong_config = Config {
+            echo_canceller: Some(EchoCanceller::default()),
+            aec3_config: Some(EchoCanceller3Config {
+                suppressor: Suppressor {
+                    dominant_nearend_detection: DominantNearendDetection {
+                        enr_threshold: 0.75,
+                        snr_threshold: 20.0,
+                        ..Default::default()
+                    },
+                    high_bands_suppression: HighBandsSuppression {
+                        enr_threshold: 0.8,
+                        max_gain_during_echo: 0.3,
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                },
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        // Light suppression configuration
+        let light_config = Config {
+            echo_canceller: Some(EchoCanceller::default()),
+            aec3_config: Some(EchoCanceller3Config {
+                suppressor: Suppressor {
+                    dominant_nearend_detection: DominantNearendDetection {
+                        enr_threshold: 0.25,
+                        snr_threshold: 30.0,
+                        ..Default::default()
+                    },
+                    high_bands_suppression: HighBandsSuppression {
+                        enr_threshold: 1.2,
+                        max_gain_during_echo: 0.8,
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                },
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let mut context = TestContext::new(2);
+        let render_frame = context.generate_sine_frame(440.0);
+
+        // Test strong suppression
+        context.processor.set_config(strong_config);
+        let strong_reduction = context.measure_steady_state_performance(&render_frame, 50, 10);
+
+        // Test light suppression
+        context.processor.set_config(light_config);
+        let light_reduction = context.measure_steady_state_performance(&render_frame, 50, 10);
+
+        // Verify the configurations produce measurably different results
+        assert!(
+            strong_reduction > light_reduction + 3.0,
+            "Strong suppression ({:.1} dB) should achieve at least 3dB more reduction than light suppression ({:.1} dB)",
+            strong_reduction,
+            light_reduction
+        );
+    }
+
     /// Validates AEC configuration state management across processing modes.
     ///
     /// Tests that AEC metrics and behavior remain consistent when switching
-    /// between different modes (Full vs Mobile). Ensures configuration changes
-    /// are properly applied and maintained during audio processing.
+    /// between different modes (Full vs Mobile).
     #[test]
     fn test_aec3_configuration_behavior() {
         let mut context = TestContext::new(2);
