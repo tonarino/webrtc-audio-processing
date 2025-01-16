@@ -4,9 +4,6 @@
 // https://github.com/rust-lang/rust-bindgen/issues/1651
 #![allow(deref_nullptr)]
 
-#[allow(unused_imports)]
-use std::ptr::null;
-
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
 pub use root::{webrtc::*, webrtc_audio_processing_wrapper::*};
@@ -44,6 +41,7 @@ impl From<OptionalDouble> for Option<f64> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::ptr::null;
 
     const SAMPLE_RATE_HZ: i32 = 48_000;
 
