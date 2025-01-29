@@ -77,7 +77,7 @@ impl Processor {
     /// with NUM_SAMPLES_PER_FRAME samples.
     pub fn process_capture_frame_noninterleaved(
         &mut self,
-        frame: &mut Vec<Vec<f32>>,
+        frame: &mut [Vec<f32>],
     ) -> Result<(), Error> {
         self.inner.process_capture_frame(frame)
     }
@@ -97,7 +97,7 @@ impl Processor {
     /// representing a channel with NUM_SAMPLES_PER_FRAME samples.
     pub fn process_render_frame_noninterleaved(
         &mut self,
-        frame: &mut Vec<Vec<f32>>,
+        frame: &mut [Vec<f32>],
     ) -> Result<(), Error> {
         self.inner.process_render_frame(frame)
     }
@@ -184,7 +184,7 @@ impl AudioProcessing {
         }
     }
 
-    fn process_capture_frame(&self, frame: &mut Vec<Vec<f32>>) -> Result<(), Error> {
+    fn process_capture_frame(&self, frame: &mut [Vec<f32>]) -> Result<(), Error> {
         let mut frame_ptr = frame.iter_mut().map(|v| v.as_mut_ptr()).collect::<Vec<*mut f32>>();
         unsafe {
             let code = ffi::process_capture_frame(self.inner, frame_ptr.as_mut_ptr());
@@ -196,7 +196,7 @@ impl AudioProcessing {
         }
     }
 
-    fn process_render_frame(&self, frame: &mut Vec<Vec<f32>>) -> Result<(), Error> {
+    fn process_render_frame(&self, frame: &mut [Vec<f32>]) -> Result<(), Error> {
         let mut frame_ptr = frame.iter_mut().map(|v| v.as_mut_ptr()).collect::<Vec<*mut f32>>();
         unsafe {
             let code = ffi::process_render_frame(self.inner, frame_ptr.as_mut_ptr());
@@ -412,8 +412,8 @@ mod tests {
             ..InitializationConfig::default()
         };
         let mut ap = Processor::new(&config).unwrap();
-        
-        // tweak params outside of config 
+
+        // tweak params outside of config
         ap.set_output_will_be_muted(true);
         ap.set_stream_key_pressed(true);
 
@@ -427,5 +427,4 @@ mod tests {
 
         // it shouldn't crash
     }
-
 }
