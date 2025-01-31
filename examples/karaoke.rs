@@ -1,9 +1,7 @@
 // This example loops the microphone input back to the speakers, while applying echo cancellation,
 // creating an experience similar to Karaoke microphones. It uses PortAudio as an interface to the
 // underlying audio devices.
-use ctrlc;
 use failure::Error;
-use portaudio;
 use std::{
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -85,15 +83,15 @@ fn main() -> Result<(), Error> {
 
     let mut stream = pa.open_non_blocking_stream(
         stream_settings,
-        move |portaudio::DuplexStreamCallbackArgs { in_buffer, mut out_buffer, frames, .. }| {
+        move |portaudio::DuplexStreamCallbackArgs { in_buffer, out_buffer, frames, .. }| {
             assert_eq!(frames as u32, FRAMES_PER_BUFFER);
 
-            processed.copy_from_slice(&in_buffer);
+            processed.copy_from_slice(in_buffer);
             processor.process_capture_frame(&mut processed).unwrap();
 
             // Play back the processed audio capture.
             out_buffer.copy_from_slice(&processed);
-            processor.process_render_frame(&mut out_buffer).unwrap();
+            processor.process_render_frame(out_buffer).unwrap();
 
             portaudio::Continue
         },
