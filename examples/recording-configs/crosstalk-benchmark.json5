@@ -1,0 +1,31 @@
+{
+    capture: {
+        device_name: "UR44",
+        num_channels: 1,
+        preprocess_sink_path: "capture.wav",
+        postprocess_sink_path: "capture-processed.wav",
+    },
+    playback: {
+        far_end: {
+            device_name: "UR44",
+            num_channels: 1,
+            source_path: "examples/captures/pure-speech-m22/2023-11-24_11-57-35_mixed_egress_mono.wav",
+        },
+        near_end: {
+            device_name: "NFJ USB Audio",
+            num_channels: 1,
+            source_path: "examples/captures/pure-speech-m22/2023-11-24_11-57-35_raw_near_end_mono.wav",
+        },
+    },
+    config: {
+        enable_transient_suppressor: false,
+        enable_high_pass_filter: true,
+        echo_cancellation: {
+            enabled: true,
+            suppression_level: "Moderate",
+            enable_extended_filter: false,
+            enable_delay_agnostic: false,
+            stream_delay_ms: 20,
+        },
+    },
+}
