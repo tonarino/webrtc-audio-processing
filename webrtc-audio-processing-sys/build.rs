@@ -100,9 +100,11 @@ mod webrtc {
         run_command(&build_dir, "automake", Some(&["--add-missing", "--copy"]))?;
         run_command(&build_dir, "autoconf", None)?;
 
+        let target = std::env::var("TARGET").unwrap();
         autotools::Config::new(build_dir)
             .cflag("-fPIC")
             .cxxflag("-fPIC")
+            .config_option("host", Some(&target))
             .disable_shared()
             .enable_static()
             .build();
