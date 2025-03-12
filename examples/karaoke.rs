@@ -1,7 +1,7 @@
 // This example loops the microphone input back to the speakers, while applying echo cancellation,
 // creating an experience similar to Karaoke microphones. It uses PortAudio as an interface to the
 // underlying audio devices.
-use failure::Error;
+use anyhow::Error;
 use std::{
     sync::{
         atomic::{AtomicBool, Ordering},

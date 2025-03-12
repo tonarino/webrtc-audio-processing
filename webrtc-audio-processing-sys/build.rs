@@ -1,4 +1,4 @@
-use failure::Error;
+use anyhow::Result;
 use regex::Regex;
 use std::{
     env,
@@ -16,11 +16,11 @@ fn out_dir() -> PathBuf {
 #[cfg(not(feature = "bundled"))]
 mod webrtc {
     use super::*;
-    use failure::bail;
+    use anyhow::bail;
 
     const LIB_NAME: &str = "webrtc-audio-processing";
 
-    pub(super) fn get_build_paths() -> Result<(PathBuf, PathBuf), Error> {
+    pub(super) fn get_build_paths() -> Result<(PathBuf, PathBuf)> {
         let (pkgconfig_include_path, pkgconfig_lib_path) = find_pkgconfig_paths()?;
 
         let include_path = std::env::var("WEBRTC_AUDIO_PROCESSING_INCLUDE")
@@ -39,16 +39,16 @@ mod webrtc {
             _ => {
                 eprintln!("Couldn't find either header or lib files for {}.", LIB_NAME);
                 eprintln!("See the crate README for installation instructions, or use the 'bundled' feature to statically compile.");
-                bail!("Aborting compilation due to linker failure.");
+                bail!("Aborting compilation due to linker failure.")
             },
         }
     }
 
-    pub(super) fn build_if_necessary() -> Result<(), Error> {
+    pub(super) fn build_if_necessary() -> Result<()> {
         Ok(())
     }
 
-    fn find_pkgconfig_paths() -> Result<(Option<PathBuf>, Option<PathBuf>), Error> {
+    fn find_pkgconfig_paths() -> Result<(Option<PathBuf>, Option<PathBuf>)> {
         Ok(pkg_config::Config::new()
             .probe(LIB_NAME)
             .and_then(|mut lib| Ok((lib.include_paths.pop(), lib.link_paths.pop())))?)
@@ -58,17 +58,17 @@ mod webrtc {
 #[cfg(feature = "bundled")]
 mod webrtc {
     use super::*;
-    use failure::bail;
+    use anyhow::{anyhow, bail};
 
     const BUNDLED_SOURCE_PATH: &str = "./webrtc-audio-processing";
 
-    pub(super) fn get_build_paths() -> Result<(PathBuf, PathBuf), Error> {
+    pub(super) fn get_build_paths() -> Result<(PathBuf, PathBuf)> {
         let include_path = out_dir().join(BUNDLED_SOURCE_PATH);
         let lib_path = out_dir().join("lib");
         Ok((include_path, lib_path))
     }
 
-    fn copy_source_to_out_dir() -> Result<PathBuf, Error> {
+    fn copy_source_to_out_dir() -> Result<PathBuf> {
         use fs_extra::dir::CopyOptions;
 
         if Path::new(BUNDLED_SOURCE_PATH).read_dir()?.next().is_none() {
@@ -87,7 +87,7 @@ mod webrtc {
         Ok(out_dir.join(BUNDLED_SOURCE_PATH))
     }
 
-    pub(super) fn build_if_necessary() -> Result<(), Error> {
+    pub(super) fn build_if_necessary() -> Result<()> {
         let build_dir = copy_source_to_out_dir()?;
 
         if cfg!(target_os = "macos") {
@@ -114,7 +114,7 @@ mod webrtc {
         curr_dir: P,
         cmd: &str,
         args_opt: Option<&[&str]>,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         let mut command = std::process::Command::new(cmd);
 
         command.current_dir(curr_dir);
@@ -124,12 +124,7 @@ mod webrtc {
         }
 
         let _output = command.output().map_err(|e| {
-            failure::format_err!(
-                "Error running command '{}' with args '{:?}' - {:?}",
-                cmd,
-                args_opt,
-                e
-            )
+            anyhow!("Error running command '{}' with args '{:?}' - {:?}", cmd, args_opt, e)
         })?;
 
         Ok(())
@@ -139,7 +134,7 @@ mod webrtc {
 // TODO: Consider fixing this with the upstream.
 // https://github.com/rust-lang/rust-bindgen/issues/1089
 // https://github.com/rust-lang/rust-bindgen/issues/1301
-fn derive_serde(binding_file: &Path) -> Result<(), Error> {
+fn derive_serde(binding_file: &Path) -> Result<()> {
     let mut contents = String::new();
     File::open(binding_file)?.read_to_string(&mut contents)?;
 
@@ -154,7 +149,7 @@ fn derive_serde(binding_file: &Path) -> Result<(), Error> {
     Ok(())
 }
 
-fn main() -> Result<(), Error> {
+fn main() -> Result<()> {
     webrtc::build_if_necessary()?;
     let (webrtc_include, webrtc_lib) = webrtc::get_build_paths()?;
 

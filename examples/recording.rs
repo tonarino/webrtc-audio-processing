@@ -21,7 +21,7 @@
 /// $ cargo run --example recording --features bundled --features derive_serde -- --config-file \
 ///     examples/recording-configs/record-pipeline.json5
 /// ```
-use failure::{format_err, Error};
+use anyhow::{anyhow, Error};
 use hound::{WavIntoSamples, WavReader, WavWriter};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -96,7 +96,7 @@ fn match_device(
             return Ok(device.0);
         }
     }
-    Err(format_err!("Audio device matching \"{}\" not found.", device_name))
+    Err(anyhow!("Audio device matching \"{}\" not found.", device_name))
 }
 
 fn create_stream_settings(
