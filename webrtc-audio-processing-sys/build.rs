@@ -39,7 +39,7 @@ mod webrtc {
             _ => {
                 eprintln!("Couldn't find either header or lib files for {}.", LIB_NAME);
                 eprintln!("See the crate README for installation instructions, or use the 'bundled' feature to statically compile.");
-                bail!("Aborting compilation due to linker failure.")
+                bail!("Aborting compilation due to linker failure.");
             },
         }
     }
