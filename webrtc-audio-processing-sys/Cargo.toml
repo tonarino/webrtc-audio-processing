@@ -21,10 +21,10 @@ derive_serde = ["serde"]
 bundled = []
 
 [build-dependencies]
+anyhow = "1"
 autotools = "0.2"
 bindgen = "0"
 cc = "1"
-failure = "0.1"
 fs_extra = "1"
 regex = "1"
 pkg-config = "0.3"
@@ -33,4 +33,4 @@ pkg-config = "0.3"
 serde = { version = "1", features = ["derive"], optional = true }
 
 [package.metadata.docs.rs]
-features = [ "bundled" ]
+features = ["bundled"]
