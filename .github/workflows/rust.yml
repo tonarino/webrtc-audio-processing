@@ -1,0 +1,75 @@
+name: Rust
+
+on:
+  push:
+    branches:
+    - '*'
+    tags-ignore:
+    - 'v*'
+  pull_request:
+    branches:
+    - '*'
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+    - name: Install Dependencies (if Ubuntu)
+      env:
+        ACCEPT_EULA: Y
+      run: sudo apt-get -y update && sudo apt-get install -f && sudo apt-get -y install portaudio pkg-config
+      if: contains(runner.os, 'Linux')
+    - uses: Swatinem/rust-cache@v1
+    - name: Build
+      uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --verbose --features "bundled"
+    - name: Test
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --verbose --features "bundled"
+
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: nightly
+        override: true
+        components: rustfmt
+    - name: Rustfmt
+      uses: actions-rs/cargo@v1
+      with:
+        command: fmt
+        args: --all -- --check
+
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+        components: clippy
+    - name: Clippy
+      uses: actions-rs/cargo@v1
+      with:
+        command: clippy
+        args: --all-targets -- -D warnings
