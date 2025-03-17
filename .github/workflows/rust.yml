@@ -31,7 +31,7 @@ jobs:
     - name: Install Dependencies (if macos)
       env:
         ACCEPT_EULA: Y
-      run: brew update && brew install automake autoconf libtool pkg-config automake
+      run: brew update && brew install automake autoconf libtool pkg-config
       if: contains(runner.os, 'macOS')
     - uses: Swatinem/rust-cache@v1
     - name: Build
