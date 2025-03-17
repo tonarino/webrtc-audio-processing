@@ -180,8 +180,8 @@ fn main() -> Result<()> {
         .cpp(true)
         .file("src/wrapper.cpp")
         .include(&webrtc_include)
-        .flag("-Wno-unused-parameter")
-        .flag("-Wno-deprecated-declarations")
+        // .flag("-Wno-unused-parameter")
+        // .flag("-Wno-deprecated-declarations")
         .flag("-std=c++11")
         .out_dir(&out_dir())
         .compile("webrtc_audio_processing_wrapper");
