@@ -1,15 +1,6 @@
 {
   num_capture_channels: 1,
   num_render_channels: 1,
-  config: {
-    echo_canceller: {
-      Full: {
-        enforce_high_pass_filtering: true
-      }
-    },
-    enable_high_pass_filter: true,
-    enable_transient_suppression: false
-  },
   aec3: {
     buffering: {
       excess_render_detection_interval_blocks: 250,
@@ -23,6 +14,7 @@
       hysteresis_limit_blocks: 1,
       fixed_capture_delay_samples: 0,
       delay_estimate_smoothing: 0.7,
+      delay_estimate_smoothing_delay_found: 0.7,
       delay_candidate_detection_threshold: 0.2,
       delay_selection_thresholds: {
         initial: 5,
@@ -30,6 +22,7 @@
       },
       use_external_delay_estimator: false,
       log_warning_on_delay_changes: false,
+      detect_pre_echo: true,
       render_alignment_mixing: {
         downmix: false,
         adaptive_selection: true,
@@ -72,10 +65,12 @@
       },
       config_change_duration_blocks: 250,
       initial_state_seconds: 2.5,
+      coarse_reset_hangover_blocks: 25,
       conservative_initial_phase: false,
       enable_coarse_filter_output_usage: true,
       use_linear_filter: true,
-      export_linear_aec_output: false
+      high_pass_filter_echo_reference: false
+      export_linear_aec_output: false,
     },
     erle: {
       min: 1.0,
@@ -89,8 +84,11 @@
     ep_strength: {
       default_gain: 1.0,
       default_len: 0.83,
+      nearend_len: 0.83,
       echo_can_saturate: true,
-      bounded_erl: false
+      bounded_erl: false,
+      erle_onset_compensation_in_dominant_nearend: false,
+      use_conservative_tail_frequency_response: true
     },
     echo_audibility: {
       low_render_limit: 256.0,
@@ -155,13 +153,19 @@
         max_inc_factor: 2.0,
         max_dec_factor_lf: 0.25
       },
+      lf_smoothing_during_initial_phase: true,
+      last_permanent_lf_smoothing_band: 0,
+      last_lf_smoothing_band: 5,
+      last_lf_band: 5,
+      first_hf_band: 8,
       dominant_nearend_detection: {
         enr_threshold: 0.25,
         enr_exit_threshold: 10.0,
         snr_threshold: 30.0,
         hold_duration: 50,
         trigger_threshold: 12,
-        use_during_initial_phase: true
+        use_during_initial_phase: true,
+        use_unbounded_echo_spectrum: true
       },
       subband_nearend_detection: {
         nearend_average_blocks: 1,
@@ -183,7 +187,14 @@
         anti_howling_activation_threshold: 400.0,
         anti_howling_gain: 1.0
       },
-      floor_first_increase: 0.00001
+      floor_first_increase: 0.00001,
+      conservative_hf_suppression: false,
+    },
+    multi_channel: {
+      detect_stereo_content: true,
+      stereo_detection_threshold: 0.0,
+      stereo_detection_timeout_threshold_seconds: 300,
+      stereo_detection_hysteresis_seconds: 2.0
     }
   }
 }

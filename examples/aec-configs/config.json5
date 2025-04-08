@@ -1,24 +1,14 @@
 {
-  config: {
-    echo_canceller: {
-      Full: {
-        enforce_high_pass_filtering: true,
-      },
-    },
-
-    enable_high_pass_filter: true,
-  },
-
   aec3: {
     delay: {
       default_delay: 3,
+      down_sampling_factor: 4,
       delay_estimate_smoothing: 0.85,
     },
 
     filter: {
       refined: {
         length_blocks: 15,
-        noise_gate: 15000.0,
       },
     },
 

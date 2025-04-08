@@ -5,34 +5,28 @@
 // when including the internal header file of echo_canceller3.h
 #define WEBRTC_APM_DEBUG_DUMP 0
 #define WEBRTC_POSIX
-#include <modules/audio_processing/aec3/echo_canceller3.h>
+#include "webrtc/modules/audio_processing/aec3/echo_canceller3.h"
 
 #include <algorithm>
 #include <memory>
+#include <optional>
 
 #define WEBRTC_POSIX
 
 namespace webrtc_audio_processing_wrapper {
 namespace {
 
-OptionalDouble from_absl_optional(const absl::optional<double>& optional) {
+OptionalDouble from_absl_optional(const std::optional<double>& optional) {
   OptionalDouble rv;
   rv.has_value = optional.has_value();
   rv.value = optional.value_or(0.0);
   return rv;
 }
 
-OptionalInt from_absl_optional(const absl::optional<int>& optional) {
+OptionalInt from_absl_optional(const std::optional<int>& optional) {
   OptionalInt rv;
   rv.has_value = optional.has_value();
   rv.value = optional.value_or(0);
-  return rv;
-}
-
-OptionalBool from_absl_optional(const absl::optional<bool>& optional) {
-  OptionalBool rv;
-  rv.has_value = optional.has_value();
-  rv.value = optional.value_or(false);
   return rv;
 }
 
@@ -54,11 +48,13 @@ webrtc::EchoCanceller3Config build_aec3_config(const EchoCanceller3ConfigOverrid
         config.delay.hysteresis_limit_blocks = override.delay_hysteresis_limit_blocks;
         config.delay.fixed_capture_delay_samples = override.delay_fixed_capture_delay_samples;
         config.delay.delay_estimate_smoothing = override.delay_estimate_smoothing;
+        config.delay.delay_estimate_smoothing_delay_found = override.delay_estimate_smoothing_delay_found;
         config.delay.delay_candidate_detection_threshold = override.delay_candidate_detection_threshold;
         config.delay.delay_selection_thresholds.initial = override.delay_selection_thresholds_initial;
         config.delay.delay_selection_thresholds.converged = override.delay_selection_thresholds_converged;
         config.delay.use_external_delay_estimator = override.delay_use_external_delay_estimator;
         config.delay.log_warning_on_delay_changes = override.delay_log_warning_on_delay_changes;
+        config.delay.detect_pre_echo = override.delay_detect_pre_echo;
 
         // Delay AlignmentMixing
         config.delay.render_alignment_mixing.downmix = override.delay_render_alignment_mixing_downmix;
@@ -102,9 +98,11 @@ webrtc::EchoCanceller3Config build_aec3_config(const EchoCanceller3ConfigOverrid
 
         config.filter.config_change_duration_blocks = override.filter_config_change_duration_blocks;
         config.filter.initial_state_seconds = override.filter_initial_state_seconds;
+        config.filter.coarse_reset_hangover_blocks = override.filter_coarse_reset_hangover_blocks;
         config.filter.conservative_initial_phase = override.filter_conservative_initial_phase;
         config.filter.enable_coarse_filter_output_usage = override.filter_enable_coarse_filter_output_usage;
         config.filter.use_linear_filter = override.filter_use_linear_filter;
+        config.filter.high_pass_filter_echo_reference = override.filter_high_pass_filter_echo_reference;
         config.filter.export_linear_aec_output = override.filter_export_linear_aec_output;
 
         // Erle
@@ -119,8 +117,13 @@ webrtc::EchoCanceller3Config build_aec3_config(const EchoCanceller3ConfigOverrid
         // EpStrength
         config.ep_strength.default_gain = override.ep_strength_default_gain;
         config.ep_strength.default_len = override.ep_strength_default_len;
+        config.ep_strength.nearend_len = override.ep_strength_nearend_len;
         config.ep_strength.echo_can_saturate = override.ep_strength_echo_can_saturate;
         config.ep_strength.bounded_erl = override.ep_strength_bounded_erl;
+        config.ep_strength.erle_onset_compensation_in_dominant_nearend =
+            override.ep_strength_erle_onset_compensation_in_dominant_nearend;
+        config.ep_strength.use_conservative_tail_frequency_response =
+            override.ep_strength_use_conservative_tail_frequency_response;
 
         // EchoAudibility
         config.echo_audibility.low_render_limit = override.echo_audibility_low_render_limit;
@@ -197,6 +200,16 @@ webrtc::EchoCanceller3Config build_aec3_config(const EchoCanceller3ConfigOverrid
         config.suppressor.nearend_tuning.max_dec_factor_lf =
             override.suppressor_nearend_tuning_max_dec_factor_lf;
 
+        // Suppressor Smoothing
+        config.suppressor.floor_first_increase = override.suppressor_floor_first_increase;
+        config.suppressor.lf_smoothing_during_initial_phase =
+            override.suppressor_lf_smoothing_during_initial_phase;
+        config.suppressor.last_permanent_lf_smoothing_band =
+            override.suppressor_last_permanent_lf_smoothing_band;
+        config.suppressor.last_lf_smoothing_band = override.suppressor_last_lf_smoothing_band;
+        config.suppressor.last_lf_band = override.suppressor_last_lf_band;
+        config.suppressor.first_hf_band = override.suppressor_first_hf_band;
+
         // Suppressor DominantNearendDetection
         config.suppressor.dominant_nearend_detection.enr_threshold =
             override.suppressor_dominant_nearend_detection_enr_threshold;
@@ -210,6 +223,8 @@ webrtc::EchoCanceller3Config build_aec3_config(const EchoCanceller3ConfigOverrid
             override.suppressor_dominant_nearend_detection_trigger_threshold;
         config.suppressor.dominant_nearend_detection.use_during_initial_phase =
             override.suppressor_dominant_nearend_detection_use_during_initial_phase;
+        config.suppressor.dominant_nearend_detection.use_unbounded_echo_spectrum =
+            override.suppressor_dominant_nearend_detection_use_unbounded_echo_spectrum;
 
         // Suppressor SubbandNearendDetection
         config.suppressor.subband_nearend_detection.nearend_average_blocks =
@@ -240,7 +255,16 @@ webrtc::EchoCanceller3Config build_aec3_config(const EchoCanceller3ConfigOverrid
         config.suppressor.high_bands_suppression.anti_howling_gain =
             override.suppressor_high_bands_suppression_anti_howling_gain;
 
-        config.suppressor.floor_first_increase = override.suppressor_floor_first_increase;
+        config.suppressor.conservative_hf_suppression = override.suppressor_conservative_hf_suppression;
+
+        // MultiChannel
+        config.multi_channel.detect_stereo_content = override.multi_channel_detect_stereo_content;
+        config.multi_channel.stereo_detection_threshold =
+            override.multi_channel_stereo_detection_threshold;
+        config.multi_channel.stereo_detection_timeout_threshold_seconds =
+            override.multi_channel_stereo_detection_timeout_threshold_seconds;
+        config.multi_channel.stereo_detection_hysteresis_seconds =
+            override.multi_channel_stereo_detection_hysteresis_seconds;
 
         // Validate the configuration
         if (!webrtc::EchoCanceller3Config::Validate(&config)) {
@@ -262,8 +286,14 @@ class EchoCanceller3Factory : public webrtc::EchoControlFactory {
       int sample_rate_hz,
       int num_render_channels,
       int num_capture_channels) override {
+    std::optional<webrtc::EchoCanceller3Config> multichannel_config;
+    if (num_render_channels > 1 || num_capture_channels > 1) {
+      // Use optimized multichannel config when processing multiple channels
+      multichannel_config = webrtc::EchoCanceller3::CreateDefaultMultichannelConfig();
+    }
     return std::unique_ptr<webrtc::EchoControl>(new webrtc::EchoCanceller3(
         config_,
+        multichannel_config,
         sample_rate_hz,
         num_render_channels,
         num_capture_channels));
@@ -280,7 +310,7 @@ struct AudioProcessing {
   webrtc::AudioProcessing::Config config;
   webrtc::StreamConfig capture_stream_config;
   webrtc::StreamConfig render_stream_config;
-  absl::optional<int> stream_delay_ms;
+  std::optional<int> stream_delay_ms;
 };
 
 AudioProcessing* audio_processing_create(
@@ -296,13 +326,12 @@ AudioProcessing* audio_processing_create(
         auto* factory = new EchoCanceller3Factory(build_aec3_config(*aec3_config_override));
         builder.SetEchoControlFactory(std::unique_ptr<webrtc::EchoControlFactory>(factory));
     }
-    ap->processor.reset(builder.Create());
+    ap->processor.reset(builder.Create().release());
 
-    const bool has_keyboard = false;
     ap->capture_stream_config = webrtc::StreamConfig(
-        sample_rate_hz, num_capture_channels, has_keyboard);
+        sample_rate_hz, num_capture_channels);
     ap->render_stream_config = webrtc::StreamConfig(
-        sample_rate_hz, num_render_channels, has_keyboard);
+        sample_rate_hz, num_render_channels);
 
   // The input and output streams must have the same number of channels.
     webrtc::ProcessingConfig pconfig = {
@@ -344,8 +373,6 @@ Stats get_stats(AudioProcessing* ap) {
   const webrtc::AudioProcessingStats& stats = ap->processor->GetStatistics();
 
   return Stats {
-      from_absl_optional(stats.output_rms_dbfs),
-      from_absl_optional(stats.voice_detected),
       from_absl_optional(stats.echo_return_loss),
       from_absl_optional(stats.echo_return_loss_enhancement),
       from_absl_optional(stats.divergent_filter_fraction),

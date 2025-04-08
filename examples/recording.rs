@@ -22,7 +22,7 @@
 ///     examples/recording-configs/record-pipeline.json5
 /// ```
 use anyhow::{anyhow, Error};
-use hound::{WavIntoSamples, WavReader, WavWriter};
+use hound::{SampleFormat, WavReader, WavWriter};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -146,14 +146,33 @@ fn open_wav_writer(path: &Path, channels: u16) -> Result<WavWriter<BufWriter<Fil
     Ok(sink)
 }
 
-fn open_wav_reader(path: &Path) -> Result<WavIntoSamples<BufReader<File>, f32>, Error> {
+fn open_wav_reader(
+    path: &Path,
+) -> Result<Box<dyn Iterator<Item = Result<f32, hound::Error>>>, Error> {
     let reader = WavReader::<BufReader<File>>::open(path)?;
-    Ok(reader.into_samples())
+    let spec = reader.spec();
+    match (spec.sample_format, spec.bits_per_sample) {
+        (SampleFormat::Float, 32) => Ok(Box::new(reader.into_samples::<f32>())),
+        (SampleFormat::Int, 16) => {
+            Ok(Box::new(reader.into_samples::<i16>().map(|s| s.map(|v| v as f32 / 32768.0))))
+        },
+        (SampleFormat::Int, 32) => {
+            Ok(Box::new(reader.into_samples::<i32>().map(|s| s.map(|v| v as f32 / 2147483648.0))))
+        },
+        _ => Err(anyhow!(
+            "Unsupported WAV format: {:?}, {} bits per sample",
+            spec.sample_format,
+            spec.bits_per_sample
+        )),
+    }
 }
 
 // The destination array is an interleaved audio stream.
 // Returns false if there are no more entries to read from the source.
-fn copy_stream(source: &mut WavIntoSamples<BufReader<File>, f32>, dest: &mut [f32]) -> bool {
+fn copy_stream(
+    source: &mut Box<dyn Iterator<Item = Result<f32, hound::Error>>>,
+    dest: &mut [f32],
+) -> bool {
     let mut dest_iter = dest.iter_mut();
     'outer: for sample in source {
         if let Ok(channel) = &sample {

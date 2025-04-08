@@ -1,11 +1,5 @@
 use anyhow::Result;
-use regex::Regex;
-use std::{
-    env,
-    fs::File,
-    io::{Read, Write},
-    path::{Path, PathBuf},
-};
+use std::{env, path::PathBuf};
 
 const DEPLOYMENT_TARGET_VAR: &str = "MACOSX_DEPLOYMENT_TARGET";
 
@@ -20,34 +14,31 @@ fn src_dir() -> PathBuf {
 #[cfg(not(feature = "bundled"))]
 mod webrtc {
     use super::*;
-    use anyhow::bail;
+    use anyhow::{bail, Result};
 
-    const LIB_NAME: &str = "webrtc-audio-processing-1";
-    const LIB_MIN_VERSION: &str = "1.0";
+    const LIB_NAME: &str = "webrtc-audio-processing-2";
+    const LIB_MIN_VERSION: &str = "2.0";
 
-    pub(super) fn get_build_paths() -> Result<(PathBuf, PathBuf)> {
+    pub(super) fn get_build_paths() -> Result<(Vec<PathBuf>, Vec<PathBuf>)> {
         let (pkgconfig_include_path, pkgconfig_lib_path) = find_pkgconfig_paths()?;
 
         let include_path = std::env::var("WEBRTC_AUDIO_PROCESSING_INCLUDE")
             .ok()
-            .map(|x| x.into())
+            .map(PathBuf::from)
             .or(pkgconfig_include_path);
         let lib_path = std::env::var("WEBRTC_AUDIO_PROCESSING_LIB")
             .ok()
-            .map(|x| x.into())
+            .map(PathBuf::from)
             .or(pkgconfig_lib_path);
 
-        match (include_path, lib_path) {
-            (Some(include_path), Some(lib_path)) => Ok((vec![include_path], vec![lib_path])),
-            _ => {
-                eprintln!(
-                    "Couldn't find either header or lib files for {}>={}.",
-                    LIB_NAME, LIB_MIN_VERSION
-                );
-                eprintln!("See the crate README for installation instructions, or use the 'bundled' feature to statically compile.");
-                bail!("Aborting compilation due to linker failure.");
-            },
+        if include_path.is_none() || lib_path.is_none() {
+            bail!(
+                "Couldn't find {}. Please install it or set WEBRTC_AUDIO_PROCESSING_INCLUDE and WEBRTC_AUDIO_PROCESSING_LIB environment variables.",
+                LIB_NAME
+            );
         }
+
+        Ok((vec![include_path.unwrap()], vec![lib_path.unwrap()]))
     }
 
     pub(super) fn build_if_necessary() -> Result<()> {
@@ -55,31 +46,44 @@ mod webrtc {
     }
 
     fn find_pkgconfig_paths() -> Result<(Option<PathBuf>, Option<PathBuf>)> {
-        Ok(pkg_config::Config::new()
+        let lib = match pkg_config::Config::new()
             .atleast_version(LIB_MIN_VERSION)
+            .statik(false)
             .probe(LIB_NAME)
-            .and_then(|mut lib| Ok((lib.include_paths.pop(), lib.link_paths.pop())))?)
+        {
+            Ok(lib) => lib,
+            Err(e) => {
+                eprintln!("Couldn't find {LIB_NAME} with pkg-config:");
+                eprintln!("{e}");
+                return Ok((None, None));
+            },
+        };
+
+        Ok((lib.include_paths.first().cloned(), lib.link_paths.first().cloned()))
     }
 }
 
 #[cfg(feature = "bundled")]
 mod webrtc {
     use super::*;
+    use anyhow::{bail, Context, Result};
     use std::{path::Path, process::Command};
 
     const BUNDLED_SOURCE_PATH: &str = "./webrtc-audio-processing";
 
-    pub(super) fn get_build_paths() -> Result<(Vec<PathBuf>, Vec<PathBuf>), Error> {
+    pub(super) fn get_build_paths() -> Result<(Vec<PathBuf>, Vec<PathBuf>)> {
         let mut include_paths = vec![
             out_dir().join("include"),
-            out_dir().join("include").join("webrtc-audio-processing-1"),
+            out_dir().join("include").join("webrtc-audio-processing-2"),
+            src_dir().join("webrtc-audio-processing"),
             src_dir().join("webrtc-audio-processing").join("webrtc"),
+            src_dir().join("webrtc-audio-processing").join("subprojects"),
         ];
         let mut lib_paths = vec![out_dir().join("lib")];
 
-        // If abseil package is installed locally, meson would have picked it for building
-        // webrtc-audio-processing-1. Use the same resource for ourselves, too.
-        if let Ok(mut lib) = pkg_config::Config::new().probe("absl_base") {
+        if let Ok(mut lib) =
+            pkg_config::Config::new().atleast_version("20240722").probe("absl_base")
+        {
             include_paths.append(&mut lib.include_paths);
             lib_paths.append(&mut lib.link_paths);
         }
@@ -87,9 +91,7 @@ mod webrtc {
         Ok((include_paths, lib_paths))
     }
 
-    pub(super) fn build_if_necessary() -> Result<(), Error> {
-        use anyhow::Context;
-
+    pub(super) fn build_if_necessary() -> Result<()> {
         if Path::new(BUNDLED_SOURCE_PATH).read_dir()?.next().is_none() {
             eprintln!("The webrtc-audio-processing source directory is empty.");
             eprintln!("See the crate README for installation instructions.");
@@ -103,7 +105,7 @@ mod webrtc {
         let webrtc_build_dir = build_dir.join(BUNDLED_SOURCE_PATH);
         let mut meson = Command::new("meson");
         let status = meson
-            .args(&["--prefix", install_dir.to_str().unwrap()])
+            .args(&["setup", "--prefix", install_dir.to_str().unwrap()])
             .arg("-Ddefault_library=static")
             .arg(BUNDLED_SOURCE_PATH)
             .arg(webrtc_build_dir.to_str().unwrap())
@@ -111,71 +113,23 @@ mod webrtc {
             .context("Failed to execute meson. Do you have it installed?")?;
         assert!(status.success(), "Command failed: {:?}", &meson);
 
-        Ok(out_dir.join(BUNDLED_SOURCE_PATH))
-    }
+        let mut ninja = Command::new("ninja");
+        let status = ninja
+            .current_dir(&webrtc_build_dir)
+            .status()
+            .context("Failed to execute ninja. Do you have it installed?")?;
+        assert!(status.success(), "Command failed: {:?}", &ninja);
 
-    pub(super) fn build_if_necessary() -> Result<()> {
-        let build_dir = copy_source_to_out_dir()?;
-
-        if cfg!(target_os = "macos") {
-            run_command(&build_dir, "glibtoolize", None)?;
-        } else {
-            run_command(&build_dir, "libtoolize", None)?;
-        }
-
-        run_command(&build_dir, "aclocal", None)?;
-        run_command(&build_dir, "automake", Some(&["--add-missing", "--copy"]))?;
-        run_command(&build_dir, "autoconf", None)?;
-
-        let target = std::env::var("TARGET").unwrap();
-        autotools::Config::new(build_dir)
-            .cflag("-fPIC")
-            .cxxflag("-fPIC")
-            .config_option("host", Some(&target))
-            .disable_shared()
-            .enable_static()
-            .build();
+        let mut install = Command::new("ninja");
+        let status = install
+            .current_dir(&webrtc_build_dir)
+            .arg("install")
+            .status()
+            .context("Failed to execute ninja install")?;
+        assert!(status.success(), "Command failed: {:?}", &install);
 
         Ok(())
     }
-
-    fn run_command<P: AsRef<Path>>(
-        curr_dir: P,
-        cmd: &str,
-        args_opt: Option<&[&str]>,
-    ) -> Result<()> {
-        let mut command = std::process::Command::new(cmd);
-
-        command.current_dir(curr_dir);
-
-        if let Some(args) = args_opt {
-            command.args(args);
-        }
-
-        let _output = command.output().map_err(|e| {
-            anyhow!("Error running command '{}' with args '{:?}' - {:?}", cmd, args_opt, e)
-        })?;
-
-        Ok(())
-    }
-}
-
-// TODO: Consider fixing this with the upstream.
-// https://github.com/rust-lang/rust-bindgen/issues/1089
-// https://github.com/rust-lang/rust-bindgen/issues/1301
-fn derive_serde(binding_file: &Path) -> Result<()> {
-    let mut contents = String::new();
-    File::open(binding_file)?.read_to_string(&mut contents)?;
-
-    let new_contents = format!(
-        "use serde::{{Serialize, Deserialize}};\n{}",
-        Regex::new(r"#\s*\[\s*derive\s*\((?P<d>[^)]+)\)\s*\]\s*pub\s*(?P<s>struct|enum)")?
-            .replace_all(&contents, "#[derive($d, Serialize, Deserialize)] pub $s")
-    );
-
-    File::create(&binding_file)?.write_all(new_contents.as_bytes())?;
-
-    Ok(())
 }
 
 fn main() -> Result<()> {
@@ -187,9 +141,9 @@ fn main() -> Result<()> {
     }
 
     if cfg!(feature = "bundled") {
-        println!("cargo:rustc-link-lib=static=webrtc-audio-processing-1");
+        println!("cargo:rustc-link-lib=static=webrtc-audio-processing-2");
     } else {
-        println!("cargo:rustc-link-lib=dylib=webrtc-audio-processing-1");
+        println!("cargo:rustc-link-lib=dylib=webrtc-audio-processing-2");
     }
 
     if cfg!(target_os = "macos") {

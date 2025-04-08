@@ -5,7 +5,8 @@
 // TODO: Add support for AEC dump. webrtc-audio-processing library does not include TaskQueue
 // implementation, which is needed.
 
-#include <modules/audio_processing/include/audio_processing.h>
+#include "webrtc/modules/audio_processing/include/audio_processing.h"
+#include <optional>
 
 namespace webrtc_audio_processing_wrapper {
 
@@ -21,16 +22,9 @@ struct OptionalInt {
   int value = 0;
 };
 
-struct OptionalBool {
-  bool has_value = false;
-  bool value = false;
-};
-
 // A variant of AudioProcessingStats without absl::optional dependency,
 // which can not be bindgen-ed.
 struct Stats {
-  OptionalInt output_rms_dbfs;
-  OptionalBool voice_detected;
   OptionalDouble echo_return_loss;
   OptionalDouble echo_return_loss_enhancement;
   OptionalDouble divergent_filter_fraction;
@@ -56,11 +50,13 @@ struct EchoCanceller3ConfigOverride {
     size_t delay_hysteresis_limit_blocks;
     size_t delay_fixed_capture_delay_samples;
     float delay_estimate_smoothing;
+    float delay_estimate_smoothing_delay_found;
     float delay_candidate_detection_threshold;
     int32_t delay_selection_thresholds_initial;
     int32_t delay_selection_thresholds_converged;
     bool delay_use_external_delay_estimator;
     bool delay_log_warning_on_delay_changes;
+    bool delay_detect_pre_echo;
 
     // Delay AlignmentMixing (Render)
     bool delay_render_alignment_mixing_downmix;
@@ -100,9 +96,11 @@ struct EchoCanceller3ConfigOverride {
 
     size_t filter_config_change_duration_blocks;
     float filter_initial_state_seconds;
+    int32_t filter_coarse_reset_hangover_blocks;
     bool filter_conservative_initial_phase;
     bool filter_enable_coarse_filter_output_usage;
     bool filter_use_linear_filter;
+    bool filter_high_pass_filter_echo_reference;
     bool filter_export_linear_aec_output;
 
     // Erle
@@ -117,8 +115,11 @@ struct EchoCanceller3ConfigOverride {
     // EpStrength
     float ep_strength_default_gain;
     float ep_strength_default_len;
+    float ep_strength_nearend_len;
     bool ep_strength_echo_can_saturate;
     bool ep_strength_bounded_erl;
+    bool ep_strength_erle_onset_compensation_in_dominant_nearend;
+    bool ep_strength_use_conservative_tail_frequency_response;
 
     // EchoAudibility
     float echo_audibility_low_render_limit;
@@ -176,6 +177,14 @@ struct EchoCanceller3ConfigOverride {
     float suppressor_nearend_tuning_max_inc_factor;
     float suppressor_nearend_tuning_max_dec_factor_lf;
 
+    // Suppressor Smoothing
+    float suppressor_floor_first_increase;
+    bool suppressor_lf_smoothing_during_initial_phase;
+    int32_t suppressor_last_permanent_lf_smoothing_band;
+    int32_t suppressor_last_lf_smoothing_band;
+    int32_t suppressor_last_lf_band;
+    int32_t suppressor_first_hf_band;
+
     // Suppressor DominantNearendDetection
     float suppressor_dominant_nearend_detection_enr_threshold;
     float suppressor_dominant_nearend_detection_enr_exit_threshold;
@@ -183,6 +192,7 @@ struct EchoCanceller3ConfigOverride {
     int32_t suppressor_dominant_nearend_detection_hold_duration;
     int32_t suppressor_dominant_nearend_detection_trigger_threshold;
     bool suppressor_dominant_nearend_detection_use_during_initial_phase;
+    bool suppressor_dominant_nearend_detection_use_unbounded_echo_spectrum;
 
     // Suppressor SubbandNearendDetection
     size_t suppressor_subband_nearend_detection_nearend_average_blocks;
@@ -201,7 +211,13 @@ struct EchoCanceller3ConfigOverride {
     float suppressor_high_bands_suppression_anti_howling_activation_threshold;
     float suppressor_high_bands_suppression_anti_howling_gain;
 
-    float suppressor_floor_first_increase;
+    bool suppressor_conservative_hf_suppression;
+
+    // MultiChannel
+    bool multi_channel_detect_stereo_content;
+    float multi_channel_stereo_detection_threshold;
+    int32_t multi_channel_stereo_detection_timeout_threshold_seconds;
+    float multi_channel_stereo_detection_hysteresis_seconds;
 };
 
 // Creates a new instance of AudioProcessing.
@@ -226,7 +242,7 @@ int process_render_frame(AudioProcessing* ap, float** channel3);
 Stats get_stats(AudioProcessing* ap);
 
 // Returns the number of samples per frame based on the current configuration of sample rate and the
-// frame chunk size. As of 2021/08/21, the chunk size is fixed to 10ms.
+// frame chunk size. As of 2025/04/09, the chunk size is fixed to 10ms.
 int get_num_samples_per_frame(AudioProcessing* ap);
 
 // Immediately updates the configurations of the signal processor.

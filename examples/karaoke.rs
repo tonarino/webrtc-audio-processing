@@ -138,7 +138,7 @@ fn main() -> Result<(), Error> {
                 out_buffer.copy_from_slice(&interleave_buffer);
             }
 
-            processor.process_render_frame(&mut out_buffer).unwrap();
+            processor.process_render_frame(out_buffer).unwrap();
 
             portaudio::Continue
         },

@@ -7,17 +7,6 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
 pub struct Stats {
-    /// The root mean square (RMS) level in dBFS (decibels from digital full-scale) of the last
-    /// capture frame, after processing. It is constrained to [-127, 0]. The computation follows:
-    /// https://tools.ietf.org/html/rfc6465 with the intent that it can provide the RTP audio level
-    /// indication. Only reported if level estimation is enabled in [`ReportingConfig`].
-    pub output_rms_dbfs: Option<i8>,
-
-    /// True if voice is detected in the last capture frame, after processing. It is conservative
-    /// in flagging audio as speech, with low likelihood of incorrectly flagging a frame as voice.
-    /// Only reported if voice detection is enabled in [`Config`].
-    pub voice_detected: Option<bool>,
-
     /// AEC stats: ERL = 10log_10(P_far / P_echo)
     pub echo_return_loss: Option<f64>,
     /// AEC stats: ERLE = 10log_10(P_echo / P_out)
@@ -46,8 +35,6 @@ pub struct Stats {
 impl From<ffi::Stats> for Stats {
     fn from(other: ffi::Stats) -> Self {
         Self {
-            output_rms_dbfs: Option::<i32>::from(other.output_rms_dbfs).map(|v| v as i8),
-            voice_detected: other.voice_detected.into(),
             echo_return_loss: other.echo_return_loss.into(),
             echo_return_loss_enhancement: other.echo_return_loss_enhancement.into(),
             divergent_filter_fraction: other.divergent_filter_fraction.into(),

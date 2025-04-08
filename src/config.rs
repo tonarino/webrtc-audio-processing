@@ -48,7 +48,7 @@ impl Default for PipelineProcessingRate {
 }
 
 /// Audio processing pipeline configuration.
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "derive_serde", serde(default))]
 pub struct Pipeline {
@@ -61,6 +61,20 @@ pub struct Pipeline {
 
     /// Allow multi-channel processing of render audio.
     pub multi_channel_render: bool,
+
+    /// Capture downmix method
+    pub capture_downmix_method: ffi::AudioProcessing_Config_Pipeline_DownmixMethod,
+}
+
+impl Default for Pipeline {
+    fn default() -> Self {
+        Self {
+            maximum_internal_processing_rate: PipelineProcessingRate::default(),
+            multi_channel_capture: false,
+            multi_channel_render: false,
+            capture_downmix_method: 0,
+        }
+    }
 }
 
 impl From<Pipeline> for ffi::AudioProcessing_Config_Pipeline {
@@ -69,6 +83,7 @@ impl From<Pipeline> for ffi::AudioProcessing_Config_Pipeline {
             maximum_internal_processing_rate: other.maximum_internal_processing_rate as i32,
             multi_channel_capture: other.multi_channel_capture,
             multi_channel_render: other.multi_channel_render,
+            capture_downmix_method: other.capture_downmix_method,
         }
     }
 }
@@ -312,20 +327,39 @@ impl From<GainController> for ffi::AudioProcessing_Config_GainController1 {
     }
 }
 
-/// The parameters to control reporting of selected field in [`Stats`].
-#[derive(Debug, Default, Clone, PartialEq)]
+/// General level adjustment in the capture pipeline.
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "derive_serde", serde(default))]
-pub struct ReportingConfig {
-    /// Enables reporting of [`voice_detected`] in [`Stats`].
-    pub enable_voice_detection: bool,
+pub struct CaptureLevelAdjustment {
+    /// Scales the signal before any processing is done.
+    pub pre_gain_factor: f32,
 
-    /// Enables reporting of [`residual_echo_likelihood`] and
-    /// [`residual_echo_likelihood_recent_max`] in [`Stats`].
-    pub enable_residual_echo_detector: bool,
+    /// Scales the signal after all processing is done.
+    pub post_gain_factor: f32,
+}
 
-    /// Enables reporting of [`output_rms_dbfs`] in [`Stats`].
-    pub enable_level_estimation: bool,
+impl Default for CaptureLevelAdjustment {
+    fn default() -> Self {
+        Self { pre_gain_factor: 1.0, post_gain_factor: 1.0 }
+    }
+}
+
+impl From<CaptureLevelAdjustment> for ffi::AudioProcessing_Config_CaptureLevelAdjustment {
+    fn from(other: CaptureLevelAdjustment) -> Self {
+        let analog_mic_gain_emulation =
+            ffi::AudioProcessing_Config_CaptureLevelAdjustment_AnalogMicGainEmulation {
+                enabled: false,
+                initial_level: 255,
+            };
+
+        Self {
+            enabled: true,
+            pre_gain_factor: other.pre_gain_factor,
+            post_gain_factor: other.post_gain_factor,
+            analog_mic_gain_emulation,
+        }
+    }
 }
 
 /// The parameters and behavior of the audio processing module are controlled
@@ -339,10 +373,9 @@ pub struct Config {
     #[serde(default)]
     pub pipeline: Pipeline,
 
-    /// Enables and configures the pre-amplifier. It amplifies the capture signal before any other
-    /// processing is done.
+    /// Enables and configures level adjustment in the capture pipeline.
     #[serde(default)]
-    pub pre_amplifier: Option<PreAmplifier>,
+    pub capture_level_adjustment: Option<CaptureLevelAdjustment>,
 
     /// Enables and configures high pass filter.
     #[serde(default)]
@@ -356,18 +389,10 @@ pub struct Config {
     #[serde(default)]
     pub noise_suppression: Option<NoiseSuppression>,
 
-    /// Enables transient noise suppression.
-    #[serde(default)]
-    pub enable_transient_suppression: bool,
-
     /// Enables and configures automatic gain control.
     /// TODO: Experiment with and migrate to GainController2.
     #[serde(default)]
     pub gain_controller: Option<GainController>,
-
-    /// Toggles reporting of selected fields in [`Stats`].
-    #[serde(default)]
-    pub reporting: ReportingConfig,
 
     /// Fine-grained AEC3 configuration parameters.
     #[serde(default)]
@@ -376,10 +401,17 @@ pub struct Config {
 
 impl From<Config> for ffi::AudioProcessing_Config {
     fn from(other: Config) -> Self {
-        let pre_amplifier = if let Some(config) = other.pre_amplifier {
+        // PreAmplifier is being deprecated.
+        let pre_amplifier =
+            ffi::AudioProcessing_Config_PreAmplifier { enabled: false, ..Default::default() };
+
+        let capture_level_adjustment = if let Some(config) = other.capture_level_adjustment {
             config.into()
         } else {
-            ffi::AudioProcessing_Config_PreAmplifier { enabled: false, ..Default::default() }
+            ffi::AudioProcessing_Config_CaptureLevelAdjustment {
+                enabled: false,
+                ..Default::default()
+            }
         };
 
         let high_pass_filter = if let Some(config) = other.high_pass_filter {
@@ -406,12 +438,10 @@ impl From<Config> for ffi::AudioProcessing_Config {
             ffi::AudioProcessing_Config_NoiseSuppression { enabled: false, ..Default::default() }
         };
 
+        // Transient suppressor is being deprecated.
         let transient_suppression = ffi::AudioProcessing_Config_TransientSuppression {
-            enabled: other.enable_transient_suppression,
-        };
-
-        let voice_detection = ffi::AudioProcessing_Config_VoiceDetection {
-            enabled: other.reporting.enable_voice_detection,
+            enabled: false,
+            ..Default::default()
         };
 
         let gain_controller1 = if let Some(config) = other.gain_controller {
@@ -423,26 +453,16 @@ impl From<Config> for ffi::AudioProcessing_Config {
         let gain_controller2 =
             ffi::AudioProcessing_Config_GainController2 { enabled: false, ..Default::default() };
 
-        let residual_echo_detector = ffi::AudioProcessing_Config_ResidualEchoDetector {
-            enabled: other.reporting.enable_residual_echo_detector,
-        };
-
-        let level_estimation = ffi::AudioProcessing_Config_LevelEstimation {
-            enabled: other.reporting.enable_level_estimation,
-        };
-
         Self {
             pipeline: other.pipeline.into(),
             pre_amplifier,
+            capture_level_adjustment,
             high_pass_filter,
             echo_canceller,
             noise_suppression,
             transient_suppression,
-            voice_detection,
             gain_controller1,
             gain_controller2,
-            residual_echo_detector,
-            level_estimation,
         }
     }
 }
@@ -484,6 +504,9 @@ pub struct EchoCanceller3Config {
 
     /// Echo Removal Control configuration
     pub echo_removal_control: EchoRemovalControl,
+
+    /// Multi-channel configuration
+    pub multi_channel: MultiChannel,
 }
 
 impl Default for EchoCanceller3Config {
@@ -503,6 +526,7 @@ impl Default for EchoCanceller3Config {
                 has_clock_drift: false,
                 linear_and_stable_echo_path: false,
             },
+            multi_channel: MultiChannel::default(),
         }
     }
 }
@@ -526,11 +550,13 @@ impl From<EchoCanceller3Config> for ffi::EchoCanceller3ConfigOverride {
             delay_hysteresis_limit_blocks: other.delay.hysteresis_limit_blocks,
             delay_fixed_capture_delay_samples: other.delay.fixed_capture_delay_samples,
             delay_estimate_smoothing: other.delay.delay_estimate_smoothing,
+            delay_estimate_smoothing_delay_found: other.delay.delay_estimate_smoothing_delay_found,
             delay_candidate_detection_threshold: other.delay.delay_candidate_detection_threshold,
             delay_selection_thresholds_initial: other.delay.delay_selection_thresholds.initial,
             delay_selection_thresholds_converged: other.delay.delay_selection_thresholds.converged,
             delay_use_external_delay_estimator: other.delay.use_external_delay_estimator,
             delay_log_warning_on_delay_changes: other.delay.log_warning_on_delay_changes,
+            delay_detect_pre_echo: other.delay.detect_pre_echo,
 
             // Delay AlignmentMixing
             delay_render_alignment_mixing_downmix: other.delay.render_alignment_mixing.downmix,
@@ -588,11 +614,13 @@ impl From<EchoCanceller3Config> for ffi::EchoCanceller3ConfigOverride {
 
             filter_config_change_duration_blocks: other.filter.config_change_duration_blocks,
             filter_initial_state_seconds: other.filter.initial_state_seconds,
+            filter_coarse_reset_hangover_blocks: other.filter.coarse_reset_hangover_blocks,
             filter_conservative_initial_phase: other.filter.conservative_initial_phase,
             filter_enable_coarse_filter_output_usage: other
                 .filter
                 .enable_coarse_filter_output_usage,
             filter_use_linear_filter: other.filter.use_linear_filter,
+            filter_high_pass_filter_echo_reference: other.filter.high_pass_filter_echo_reference,
             filter_export_linear_aec_output: other.filter.export_linear_aec_output,
 
             // Erle
@@ -607,8 +635,15 @@ impl From<EchoCanceller3Config> for ffi::EchoCanceller3ConfigOverride {
             // EpStrength
             ep_strength_default_gain: other.ep_strength.default_gain,
             ep_strength_default_len: other.ep_strength.default_len,
+            ep_strength_nearend_len: other.ep_strength.nearend_len,
             ep_strength_echo_can_saturate: other.ep_strength.echo_can_saturate,
             ep_strength_bounded_erl: other.ep_strength.bounded_erl,
+            ep_strength_erle_onset_compensation_in_dominant_nearend: other
+                .ep_strength
+                .erle_onset_compensation_in_dominant_nearend,
+            ep_strength_use_conservative_tail_frequency_response: other
+                .ep_strength
+                .use_conservative_tail_frequency_response,
 
             // EchoAudibility
             echo_audibility_low_render_limit: other.echo_audibility.low_render_limit,
@@ -735,6 +770,17 @@ impl From<EchoCanceller3Config> for ffi::EchoCanceller3ConfigOverride {
                 .nearend_tuning
                 .max_dec_factor_lf,
 
+            // Suppressor Smoothing
+            suppressor_lf_smoothing_during_initial_phase: other
+                .suppressor
+                .lf_smoothing_during_initial_phase,
+            suppressor_last_permanent_lf_smoothing_band: other
+                .suppressor
+                .last_permanent_lf_smoothing_band,
+            suppressor_last_lf_smoothing_band: other.suppressor.last_lf_smoothing_band,
+            suppressor_last_lf_band: other.suppressor.last_lf_band,
+            suppressor_first_hf_band: other.suppressor.first_hf_band,
+
             // Suppressor DominantNearendDetection
             suppressor_dominant_nearend_detection_enr_threshold: other
                 .suppressor
@@ -760,6 +806,10 @@ impl From<EchoCanceller3Config> for ffi::EchoCanceller3ConfigOverride {
                 .suppressor
                 .dominant_nearend_detection
                 .use_during_initial_phase,
+            suppressor_dominant_nearend_detection_use_unbounded_echo_spectrum: other
+                .suppressor
+                .dominant_nearend_detection
+                .use_unbounded_echo_spectrum,
 
             // Suppressor SubbandNearendDetection
             suppressor_subband_nearend_detection_nearend_average_blocks: other
@@ -818,6 +868,19 @@ impl From<EchoCanceller3Config> for ffi::EchoCanceller3ConfigOverride {
                 .anti_howling_gain,
 
             suppressor_floor_first_increase: other.suppressor.floor_first_increase,
+            suppressor_conservative_hf_suppression: other.suppressor.conservative_hf_suppression,
+
+            // MultiChannel
+            multi_channel_detect_stereo_content: other.multi_channel.detect_stereo_content,
+            multi_channel_stereo_detection_threshold: other
+                .multi_channel
+                .stereo_detection_threshold,
+            multi_channel_stereo_detection_timeout_threshold_seconds: other
+                .multi_channel
+                .stereo_detection_timeout_threshold_seconds,
+            multi_channel_stereo_detection_hysteresis_seconds: other
+                .multi_channel
+                .stereo_detection_hysteresis_seconds,
         }
     }
 }
@@ -875,6 +938,9 @@ pub struct Delay {
     /// Smoothing factor for delay estimates (0.0-1.0)
     pub delay_estimate_smoothing: f32,
 
+    /// Smoothing factor for delay estimates (0.0-1.0)
+    pub delay_estimate_smoothing_delay_found: f32,
+
     /// Detection threshold for delay candidates (0.0-1.0)
     pub delay_candidate_detection_threshold: f32,
 
@@ -886,6 +952,9 @@ pub struct Delay {
 
     /// Whether to log warning on delay changes
     pub log_warning_on_delay_changes: bool,
+
+    /// Whether to detect pre-echo
+    pub detect_pre_echo: bool,
 
     /// Render alignment mixing configuration
     pub render_alignment_mixing: AlignmentMixing,
@@ -904,6 +973,7 @@ impl Default for Delay {
             hysteresis_limit_blocks: 1,
             fixed_capture_delay_samples: 0,
             delay_estimate_smoothing: 0.7,
+            delay_estimate_smoothing_delay_found: 0.7,
             delay_candidate_detection_threshold: 0.2,
             delay_selection_thresholds: Default::default(),
             use_external_delay_estimator: false,
@@ -920,6 +990,7 @@ impl Default for Delay {
                 activity_power_threshold: 10000.0,
                 prefer_first_two_channels: false,
             },
+            detect_pre_echo: true,
         }
     }
 }
@@ -993,6 +1064,9 @@ pub struct Filter {
     /// Duration of initial state in seconds
     pub initial_state_seconds: f32,
 
+    /// Duration in blocks for coarse filter reset hangover
+    pub coarse_reset_hangover_blocks: i32,
+
     /// Whether to use conservative settings during initial phase
     pub conservative_initial_phase: bool,
 
@@ -1001,6 +1075,9 @@ pub struct Filter {
 
     /// Whether to use linear filtering
     pub use_linear_filter: bool,
+
+    /// Whether to apply high-pass filter to echo reference
+    pub high_pass_filter_echo_reference: bool,
 
     /// Whether to export linear AEC output
     pub export_linear_aec_output: bool,
@@ -1026,9 +1103,11 @@ impl Default for Filter {
             },
             config_change_duration_blocks: 250,
             initial_state_seconds: 2.5,
+            coarse_reset_hangover_blocks: 25,
             conservative_initial_phase: false,
             enable_coarse_filter_output_usage: true,
             use_linear_filter: true,
+            high_pass_filter_echo_reference: false,
             export_linear_aec_output: false,
         }
     }
@@ -1145,16 +1224,33 @@ pub struct EpStrength {
     /// Default echo path strength.
     pub default_len: f32,
 
+    /// Default nearend echo path strength.
+    pub nearend_len: f32,
+
     /// Whether echo can saturate.
     pub echo_can_saturate: bool,
 
     /// Whether to use bounded ERL.
     pub bounded_erl: bool,
+
+    /// Whether to use ERL onset compensation in dominant nearend.
+    pub erle_onset_compensation_in_dominant_nearend: bool,
+
+    /// Whether to use conservative tail frequency response.
+    pub use_conservative_tail_frequency_response: bool,
 }
 
 impl Default for EpStrength {
     fn default() -> Self {
-        Self { default_gain: 1.0, default_len: 0.83, echo_can_saturate: true, bounded_erl: false }
+        Self {
+            default_gain: 1.0,
+            default_len: 0.83,
+            nearend_len: 0.83,
+            echo_can_saturate: true,
+            bounded_erl: false,
+            erle_onset_compensation_in_dominant_nearend: false,
+            use_conservative_tail_frequency_response: true,
+        }
     }
 }
 
@@ -1325,6 +1421,21 @@ pub struct Suppressor {
     /// Tuning parameters for nearend speech
     pub nearend_tuning: Tuning,
 
+    /// Whether to use LF smoothing during initial phase
+    pub lf_smoothing_during_initial_phase: bool,
+
+    /// Last permanent LF smoothing band
+    pub last_permanent_lf_smoothing_band: i32,
+
+    /// Last LF smoothing band
+    pub last_lf_smoothing_band: i32,
+
+    /// Last LF band
+    pub last_lf_band: i32,
+
+    /// First HF band
+    pub first_hf_band: i32,
+
     /// Configuration for dominant nearend detection
     pub dominant_nearend_detection: DominantNearendDetection,
 
@@ -1339,6 +1450,9 @@ pub struct Suppressor {
 
     /// Initial floor increase rate
     pub floor_first_increase: f32,
+
+    /// Whether to use conservative high frequency suppression
+    pub conservative_hf_suppression: bool,
 }
 
 impl Default for Suppressor {
@@ -1360,11 +1474,17 @@ impl Default for Suppressor {
                 max_inc_factor: 2.0,
                 max_dec_factor_lf: 0.25,
             },
+            lf_smoothing_during_initial_phase: true,
+            last_permanent_lf_smoothing_band: 0,
+            last_lf_smoothing_band: 5,
+            last_lf_band: 5,
+            first_hf_band: 8,
             dominant_nearend_detection: DominantNearendDetection::default(),
             subband_nearend_detection: SubbandNearendDetection::default(),
             use_subband_nearend_detection: false,
             high_bands_suppression: HighBandsSuppression::default(),
             floor_first_increase: 0.00001,
+            conservative_hf_suppression: true,
         }
     }
 }
@@ -1450,6 +1570,9 @@ pub struct DominantNearendDetection {
 
     /// Whether to use during initial processing phase
     pub use_during_initial_phase: bool,
+
+    /// Whether to use unbounded echo spectrum
+    pub use_unbounded_echo_spectrum: bool,
 }
 
 impl Default for DominantNearendDetection {
@@ -1461,6 +1584,7 @@ impl Default for DominantNearendDetection {
             hold_duration: 50,
             trigger_threshold: 12,
             use_during_initial_phase: true,
+            use_unbounded_echo_spectrum: true,
         }
     }
 }
@@ -1541,6 +1665,35 @@ impl Default for HighBandsSuppression {
             max_gain_during_echo: 1.0,
             anti_howling_activation_threshold: 400.0,
             anti_howling_gain: 1.0,
+        }
+    }
+}
+
+/// Multi-channel configuration
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "derive_serde", serde(default))]
+pub struct MultiChannel {
+    /// Whether to detect stereo content
+    pub detect_stereo_content: bool,
+
+    /// Threshold for stereo detection
+    pub stereo_detection_threshold: f32,
+
+    /// Timeout threshold for stereo detection in seconds
+    pub stereo_detection_timeout_threshold_seconds: i32,
+
+    /// Hysteresis for stereo detection in seconds
+    pub stereo_detection_hysteresis_seconds: f32,
+}
+
+impl Default for MultiChannel {
+    fn default() -> Self {
+        Self {
+            detect_stereo_content: false,
+            stereo_detection_threshold: 0.0,
+            stereo_detection_timeout_threshold_seconds: 0,
+            stereo_detection_hysteresis_seconds: 0.0,
         }
     }
 }

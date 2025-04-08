@@ -71,6 +71,9 @@ impl Processor {
         config: &InitializationConfig,
         aec3_config: Option<EchoCanceller3Config>,
     ) -> Result<Self, Error> {
+        if config.num_capture_channels == 0 || config.num_render_channels == 0 {
+            return Err(Error { code: -9 }); // kBadNumberChannelsError
+        }
         let inner = Arc::new(AudioProcessing::new(config, aec3_config)?);
         let num_samples = inner.num_samples_per_frame();
         Ok(Self {
@@ -268,10 +271,10 @@ impl AudioProcessing {
                 &mut code,
             )
         };
-        if !inner.is_null() {
-            Ok(Self { inner })
-        } else {
+        if inner.is_null() || code != 0 {
             Err(Error { code })
+        } else {
+            Ok(Self { inner })
         }
     }
 
@@ -279,7 +282,7 @@ impl AudioProcessing {
         unsafe { ffi::initialize(self.inner) }
     }
 
-    fn process_capture_frame(&self, frame: &mut Vec<Vec<f32>>) -> Result<(), Error> {
+    fn process_capture_frame(&self, frame: &mut [Vec<f32>]) -> Result<(), Error> {
         let mut frame_ptr = frame.iter_mut().map(|v| v.as_mut_ptr()).collect::<Vec<*mut f32>>();
         unsafe {
             let code = ffi::process_capture_frame(self.inner, frame_ptr.as_mut_ptr());
