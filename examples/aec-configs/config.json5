@@ -1,0 +1,35 @@
+{
+  config: {
+    echo_canceller: {
+      Full: {
+        enforce_high_pass_filtering: true,
+      },
+    },
+
+    enable_high_pass_filter: true,
+  },
+
+  aec3: {
+    delay: {
+      default_delay: 3,
+      delay_estimate_smoothing: 0.85,
+    },
+
+    filter: {
+      refined: {
+        length_blocks: 15,
+        noise_gate: 15000.0,
+      },
+    },
+
+    erle: {
+      max_l: 5.0,
+      onset_detection: false,
+    },
+
+    echo_audibility: {
+      floor_power: 192.0,
+      audibility_threshold_lf: 12.0,
+    },
+  },
+}

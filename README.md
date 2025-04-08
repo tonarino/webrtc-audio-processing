@@ -39,10 +39,12 @@ The webrtc source code is included as a git submodule. Be sure to clone this rep
 Building from source and static linking can be enabled with the `bundled` feature flag. You need the following tools to build from source:
 
 * `clang` or `gcc`
-* `autotools` (MacOS: `brew install automake`, `brew install autoconf`)
-* `libtoolize` (typically `glibtoolize` on MacOS: `brew install libtool`)
-* `pkg-config` (MacOS: `brew install pkg-config`)
-* `automake` (MacOS: `brew install automake`)
+* `pkg-config` (macOS: `brew install pkg-config`)
+* `meson` (masOS: `brew install meson`)
+* `ninja` (macOS: `brew install ninja`)
+* (to confirm) `autotools` (MacOS: `brew install automake`, `brew install autoconf`)
+* (to confirm) `libtoolize` (typically `glibtoolize` on MacOS: `brew install libtool`)
+* (to confirm) `automake` (MacOS: `brew install automake`)
 
 ## Publishing
 
