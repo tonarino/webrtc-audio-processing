@@ -155,6 +155,13 @@ fn main() -> Result<()> {
         //println!("cargo:rustc-link-lib=dylib=stdc++");
     }
 
+    // Link required Abseil components
+    // The webrtc library depends on these, and the linker needs to find them.
+    println!("cargo:rustc-link-lib=dylib=absl_base");
+    println!("cargo:rustc-link-lib=dylib=absl_numeric");
+    println!("cargo:rustc-link-lib=dylib=absl_strings");
+    println!("cargo:rustc-link-lib=dylib=absl_synchronization");
+
     let mut cc_build = cc::Build::new();
 
     // set mac minimum version
