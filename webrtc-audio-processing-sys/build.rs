@@ -66,20 +66,32 @@ mod webrtc {
         let mut include_paths = vec![
             out_dir().join("include"),
             out_dir().join("include").join("webrtc-audio-processing-2"),
-            src_dir()
-                .join("webrtc-audio-processing")
-                .join("subprojects")
-                .join("abseil-cpp-20240722.0"),
+            src_dir().join("webrtc-audio-processing"),
+            src_dir().join("webrtc-audio-processing").join("webrtc"),
         ];
         let mut lib_paths = vec![out_dir().join("lib")];
 
-        // If abseil package is installed locally, meson would have picked it for building
-        // webrtc-audio-processing-2. Use the same resource for ourselves, too.
         if let Ok(mut lib) =
             pkg_config::Config::new().atleast_version("20240722").probe("absl_base")
         {
+            // If abseil package is installed locally, meson would have linked it for
+            // webrtc-audio-processing-2. Use the same library for our wrapper, too.
             include_paths.append(&mut lib.include_paths);
             lib_paths.append(&mut lib.link_paths);
+        } else {
+            // Otherwise use the local build fetched and built by meson.
+            include_paths.push(
+                src_dir()
+                    .join("webrtc-audio-processing")
+                    .join("subprojects")
+                    .join("abseil-cpp-20240722.0"),
+            );
+            lib_paths.push(
+                out_dir()
+                    .join("webrtc-audio-processing")
+                    .join("subprojects")
+                    .join("abseil-cpp-20240722.0"),
+            );
         }
 
         Ok((include_paths, lib_paths))
@@ -131,17 +143,13 @@ fn main() -> Result<(), Error> {
 
     if cfg!(feature = "bundled") {
         println!("cargo:rustc-link-lib=static=webrtc-audio-processing-2");
+        println!("cargo:rustc-link-lib=absl_strings");
     } else {
         println!("cargo:rustc-link-lib=dylib=webrtc-audio-processing-2");
     }
 
     if cfg!(target_os = "macos") {
-        // TODO: Remove after confirming this is not necessary.
-        //println!("cargo:rustc-link-lib=dylib=c++");
         println!("cargo:rustc-link-lib=framework=CoreFoundation");
-    } else {
-        // TODO: Remove after confirming this is not necessary.
-        //println!("cargo:rustc-link-lib=dylib=stdc++");
     }
 
     let mut cc_build = cc::Build::new();
