@@ -5,7 +5,7 @@
 // TODO: Add support for AEC dump. webrtc-audio-processing library does not include TaskQueue
 // implementation, which is needed.
 
-#include <modules/audio_processing/include/audio_processing.h>
+#include <api/audio/audio_processing.h>
 
 namespace webrtc_audio_processing_wrapper {
 
@@ -21,16 +21,9 @@ struct OptionalInt {
   int value = 0;
 };
 
-struct OptionalBool {
-  bool has_value = false;
-  bool value = false;
-};
-
 // A variant of AudioProcessingStats without absl::optional dependency,
 // which can not be bindgen-ed.
 struct Stats {
-  OptionalInt output_rms_dbfs;
-  OptionalBool voice_detected;
   OptionalDouble echo_return_loss;
   OptionalDouble echo_return_loss_enhancement;
   OptionalDouble divergent_filter_fraction;
