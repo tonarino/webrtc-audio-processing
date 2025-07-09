@@ -339,7 +339,7 @@ mod tests {
 
         let stats = ap.get_stats();
         assert!(stats.echo_return_loss.is_some());
-        println!("{:#?}", stats);
+        println!("{stats:#?}");
     }
 
     #[test]
