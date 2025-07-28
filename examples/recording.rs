@@ -154,12 +154,10 @@ fn open_wav_reader(path: &Path) -> Result<WavIntoSamples<BufReader<File>, f32>, 
 // Returns false if there are no more entries to read from the source.
 fn copy_stream(source: &mut WavIntoSamples<BufReader<File>, f32>, dest: &mut [f32]) -> bool {
     let mut dest_iter = dest.iter_mut();
-    'outer: for sample in source {
-        for channel in &sample {
-            *dest_iter.next().unwrap() = *channel;
-            if dest_iter.len() == 0 {
-                break 'outer;
-            }
+    for sample in source.flatten() {
+        *dest_iter.next().unwrap() = sample;
+        if dest_iter.len() == 0 {
+            break;
         }
     }
 
