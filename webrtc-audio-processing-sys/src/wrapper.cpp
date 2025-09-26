@@ -30,6 +30,13 @@ OptionalInt from_absl_optional(const std::optional<int>& optional) {
   return rv;
 }
 
+OptionalBool from_absl_optional(const std::optional<bool>& optional) {
+  OptionalBool rv;
+  rv.has_value = optional.has_value();
+  rv.value = optional.value_or(false);
+  return rv;
+}
+
 webrtc::EchoCanceller3Config build_aec3_config(const EchoCanceller3ConfigOverride& override) {
     try {
         webrtc::EchoCanceller3Config config;
@@ -373,6 +380,7 @@ Stats get_stats(AudioProcessing* ap) {
   const webrtc::AudioProcessingStats& stats = ap->processor->GetStatistics();
 
   return Stats {
+      from_absl_optional(stats.voice_detected),
       from_absl_optional(stats.echo_return_loss),
       from_absl_optional(stats.echo_return_loss_enhancement),
       from_absl_optional(stats.divergent_filter_fraction),

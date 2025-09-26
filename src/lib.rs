@@ -160,6 +160,15 @@ impl Processor {
         self.inner.set_output_will_be_muted(muted);
     }
 
+    /// Sets the delay in milliseconds between `process_render_frame()` receiving a far-end frame
+    /// and `process_capture_frame()` receiving a near-end frame containing the corresponding echo.
+    ///
+    /// This should only be used when the delay is known to be stable and constant. For adaptive
+    /// delay estimation, leave this unset and rely on the internal estimator.
+    pub fn set_stream_delay_ms(&self, delay: i32) {
+        self.inner.set_stream_delay_ms(delay);
+    }
+
     /// Signals the AEC and AGC that the next frame will contain key press sound
     pub fn set_stream_key_pressed(&self, pressed: bool) {
         self.inner.set_stream_key_pressed(pressed);
@@ -329,6 +338,12 @@ impl AudioProcessing {
     fn set_stream_key_pressed(&self, pressed: bool) {
         unsafe {
             ffi::set_stream_key_pressed(self.inner, pressed);
+        }
+    }
+
+    fn set_stream_delay_ms(&self, delay: i32) {
+        unsafe {
+            ffi::set_stream_delay_ms(self.inner, delay);
         }
     }
 }
@@ -598,6 +613,7 @@ mod tests {
         // tweak params outside of config
         ap.set_output_will_be_muted(true);
         ap.set_stream_key_pressed(true);
+        ap.set_stream_delay_ms(10);
 
         // test one process call
         let (render_frame, capture_frame) = sample_stereo_frames(&ap);

@@ -17,6 +17,11 @@ struct OptionalDouble {
   double value = 0.0;
 };
 
+struct OptionalBool {
+  bool has_value = false;
+  bool value = false;
+};
+
 struct OptionalInt {
   bool has_value = false;
   int value = 0;
@@ -25,6 +30,7 @@ struct OptionalInt {
 // A variant of AudioProcessingStats without absl::optional dependency,
 // which can not be bindgen-ed.
 struct Stats {
+  OptionalBool voice_detected;
   OptionalDouble echo_return_loss;
   OptionalDouble echo_return_loss_enhancement;
   OptionalDouble divergent_filter_fraction;

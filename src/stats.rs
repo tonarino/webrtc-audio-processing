@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
 pub struct Stats {
+    /// True if voice is detected in the current frame.
+    pub voice_detected: Option<bool>,
     /// AEC stats: ERL = 10log_10(P_far / P_echo)
     pub echo_return_loss: Option<f64>,
     /// AEC stats: ERLE = 10log_10(P_echo / P_out)
@@ -35,6 +37,7 @@ pub struct Stats {
 impl From<ffi::Stats> for Stats {
     fn from(other: ffi::Stats) -> Self {
         Self {
+            voice_detected: other.voice_detected.into(),
             echo_return_loss: other.echo_return_loss.into(),
             echo_return_loss_enhancement: other.echo_return_loss_enhancement.into(),
             divergent_filter_fraction: other.divergent_filter_fraction.into(),

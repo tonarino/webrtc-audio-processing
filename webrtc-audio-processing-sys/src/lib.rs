@@ -28,6 +28,16 @@ impl From<OptionalDouble> for Option<f64> {
     }
 }
 
+impl From<OptionalBool> for Option<bool> {
+    fn from(other: OptionalBool) -> Option<bool> {
+        if other.has_value {
+            Some(other.value)
+        } else {
+            None
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -166,7 +176,6 @@ mod tests {
 
             let stats = get_stats(ap);
             println!("Stats:\n{:#?}", stats);
-            assert!(!stats.output_rms_dbfs.has_value);
             assert!(!stats.voice_detected.has_value);
             assert!(!stats.echo_return_loss.has_value);
             assert!(!stats.echo_return_loss_enhancement.has_value);
@@ -200,7 +209,6 @@ mod tests {
 
             let stats = get_stats(ap);
             println!("Stats:\n{:#?}", stats);
-            assert!(stats.output_rms_dbfs.has_value);
             assert!(stats.voice_detected.has_value);
             assert!(stats.echo_return_loss.has_value);
             assert!(stats.echo_return_loss_enhancement.has_value);

@@ -1484,7 +1484,7 @@ impl Default for Suppressor {
             use_subband_nearend_detection: false,
             high_bands_suppression: HighBandsSuppression::default(),
             floor_first_increase: 0.00001,
-            conservative_hf_suppression: true,
+            conservative_hf_suppression: false,
         }
     }
 }
@@ -1690,10 +1690,10 @@ pub struct MultiChannel {
 impl Default for MultiChannel {
     fn default() -> Self {
         Self {
-            detect_stereo_content: false,
+            detect_stereo_content: true,
             stereo_detection_threshold: 0.0,
-            stereo_detection_timeout_threshold_seconds: 0,
-            stereo_detection_hysteresis_seconds: 0.0,
+            stereo_detection_timeout_threshold_seconds: 300,
+            stereo_detection_hysteresis_seconds: 2.0,
         }
     }
 }
