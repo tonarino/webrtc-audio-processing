@@ -150,6 +150,7 @@ mod webrtc {
 fn main() -> Result<()> {
     webrtc::build_if_necessary()?;
     let (include_dirs, lib_dirs) = webrtc::get_build_paths()?;
+    let target_os = env::var("CARGO_CFG_TARGET_OS")?;
 
     for dir in &lib_dirs {
         println!("cargo:rustc-link-search=native={}", dir.display());
@@ -162,14 +163,14 @@ fn main() -> Result<()> {
         println!("cargo:rustc-link-lib=dylib=webrtc-audio-processing-2");
     }
 
-    if cfg!(target_os = "macos") {
+    if target_os == "macos" {
         println!("cargo:rustc-link-lib=framework=CoreFoundation");
     }
 
     let mut cc_build = cc::Build::new();
 
     // set mac minimum version
-    if cfg!(target_os = "macos") {
+    if target_os == "macos" {
         let min_version = match env::var(DEPLOYMENT_TARGET_VAR) {
             Ok(ver) => ver,
             Err(_) => {
