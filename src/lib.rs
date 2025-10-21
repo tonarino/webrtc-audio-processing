@@ -170,7 +170,7 @@ impl Processor {
 
 /// `AudioProcessor` provides an access to webrtc's audio processing e.g. echo
 /// cancellation and automatic gain control.
-/// This is a low level API that might require additional synchronization or locking, depending on
+/// This is a low level API that may require wrapping in your Arc to be shared between threads, depending on
 /// the use case. See [`Processor`] for a simple wrapper around this API that enables sharing
 /// the processor between threads.
 pub struct AudioProcessing {
