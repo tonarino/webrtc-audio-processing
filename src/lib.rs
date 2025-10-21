@@ -168,13 +168,20 @@ impl Processor {
     }
 }
 
-/// Minimal wrapper for safe and synchronized ffi.
-struct AudioProcessing {
+/// `AudioProcessor` provides an access to webrtc's audio processing e.g. echo
+/// cancellation and automatic gain control.
+/// This is a low level API that might require additional synchronization or locking, depending on
+/// the use case. See [`Processor`] for a simple wrapper around this API that enables sharing
+/// the processor between threads.
+pub struct AudioProcessing {
     inner: *mut ffi::AudioProcessing,
 }
 
 impl AudioProcessing {
-    fn new(config: &ffi::InitializationConfig) -> Result<Self, Error> {
+    /// Creates a new `Processor`. `InitializationConfig` is only used on
+    /// instantiation, however new configs can be be passed to `set_config()`
+    /// at any time during processing.
+    pub fn new(config: &ffi::InitializationConfig) -> Result<Self, Error> {
         let mut code = 0;
         let inner = unsafe { ffi::audio_processing_create(config, &mut code) };
         if !inner.is_null() {
@@ -184,7 +191,11 @@ impl AudioProcessing {
         }
     }
 
-    fn process_capture_frame(&self, frame: &mut [Vec<f32>]) -> Result<(), Error> {
+    /// Processes and modifies the audio frame from a capture device by applying
+    /// signal processing as specified in the config. `frame` should be a Vec of
+    /// length 'num_capture_channels', with each inner Vec representing a channel
+    /// with NUM_SAMPLES_PER_FRAME samples.
+    pub fn process_capture_frame(&self, frame: &mut [Vec<f32>]) -> Result<(), Error> {
         let mut frame_ptr = frame.iter_mut().map(|v| v.as_mut_ptr()).collect::<Vec<*mut f32>>();
         unsafe {
             let code = ffi::process_capture_frame(self.inner, frame_ptr.as_mut_ptr());
@@ -196,7 +207,10 @@ impl AudioProcessing {
         }
     }
 
-    fn process_render_frame(&self, frame: &mut [Vec<f32>]) -> Result<(), Error> {
+    /// Processes and optionally modifies the audio frame from a playback device.
+    /// `frame` should be a Vec of length 'num_render_channels', with each inner Vec
+    /// representing a channel with NUM_SAMPLES_PER_FRAME samples.
+    pub fn process_render_frame(&self, frame: &mut [Vec<f32>]) -> Result<(), Error> {
         let mut frame_ptr = frame.iter_mut().map(|v| v.as_mut_ptr()).collect::<Vec<*mut f32>>();
         unsafe {
             let code = ffi::process_render_frame(self.inner, frame_ptr.as_mut_ptr());
@@ -208,23 +222,30 @@ impl AudioProcessing {
         }
     }
 
-    fn get_stats(&self) -> Stats {
+    /// Returns statistics from the last `process_capture_frame()` call.
+    pub fn get_stats(&self) -> Stats {
         unsafe { ffi::get_stats(self.inner).into() }
     }
 
-    fn set_config(&self, config: Config) {
+    /// Immediately updates the configurations of the internal signal processor.
+    /// May be called multiple times after the initialization and during
+    /// processing.
+    pub fn set_config(&self, config: Config) {
         unsafe {
             ffi::set_config(self.inner, &config.into());
         }
     }
 
-    fn set_output_will_be_muted(&self, muted: bool) {
+    /// Signals the AEC and AGC that the audio output will be / is muted.
+    /// They may use the hint to improve their parameter adaptation.
+    pub fn set_output_will_be_muted(&self, muted: bool) {
         unsafe {
             ffi::set_output_will_be_muted(self.inner, muted);
         }
     }
 
-    fn set_stream_key_pressed(&self, pressed: bool) {
+    /// Signals the AEC and AGC that the next frame will contain key press sound
+    pub fn set_stream_key_pressed(&self, pressed: bool) {
         unsafe {
             ffi::set_stream_key_pressed(self.inner, pressed);
         }
