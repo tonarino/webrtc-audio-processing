@@ -1,0 +1,86 @@
+name: Rust
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          # MacOS has problems building portaudio, skip for now
+          # https://github.com/tonarino/webrtc-audio-processing/pull/49#issuecomment-2728436014
+          # - macos-latest
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: Install Dependencies (if Ubuntu)
+        env:
+          ACCEPT_EULA: Y
+        run: sudo apt-get -y update && sudo apt-get install -f && sudo apt-get -y install portaudio19-dev pkg-config libclang-19-dev autotools-dev libtool automake
+        if: contains(runner.os, 'Linux')
+      - name: Install Dependencies (if macos)
+        env:
+          ACCEPT_EULA: Y
+        run: brew update && brew install automake autoconf libtool pkg-config
+        if: contains(runner.os, 'macOS')
+      - uses: Swatinem/rust-cache@v1
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --verbose --features "bundled"
+      - name: Test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --verbose --features "bundled"
+
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          override: true
+          components: rustfmt
+      - name: Rustfmt
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          components: clippy
+      - name: Clippy
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --features "bundled" --all-targets -- -D warnings
