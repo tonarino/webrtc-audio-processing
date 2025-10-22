@@ -1,3 +1,14 @@
+[workspace]
+members = [".", "webrtc-audio-processing-sys"]
+# default-members default to the single root package in non-virtual workspaces, undo that
+default-members = [".", "webrtc-audio-processing-sys"]
+resolver = "2"
+
+[workspace.metadata.release]
+shared-version = true
+# create a single tag for all crates
+tag-prefix = ""
+
 [package]
 name = "webrtc-audio-processing"
 version = "0.4.0"

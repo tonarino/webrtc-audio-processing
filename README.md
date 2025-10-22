@@ -47,11 +47,7 @@ Building from source and static linking can be enabled with the `bundled` featur
 ## Publishing
 
 ```bash
-cargo login
-cd ./webrtc-audio-processing-sys
-cargo publish --features derive_serde --features bundled
-cd ../
-cargo publish --features derive_serde --features bundled
+cargo release --verbose <new-version>
 ```
 
 ## Contributing
