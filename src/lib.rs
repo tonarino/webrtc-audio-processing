@@ -218,7 +218,7 @@ impl Processor {
 }
 
 /// Minimal wrapper for safe and synchronized ffi.
-struct AudioProcessing {
+pub struct AudioProcessing {
     inner: *mut ffi::AudioProcessing,
 }
 
@@ -260,7 +260,7 @@ impl fmt::Display for AudioProcessingError {
 impl error::Error for AudioProcessingError {}
 
 impl AudioProcessing {
-    fn new(
+    pub fn new(
         config: &InitializationConfig,
         aec3_config: Option<EchoCanceller3Config>,
     ) -> Result<Self, Error> {
@@ -291,7 +291,7 @@ impl AudioProcessing {
         unsafe { ffi::initialize(self.inner) }
     }
 
-    fn process_capture_frame(&self, frame: &mut [Vec<f32>]) -> Result<(), Error> {
+    pub fn process_capture_frame(&self, frame: &mut [Vec<f32>]) -> Result<(), Error> {
         let mut frame_ptr = frame.iter_mut().map(|v| v.as_mut_ptr()).collect::<Vec<*mut f32>>();
         unsafe {
             let code = ffi::process_capture_frame(self.inner, frame_ptr.as_mut_ptr());
@@ -303,7 +303,7 @@ impl AudioProcessing {
         }
     }
 
-    fn process_render_frame(&self, frame: &mut [Vec<f32>]) -> Result<(), Error> {
+    pub fn process_render_frame(&self, frame: &mut [Vec<f32>]) -> Result<(), Error> {
         let mut frame_ptr = frame.iter_mut().map(|v| v.as_mut_ptr()).collect::<Vec<*mut f32>>();
         unsafe {
             let code = ffi::process_render_frame(self.inner, frame_ptr.as_mut_ptr());
@@ -315,7 +315,7 @@ impl AudioProcessing {
         }
     }
 
-    fn get_stats(&self) -> Stats {
+    pub fn get_stats(&self) -> Stats {
         unsafe { ffi::get_stats(self.inner).into() }
     }
 
@@ -323,19 +323,19 @@ impl AudioProcessing {
         unsafe { ffi::get_num_samples_per_frame(self.inner) as usize }
     }
 
-    fn set_config(&self, config: Config) {
+    pub fn set_config(&self, config: Config) {
         unsafe {
             ffi::set_config(self.inner, &config.into());
         }
     }
 
-    fn set_output_will_be_muted(&self, muted: bool) {
+    pub fn set_output_will_be_muted(&self, muted: bool) {
         unsafe {
             ffi::set_output_will_be_muted(self.inner, muted);
         }
     }
 
-    fn set_stream_key_pressed(&self, pressed: bool) {
+    pub fn set_stream_key_pressed(&self, pressed: bool) {
         unsafe {
             ffi::set_stream_key_pressed(self.inner, pressed);
         }
