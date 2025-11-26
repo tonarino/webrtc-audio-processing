@@ -17,7 +17,7 @@ mod webrtc {
     use anyhow::{bail, Result};
 
     const LIB_NAME: &str = "webrtc-audio-processing-2";
-    const LIB_MIN_VERSION: &str = "2.0";
+    const LIB_MIN_VERSION: &str = "2.1";
 
     pub(super) fn get_build_paths() -> Result<(Vec<PathBuf>, Vec<PathBuf>)> {
         let (pkgconfig_include_path, pkgconfig_lib_path) = find_pkgconfig_paths()?;
@@ -81,7 +81,7 @@ mod webrtc {
         let mut lib_paths = vec![out_dir().join("lib")];
 
         if let Ok(mut lib) =
-            pkg_config::Config::new().atleast_version("20240722").probe("absl_base")
+            pkg_config::Config::new().atleast_version("20250814").probe("absl_base")
         {
             // If abseil package is installed locally, meson would have linked it for
             // webrtc-audio-processing-2. Use the same library for our wrapper, too.
@@ -93,13 +93,13 @@ mod webrtc {
                 src_dir()
                     .join("webrtc-audio-processing")
                     .join("subprojects")
-                    .join("abseil-cpp-20240722.0"),
+                    .join("abseil-cpp-20250814.1"),
             );
             lib_paths.push(
                 out_dir()
                     .join("webrtc-audio-processing")
                     .join("subprojects")
-                    .join("abseil-cpp-20240722.0"),
+                    .join("abseil-cpp-20250814.1"),
             );
         }
 
