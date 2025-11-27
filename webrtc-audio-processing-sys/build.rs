@@ -119,8 +119,16 @@ mod webrtc {
 
         let webrtc_build_dir = build_dir.join(BUNDLED_SOURCE_PATH);
         let mut meson = Command::new("meson");
+        meson.args(&["setup", "--prefix", install_dir.to_str().unwrap()]);
+        meson.arg("--reconfigure");
+
+        if cfg!(target_os = "macos") {
+            let link_args = "['-framework', 'CoreFoundation', '-framework', 'Foundation']";
+            meson.arg(&format!("-Dc_link_args={}", link_args));
+            meson.arg(&format!("-Dcpp_link_args={}", link_args));
+        }
+
         let status = meson
-            .args(&["setup", "--prefix", install_dir.to_str().unwrap()])
             .arg("-Ddefault_library=static")
             .arg(BUNDLED_SOURCE_PATH)
             .arg(webrtc_build_dir.to_str().unwrap())
