@@ -146,7 +146,7 @@ fn derive_serde(binding_file: &Path) -> Result<()> {
             .replace_all(&contents, "#[derive($d, Serialize, Deserialize)] pub $s")
     );
 
-    File::create(&binding_file)?.write_all(new_contents.as_bytes())?;
+    File::create(binding_file)?.write_all(new_contents.as_bytes())?;
 
     Ok(())
 }
@@ -173,7 +173,7 @@ fn main() -> Result<()> {
         // `cc` doesn't try to pick up on this automatically, but `clang` needs it to
         // generate a "correct" Objective-C symbol table which better matches XCode.
         // See https://github.com/h4llow3En/mac-notification-sys/issues/45.
-        cc_build.flag(&format!("-mmacos-version-min={}", min_version));
+        cc_build.flag(format!("-mmacos-version-min={}", min_version));
     }
 
     cc_build
@@ -183,7 +183,7 @@ fn main() -> Result<()> {
         .flag("-Wno-unused-parameter")
         .flag("-Wno-deprecated-declarations")
         .flag("-std=c++11")
-        .out_dir(&out_dir())
+        .out_dir(out_dir())
         .compile("webrtc_audio_processing_wrapper");
 
     println!("cargo:rustc-link-search=native={}", webrtc_lib.display());
@@ -211,7 +211,7 @@ fn main() -> Result<()> {
         .derive_debug(true)
         .derive_default(true)
         .derive_partialeq(true)
-        .clang_arg(&format!("-I{}", &webrtc_include.display()))
+        .clang_arg(format!("-I{}", &webrtc_include.display()))
         .disable_name_namespacing()
         .generate()
         .expect("Unable to generate bindings")
