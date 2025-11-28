@@ -81,10 +81,14 @@ mod tests {
         Config {
             echo_cancellation: EchoCancellation {
                 enable: true,
+                enable_delay_agnostic: true,
+                enable_extended_filter: true,
+                stream_delay_ms: Some(20).into(),
                 suppression_level: EchoCancellation_SuppressionLevel::HIGH,
             },
             gain_control: GainControl {
                 enable: true,
+                mode: GainControl_Mode::FIXED_DIGITAL,
                 target_level_dbfs: 3,
                 compression_gain_db: 3,
                 enable_limiter: true,
@@ -97,8 +101,6 @@ mod tests {
                 enable: true,
                 detection_likelihood: VoiceDetection_DetectionLikelihood::HIGH,
             },
-            enable_extended_filter: true,
-            enable_delay_agnostic: true,
             enable_transient_suppressor: true,
             enable_high_pass_filter: true,
         }
