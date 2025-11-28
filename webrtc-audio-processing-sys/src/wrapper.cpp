@@ -89,9 +89,8 @@ AudioProcessing* audio_processing_create(
 int process_capture_frame(AudioProcessing* ap, float** channels) {
   auto* p = ap->processor.get();
 
-  if (p->echo_cancellation()->is_enabled()) {
-    p->set_stream_delay_ms(
-        ap->stream_delay_ms.has_value ? ap->stream_delay_ms.value : 0);
+  if (p->echo_cancellation()->is_enabled() && ap->stream_delay_ms.has_value) {
+    p->set_stream_delay_ms(ap->stream_delay_ms.value);
   }
 
   return p->ProcessStream(
