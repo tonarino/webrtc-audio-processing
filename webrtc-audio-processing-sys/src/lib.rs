@@ -4,10 +4,10 @@
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
-impl Into<Option<bool>> for OptionalBool {
-    fn into(self) -> Option<bool> {
-        if self.has_value {
-            Some(self.value)
+impl From<OptionalBool> for Option<bool> {
+    fn from(val: OptionalBool) -> Self {
+        if val.has_value {
+            Some(val.value)
         } else {
             None
         }
@@ -24,10 +24,10 @@ impl From<Option<bool>> for OptionalBool {
     }
 }
 
-impl Into<Option<i32>> for OptionalInt {
-    fn into(self) -> Option<i32> {
-        if self.has_value {
-            Some(self.value)
+impl From<OptionalInt> for Option<i32> {
+    fn from(val: OptionalInt) -> Self {
+        if val.has_value {
+            Some(val.value)
         } else {
             None
         }
@@ -44,10 +44,10 @@ impl From<Option<i32>> for OptionalInt {
     }
 }
 
-impl Into<Option<f64>> for OptionalDouble {
-    fn into(self) -> Option<f64> {
-        if self.has_value {
-            Some(self.value)
+impl From<OptionalDouble> for Option<f64> {
+    fn from(val: OptionalDouble) -> Self {
+        if val.has_value {
+            Some(val.value)
         } else {
             None
         }
@@ -81,10 +81,14 @@ mod tests {
         Config {
             echo_cancellation: EchoCancellation {
                 enable: true,
+                enable_delay_agnostic: true,
+                enable_extended_filter: true,
+                stream_delay_ms: Some(20).into(),
                 suppression_level: EchoCancellation_SuppressionLevel::HIGH,
             },
             gain_control: GainControl {
                 enable: true,
+                mode: GainControl_Mode::FIXED_DIGITAL,
                 target_level_dbfs: 3,
                 compression_gain_db: 3,
                 enable_limiter: true,
@@ -97,8 +101,6 @@ mod tests {
                 enable: true,
                 detection_likelihood: VoiceDetection_DetectionLikelihood::HIGH,
             },
-            enable_extended_filter: true,
-            enable_delay_agnostic: true,
             enable_transient_suppressor: true,
             enable_high_pass_filter: true,
         }
