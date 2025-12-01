@@ -202,6 +202,7 @@ fn main() -> Result<()> {
         .flag("-std=c++17")
         .flag("-Wno-unused-parameter")
         .flag("-Wno-deprecated-declarations")
+        .flag("-Wno-nullability-completeness")
         .out_dir(&out_dir())
         .compile("webrtc_audio_processing_wrapper");
 

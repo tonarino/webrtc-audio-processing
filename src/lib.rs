@@ -626,7 +626,7 @@ mod tests {
         // it shouldn't crash
     }
 
-    /// Measures baseline echo cancellation performance using industry metrics.
+    /// Measures baseline echo cancellation performance.
     ///
     /// Uses a pure sine wave to create ideal test conditions. Verifies the AEC
     /// achieves at least 18dB ERL.
@@ -644,7 +644,7 @@ mod tests {
         let render_frame = context.generate_sine_frame(440.0);
         let erle = context.measure_echo_reduction(&render_frame, 100);
 
-        // Verify industry-standard performance
+        // Verify there is echo loss.
         assert!(
             erle >= 18.0,
             "Echo canceller should achieve at least 18 dB of ERLE (got {:.1} dB)",
