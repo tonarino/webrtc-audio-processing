@@ -3,7 +3,7 @@ use std::{env, path::PathBuf, process::Command};
 
 const DEPLOYMENT_TARGET_VAR: &str = "MACOSX_DEPLOYMENT_TARGET";
 
-/// Symbol prefix to allow multiple versions of this crate to coexist.
+/// Symbol prefix for the webrtc-audio-processing library to allow multiple versions to coexist.
 const SYMBOL_PREFIX: &str = "v2_";
 
 /// Prefix all symbols in a static library using objcopy.
@@ -11,10 +11,9 @@ const SYMBOL_PREFIX: &str = "v2_";
 fn prefix_symbols_in_archive(archive_path: &std::path::Path, prefix: &str) -> Result<()> {
     eprintln!("Prefixing symbols in {} with '{}'", archive_path.display(), prefix);
 
-    // Create a temporary output path
     let temp_path = archive_path.with_extension("prefixed.a");
 
-    // On macOS, use llvm-objcopy (comes with Xcode) to preserve Mach-O format.
+    // On macOS, use llvm-objcopy to preserve Mach-O format.
     // GNU objcopy produces GNU ar format which macOS linker can't read.
     let objcopy = if cfg!(target_os = "macos") { "llvm-objcopy" } else { "objcopy" };
 
@@ -29,28 +28,11 @@ fn prefix_symbols_in_archive(archive_path: &std::path::Path, prefix: &str) -> Re
         anyhow::bail!("{} failed with status: {}", objcopy, status);
     }
 
-    // Replace original with prefixed version
     std::fs::rename(&temp_path, archive_path).with_context(|| {
         format!("Failed to rename {} to {}", temp_path.display(), archive_path.display())
     })?;
 
     Ok(())
-}
-
-/// Bindgen callback to prefix all generated link names.
-#[derive(Debug)]
-struct SymbolPrefixer {
-    prefix: String,
-}
-
-impl bindgen::callbacks::ParseCallbacks for SymbolPrefixer {
-    fn generated_link_name_override(
-        &self,
-        item_info: bindgen::callbacks::ItemInfo<'_>,
-    ) -> Option<String> {
-        // Prefix all symbol names so Rust looks for the prefixed versions
-        Some(format!("{}{}", self.prefix, item_info.name))
-    }
 }
 
 fn out_dir() -> PathBuf {
@@ -304,11 +286,8 @@ fn main() -> Result<()> {
         .out_dir(out_dir())
         .compile("webrtc_audio_processing_wrapper");
 
-    // Prefix symbols in the wrapper library
-    let wrapper_lib = out_dir().join("libwebrtc_audio_processing_wrapper.a");
-    if wrapper_lib.exists() {
-        prefix_symbols_in_archive(&wrapper_lib, SYMBOL_PREFIX)?;
-    }
+    // Note: We don't prefix the wrapper library. The wrapper namespace includes "v2"
+    // (webrtc_audio_processing_v2_wrapper) which makes its symbols unique.
 
     println!("cargo:rustc-link-lib=static=webrtc_audio_processing_wrapper");
 
@@ -323,16 +302,12 @@ fn main() -> Result<()> {
         .allowlist_type("webrtc::AudioProcessing_RealtimeSetting")
         .allowlist_type("webrtc::StreamConfig")
         .allowlist_type("webrtc::ProcessingConfig")
-        .allowlist_function("webrtc_audio_processing_wrapper::.*")
-        // The functions returns std::string, and is not FFI-safe.
+        .allowlist_function("webrtc_audio_processing_v2_wrapper::.*")
+        // The function returns std::string, and is not FFI-safe.
         .blocklist_item("webrtc::AudioProcessing_Config_ToString")
         .opaque_type("std::.*")
         .derive_debug(true)
-        .derive_default(true)
-        // Add symbol prefix callback so Rust looks for prefixed symbols
-        .parse_callbacks(Box::new(SymbolPrefixer {
-            prefix: SYMBOL_PREFIX.to_string(),
-        }));
+        .derive_default(true);
     for dir in &include_dirs {
         builder = builder.clang_arg(format!("-I{}", dir.display()));
     }

@@ -13,7 +13,7 @@
 
 #define WEBRTC_POSIX
 
-namespace webrtc_audio_processing_wrapper {
+namespace webrtc_audio_processing_v2_wrapper {
 namespace {
 
 OptionalDouble from_absl_optional(const std::optional<double>& optional) {
@@ -426,4 +426,4 @@ bool is_success(const int code) {
   return code == webrtc::AudioProcessing::kNoError;
 }
 
-}  // namespace webrtc_audio_processing_wrapper
+}  // namespace webrtc_audio_processing_v2_wrapper
