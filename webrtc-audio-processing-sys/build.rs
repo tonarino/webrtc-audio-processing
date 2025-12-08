@@ -317,12 +317,12 @@ fn main() -> Result<()> {
         .clang_args(&["-x", "c++", "-std=c++17", "-fparse-all-comments"])
         .generate_comments(true)
         .enable_cxx_namespaces()
-        .allowlist_type("webrtc::AudioProcessing_Error")
-        .allowlist_type("webrtc::AudioProcessing_Config")
-        .allowlist_type("webrtc::AudioProcessing_RealtimeSetting")
-        .allowlist_type("webrtc::StreamConfig")
-        .allowlist_type("webrtc::ProcessingConfig")
-        .allowlist_function("webrtc_audio_processing_wrapper::.*")
+        .allowlist_type(".*webrtc::AudioProcessing_Error")
+        .allowlist_type(".*webrtc::AudioProcessing_Config")
+        .allowlist_type(".*webrtc::AudioProcessing_RealtimeSetting")
+        .allowlist_type(".*webrtc::StreamConfig")
+        .allowlist_type(".*webrtc::ProcessingConfig")
+        .allowlist_function(".*webrtc_audio_processing_wrapper::.*")
         // The functions returns std::string, and is not FFI-safe.
         .blocklist_item("webrtc::AudioProcessing_Config_ToString")
         .opaque_type("std::.*")
@@ -331,9 +331,8 @@ fn main() -> Result<()> {
 
     // Only add prefix callback on platforms where objcopy symbol prefixing works
     if !cfg!(target_os = "macos") {
-        builder = builder.parse_callbacks(Box::new(PrefixRenamer {
-            prefix: SYMBOL_PREFIX.to_string(),
-        }));
+        builder =
+            builder.parse_callbacks(Box::new(PrefixRenamer { prefix: SYMBOL_PREFIX.to_string() }));
     }
 
     for dir in &include_dirs {
