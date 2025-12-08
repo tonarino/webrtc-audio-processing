@@ -2,7 +2,7 @@
 name = "webrtc-audio-processing-sys"
 description = "A wrapper for WebRTC's AudioProcessing module."
 documentation = "https://docs.rs/webrtc-audio-processing-sys"
-version = "0.6.0"
+version = "2.0.0"
 authors = ["Ryo Kawaguchi <ryo@kawagu.ch>"]
 repository = "https://github.com/tonarino/webrtc-audio-processing"
 edition = "2018"
