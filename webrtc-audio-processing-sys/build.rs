@@ -6,16 +6,19 @@ const DEPLOYMENT_TARGET_VAR: &str = "MACOSX_DEPLOYMENT_TARGET";
 /// Symbol prefix for the webrtc-audio-processing library to allow multiple versions to coexist.
 const SYMBOL_PREFIX: &str = "v2_";
 
+fn objcopy_tool() -> &'static str {
+    // On macOS, use llvm-objcopy to preserve Mach-O format.
+    // GNU objcopy produces GNU ar format which macOS linker can't read.
+    if cfg!(target_os = "macos") { "llvm-objcopy" } else { "objcopy" }
+}
+
 /// Prefix all symbols in a static library using objcopy.
 /// This modifies the library in-place.
 fn prefix_symbols_in_archive(archive_path: &std::path::Path, prefix: &str) -> Result<()> {
     eprintln!("Prefixing symbols in {} with '{}'", archive_path.display(), prefix);
 
     let temp_path = archive_path.with_extension("prefixed.a");
-
-    // On macOS, use llvm-objcopy to preserve Mach-O format.
-    // GNU objcopy produces GNU ar format which macOS linker can't read.
-    let objcopy = if cfg!(target_os = "macos") { "llvm-objcopy" } else { "objcopy" };
+    let objcopy = objcopy_tool();
 
     let status = Command::new(objcopy)
         .arg(format!("--prefix-symbols={}", prefix))
@@ -33,6 +36,29 @@ fn prefix_symbols_in_archive(archive_path: &std::path::Path, prefix: &str) -> Re
     })?;
 
     Ok(())
+}
+
+/// Bindgen callback to prefix link names for symbols outside our wrapper namespace.
+/// Wrapper symbols (webrtc_audio_processing_v2_wrapper::*) are NOT prefixed since
+/// we only prefix undefined symbols in the wrapper library.
+#[derive(Debug)]
+struct PrefixRenamer {
+    prefix: String,
+}
+
+impl bindgen::callbacks::ParseCallbacks for PrefixRenamer {
+    fn generated_link_name_override(
+        &self,
+        item_info: bindgen::callbacks::ItemInfo<'_>,
+    ) -> Option<String> {
+        // Don't prefix symbols from our wrapper namespace - they're already unique
+        // due to the "v2" in the namespace name, and we don't prefix them with objcopy
+        if item_info.name.contains("webrtc_audio_processing_v2_wrapper") {
+            return None;
+        }
+        // Prefix other symbols (e.g., webrtc internal symbols if we were binding them)
+        Some(format!("{}{}", self.prefix, item_info.name))
+    }
 }
 
 fn out_dir() -> PathBuf {
@@ -286,9 +312,6 @@ fn main() -> Result<()> {
         .out_dir(out_dir())
         .compile("webrtc_audio_processing_wrapper");
 
-    // Note: We don't prefix the wrapper library. The wrapper namespace includes "v2"
-    // (webrtc_audio_processing_v2_wrapper) which makes its symbols unique.
-
     println!("cargo:rustc-link-lib=static=webrtc_audio_processing_wrapper");
 
     let binding_file = out_dir().join("bindings.rs");
@@ -307,7 +330,11 @@ fn main() -> Result<()> {
         .blocklist_item("webrtc::AudioProcessing_Config_ToString")
         .opaque_type("std::.*")
         .derive_debug(true)
-        .derive_default(true);
+        .derive_default(true)
+        // Prefix link names for symbols outside our wrapper namespace
+        .parse_callbacks(Box::new(PrefixRenamer {
+            prefix: SYMBOL_PREFIX.to_string(),
+        }));
     for dir in &include_dirs {
         builder = builder.clang_arg(format!("-I{}", dir.display()));
     }
