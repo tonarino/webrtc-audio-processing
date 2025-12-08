@@ -67,6 +67,9 @@ fn prefix_archive_symbols(
     cmd.arg(archive_path);
     cmd.arg(&temp_path);
 
+    eprintln!("{:?}", &cmd);
+    assert!(false);
+
     let status = cmd.status().context("Failed to execute objcopy")?;
 
     if !status.success() {
