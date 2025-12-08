@@ -80,8 +80,11 @@ mod webrtc {
         ];
         let mut lib_paths = vec![out_dir().join("lib")];
 
+        // Notes: c8896801 added support for 20250814, but the meson.build is still expecting
+        // >=20240722 and the subproject will fetch 20240722. If the build environment has 20250814
+        // installed, it should still pick it up and build successfully, though.
         if let Ok(mut lib) =
-            pkg_config::Config::new().atleast_version("20250814").probe("absl_base")
+            pkg_config::Config::new().atleast_version("20240722").probe("absl_base")
         {
             // If abseil package is installed locally, meson would have linked it for
             // webrtc-audio-processing-2. Use the same library for our wrapper, too.
@@ -93,13 +96,13 @@ mod webrtc {
                 src_dir()
                     .join("webrtc-audio-processing")
                     .join("subprojects")
-                    .join("abseil-cpp-20250814.1"),
+                    .join("abseil-cpp-20240722.0"),
             );
             lib_paths.push(
                 out_dir()
                     .join("webrtc-audio-processing")
                     .join("subprojects")
-                    .join("abseil-cpp-20250814.1"),
+                    .join("abseil-cpp-20240722.0"),
             );
         }
 
@@ -118,6 +121,8 @@ mod webrtc {
         let install_dir = out_dir();
 
         let webrtc_build_dir = build_dir.join(BUNDLED_SOURCE_PATH);
+        eprintln!("Building webrtc-audio-processing in {}", webrtc_build_dir.display());
+
         let mut meson = Command::new("meson");
         meson.args(&["setup", "--prefix", install_dir.to_str().unwrap()]);
         meson.arg("--reconfigure");
