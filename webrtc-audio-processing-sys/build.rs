@@ -6,6 +6,14 @@ const DEPLOYMENT_TARGET_VAR: &str = "MACOSX_DEPLOYMENT_TARGET";
 /// Symbol prefix for the webrtc-audio-processing library to allow multiple versions to coexist.
 const SYMBOL_PREFIX: &str = "v2_";
 
+fn out_dir() -> PathBuf {
+    std::env::var("OUT_DIR").expect("OUT_DIR environment var not set.").into()
+}
+
+fn src_dir() -> PathBuf {
+    std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR environment var not set.").into()
+}
+
 fn objcopy_tool() -> &'static str {
     // On macOS, use llvm-objcopy to preserve Mach-O format.
     // GNU objcopy produces GNU ar format which macOS linker can't read.
@@ -42,9 +50,7 @@ fn prefix_symbols_in_archive(archive_path: &std::path::Path, prefix: &str) -> Re
     Ok(())
 }
 
-/// Bindgen callback to prefix link names for symbols outside our wrapper namespace.
-/// Wrapper symbols (webrtc_audio_processing_v2_wrapper::*) are NOT prefixed since
-/// we only prefix undefined symbols in the wrapper library.
+/// Bindgen callback to prefix link names for symbols.
 #[derive(Debug)]
 struct PrefixRenamer {
     prefix: String,
@@ -55,17 +61,8 @@ impl bindgen::callbacks::ParseCallbacks for PrefixRenamer {
         &self,
         item_info: bindgen::callbacks::ItemInfo<'_>,
     ) -> Option<String> {
-        // Prefix other symbols (e.g., webrtc internal symbols if we were binding them)
         Some(format!("{}{}", self.prefix, item_info.name))
     }
-}
-
-fn out_dir() -> PathBuf {
-    std::env::var("OUT_DIR").expect("OUT_DIR environment var not set.").into()
-}
-
-fn src_dir() -> PathBuf {
-    std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR environment var not set.").into()
 }
 
 #[cfg(not(feature = "bundled"))]
@@ -117,6 +114,17 @@ mod webrtc {
         };
 
         Ok((lib.include_paths.first().cloned(), lib.link_paths.first().cloned()))
+    }
+
+    pub(super) fn prefix_library_symbols(prefix: &str) -> Result<()> {
+        // For non-bundled builds, we can't prefix symbols in the system library.
+        // Users would need to build with bundled feature for multi-version support.
+        eprintln!(
+            "Warning: Symbol prefixing is only supported with the 'bundled' feature. \
+            Without it, linking multiple versions of this crate may cause symbol conflicts."
+        );
+
+        Ok(())
     }
 }
 
@@ -225,7 +233,9 @@ mod webrtc {
     pub(super) fn prefix_library_symbols(prefix: &str) -> Result<()> {
         // Find the library - it could be in lib/ or lib/x86_64-linux-gnu/
         let lib_candidates = [
+            // macOS
             out_dir().join("lib").join("libwebrtc-audio-processing-2.a"),
+            // linux
             out_dir().join("lib").join("x86_64-linux-gnu").join("libwebrtc-audio-processing-2.a"),
         ];
 
@@ -239,22 +249,6 @@ mod webrtc {
     }
 }
 
-#[cfg(not(feature = "bundled"))]
-fn prefix_webrtc_symbols(_prefix: &str) -> Result<()> {
-    // For non-bundled builds, we can't prefix symbols in the system library.
-    // Users would need to build with bundled feature for multi-version support.
-    eprintln!(
-        "Warning: Symbol prefixing is only supported with the 'bundled' feature. \
-        Without it, linking multiple versions of this crate may cause symbol conflicts."
-    );
-    Ok(())
-}
-
-#[cfg(feature = "bundled")]
-fn prefix_webrtc_symbols(prefix: &str) -> Result<()> {
-    webrtc::prefix_library_symbols(prefix)
-}
-
 fn main() -> Result<()> {
     eprintln!("Using symbol prefix: {}", SYMBOL_PREFIX);
 
@@ -262,7 +256,7 @@ fn main() -> Result<()> {
     let (include_dirs, lib_dirs) = webrtc::get_build_paths()?;
 
     // Prefix symbols in the webrtc library (bundled builds only)
-    prefix_webrtc_symbols(SYMBOL_PREFIX)?;
+    webrtc::prefix_library_symbols(SYMBOL_PREFIX)?;
 
     for dir in &lib_dirs {
         println!("cargo:rustc-link-search=native={}", dir.display());
@@ -332,13 +326,13 @@ fn main() -> Result<()> {
         .allowlist_type("webrtc::AudioProcessing_RealtimeSetting")
         .allowlist_type("webrtc::StreamConfig")
         .allowlist_type("webrtc::ProcessingConfig")
-        .allowlist_function("webrtc_audio_processing_v2_wrapper::.*")
+        .allowlist_function("webrtc_audio_processing__wrapper::.*")
         // The function returns std::string, and is not FFI-safe.
         .blocklist_item("webrtc::AudioProcessing_Config_ToString")
         .opaque_type("std::.*")
         .derive_debug(true)
         .derive_default(true)
-        // Prefix link names for symbols outside our wrapper namespace
+        // Prefix link names with SYMBOL_PREFIX
         .parse_callbacks(Box::new(PrefixRenamer {
             prefix: SYMBOL_PREFIX.to_string(),
         }));

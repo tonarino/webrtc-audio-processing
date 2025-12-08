@@ -8,7 +8,7 @@
 #include "webrtc/modules/audio_processing/include/audio_processing.h"
 #include <optional>
 
-namespace webrtc_audio_processing_v2_wrapper {
+namespace webrtc_audio_processing_wrapper {
 
 struct AudioProcessing;
 
@@ -284,4 +284,4 @@ void audio_processing_delete(AudioProcessing* ap);
 // Returns true iff the code indicates a successful operation.
 bool is_success(int code);
 
-} // namespace webrtc_audio_processing_v2_wrapper
+} // namespace webrtc_audio_processing_wrapper
