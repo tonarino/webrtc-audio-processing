@@ -340,19 +340,17 @@ fn main() -> Result<()> {
         .clang_args(&["-x", "c++", "-std=c++17", "-fparse-all-comments"])
         .generate_comments(true)
         .enable_cxx_namespaces()
-        .allowlist_type(".*webrtc::AudioProcessing_Error")
-        .allowlist_type(".*webrtc::AudioProcessing_Config")
-        .allowlist_type(".*webrtc::AudioProcessing_RealtimeSetting")
-        .allowlist_type(".*webrtc::StreamConfig")
-        .allowlist_type(".*webrtc::ProcessingConfig")
-        .allowlist_type(".*webrtc_audio_processing_wrapper::.*")
+        .allowlist_type("webrtc::AudioProcessing_Error")
+        .allowlist_type("webrtc::AudioProcessing_Config")
+        .allowlist_type("webrtc::AudioProcessing_RealtimeSetting")
+        .allowlist_type("webrtc::StreamConfig")
+        .allowlist_type("webrtc::ProcessingConfig")
         .allowlist_function("webrtc_audio_processing_wrapper::.*")
         // The functions returns std::string, and is not FFI-safe.
         .blocklist_item("webrtc::AudioProcessing_Config_ToString")
         .opaque_type("std::.*")
         .derive_debug(true)
         .derive_default(true);
-
     for dir in &include_dirs {
         builder = builder.clang_arg(format!("-I{}", dir.display()));
     }
