@@ -322,6 +322,7 @@ fn main() -> Result<()> {
         .allowlist_type(".*webrtc::AudioProcessing_RealtimeSetting")
         .allowlist_type(".*webrtc::StreamConfig")
         .allowlist_type(".*webrtc::ProcessingConfig")
+        .allowlist_type("v2_audio_processing_delete")
         .allowlist_function(".*webrtc_audio_processing_wrapper::.*")
         // The functions returns std::string, and is not FFI-safe.
         .blocklist_item("webrtc::AudioProcessing_Config_ToString")
