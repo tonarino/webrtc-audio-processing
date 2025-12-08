@@ -6,7 +6,15 @@
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
+// Re-export types from webrtc namespace and wrapper namespace
 pub use root::{webrtc::*, webrtc_audio_processing_wrapper::*};
+
+// Re-export global extern "C" functions
+pub use root::{
+    audio_processing_create, audio_processing_delete, get_num_samples_per_frame, get_stats,
+    initialize, is_success, process_capture_frame, process_render_frame, set_config,
+    set_output_will_be_muted, set_runtime_setting, set_stream_delay_ms, set_stream_key_pressed,
+};
 
 impl From<OptionalInt> for Option<i32> {
     fn from(other: OptionalInt) -> Option<i32> {
