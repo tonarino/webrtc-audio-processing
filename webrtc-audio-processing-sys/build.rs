@@ -228,24 +228,6 @@ mod webrtc {
             }
         }
 
-        // Also prefix abseil libraries if they were built locally
-        let abseil_lib_dir = out_dir()
-            .join("webrtc-audio-processing")
-            .join("subprojects")
-            .join("abseil-cpp-20240722.0");
-
-        if abseil_lib_dir.exists() {
-            // Find all .a files in abseil build directory
-            if let Ok(entries) = std::fs::read_dir(&abseil_lib_dir) {
-                for entry in entries.flatten() {
-                    let path = entry.path();
-                    if path.extension().is_some_and(|e| e == "a") {
-                        prefix_symbols_in_archive(&path, prefix)?;
-                    }
-                }
-            }
-        }
-
         Ok(())
     }
 }
