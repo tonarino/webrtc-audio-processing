@@ -15,8 +15,10 @@ fn src_dir() -> PathBuf {
 }
 
 /// Extract defined (non-external) symbols from a static library using nm.
-/// Returns a list of symbol names that are defined in the library.
+/// Returns a deduplicated list of symbol names that are defined in the library.
 fn get_defined_symbols(archive_path: &std::path::Path) -> Result<Vec<String>> {
+    use std::collections::HashSet;
+
     if cfg!(target_os = "macos") {
         return Ok(vec![]);
     }
@@ -33,17 +35,17 @@ fn get_defined_symbols(archive_path: &std::path::Path) -> Result<Vec<String>> {
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let mut symbols = Vec::new();
+    let mut symbols = HashSet::new();
 
     for line in stdout.lines() {
         // POSIX format: "symbol_name type value size"
         // We just need the first field (symbol name)
         if let Some(symbol) = line.split_whitespace().next() {
-            symbols.push(symbol.to_string());
+            symbols.insert(symbol.to_string());
         }
     }
 
-    Ok(symbols)
+    Ok(symbols.into_iter().collect())
 }
 
 /// Prefix only defined symbols in a static library using objcopy --redefine-sym.
