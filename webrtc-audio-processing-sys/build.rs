@@ -1,7 +1,64 @@
-use anyhow::Result;
-use std::{env, path::PathBuf};
+use anyhow::{Context, Result};
+use std::{env, path::PathBuf, process::Command};
 
 const DEPLOYMENT_TARGET_VAR: &str = "MACOSX_DEPLOYMENT_TARGET";
+
+/// Symbol prefix to allow multiple versions of this crate to coexist.
+const SYMBOL_PREFIX: &str = "v2_";
+
+/// Prefix all symbols in a static library using objcopy.
+/// This modifies the library in-place.
+fn prefix_symbols_in_archive(archive_path: &std::path::Path, prefix: &str) -> Result<()> {
+    eprintln!(
+        "Prefixing symbols in {} with '{}'",
+        archive_path.display(),
+        prefix
+    );
+
+    // Create a temporary output path
+    let temp_path = archive_path.with_extension("prefixed.a");
+
+    // On macOS, use llvm-objcopy (comes with Xcode) to preserve Mach-O format.
+    // GNU objcopy produces GNU ar format which macOS linker can't read.
+    let objcopy = if cfg!(target_os = "macos") {
+        "llvm-objcopy"
+    } else {
+        "objcopy"
+    };
+
+    let status = Command::new(objcopy)
+        .arg(format!("--prefix-symbols={}", prefix))
+        .arg(archive_path)
+        .arg(&temp_path)
+        .status()
+        .with_context(|| format!("Failed to execute {}", objcopy))?;
+
+    if !status.success() {
+        anyhow::bail!("{} failed with status: {}", objcopy, status);
+    }
+
+    // Replace original with prefixed version
+    std::fs::rename(&temp_path, archive_path)
+        .with_context(|| format!("Failed to rename {} to {}", temp_path.display(), archive_path.display()))?;
+
+    Ok(())
+}
+
+/// Bindgen callback to prefix all generated link names.
+#[derive(Debug)]
+struct SymbolPrefixer {
+    prefix: String,
+}
+
+impl bindgen::callbacks::ParseCallbacks for SymbolPrefixer {
+    fn generated_link_name_override(
+        &self,
+        item_info: bindgen::callbacks::ItemInfo<'_>,
+    ) -> Option<String> {
+        // Prefix all symbol names so Rust looks for the prefixed versions
+        Some(format!("{}{}", self.prefix, item_info.name))
+    }
+}
 
 fn out_dir() -> PathBuf {
     std::env::var("OUT_DIR").expect("OUT_DIR environment var not set.").into()
@@ -163,11 +220,67 @@ mod webrtc {
 
         Ok(())
     }
+
+    /// Prefix symbols in the built webrtc-audio-processing static library.
+    pub(super) fn prefix_library_symbols(prefix: &str) -> Result<()> {
+        // Find the library - it could be in lib/ or lib/x86_64-linux-gnu/
+        let lib_candidates = [
+            out_dir().join("lib").join("libwebrtc-audio-processing-2.a"),
+            out_dir().join("lib").join("x86_64-linux-gnu").join("libwebrtc-audio-processing-2.a"),
+        ];
+
+        for lib_path in &lib_candidates {
+            if lib_path.exists() {
+                prefix_symbols_in_archive(lib_path, prefix)?;
+            }
+        }
+
+        // Also prefix abseil libraries if they were built locally
+        let abseil_lib_dir = out_dir()
+            .join("webrtc-audio-processing")
+            .join("subprojects")
+            .join("abseil-cpp-20240722.0");
+
+        if abseil_lib_dir.exists() {
+            // Find all .a files in abseil build directory
+            if let Ok(entries) = std::fs::read_dir(&abseil_lib_dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.extension().map_or(false, |e| e == "a") {
+                        prefix_symbols_in_archive(&path, prefix)?;
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
+#[cfg(not(feature = "bundled"))]
+fn prefix_webrtc_symbols(_prefix: &str) -> Result<()> {
+    // For non-bundled builds, we can't prefix symbols in the system library.
+    // Users would need to build with bundled feature for multi-version support.
+    eprintln!(
+        "Warning: Symbol prefixing is only supported with the 'bundled' feature. \
+        Without it, linking multiple versions of this crate may cause symbol conflicts."
+    );
+    Ok(())
+}
+
+#[cfg(feature = "bundled")]
+fn prefix_webrtc_symbols(prefix: &str) -> Result<()> {
+    webrtc::prefix_library_symbols(prefix)
 }
 
 fn main() -> Result<()> {
+    eprintln!("Using symbol prefix: {}", SYMBOL_PREFIX);
+
     webrtc::build_if_necessary()?;
     let (include_dirs, lib_dirs) = webrtc::get_build_paths()?;
+
+    // Prefix symbols in the webrtc library (bundled builds only)
+    prefix_webrtc_symbols(SYMBOL_PREFIX)?;
 
     for dir in &lib_dirs {
         println!("cargo:rustc-link-search=native={}", dir.display());
@@ -216,6 +329,12 @@ fn main() -> Result<()> {
         .out_dir(out_dir())
         .compile("webrtc_audio_processing_wrapper");
 
+    // Prefix symbols in the wrapper library
+    let wrapper_lib = out_dir().join("libwebrtc_audio_processing_wrapper.a");
+    if wrapper_lib.exists() {
+        prefix_symbols_in_archive(&wrapper_lib, SYMBOL_PREFIX)?;
+    }
+
     println!("cargo:rustc-link-lib=static=webrtc_audio_processing_wrapper");
 
     let binding_file = out_dir().join("bindings.rs");
@@ -234,7 +353,11 @@ fn main() -> Result<()> {
         .blocklist_item("webrtc::AudioProcessing_Config_ToString")
         .opaque_type("std::.*")
         .derive_debug(true)
-        .derive_default(true);
+        .derive_default(true)
+        // Add symbol prefix callback so Rust looks for prefixed symbols
+        .parse_callbacks(Box::new(SymbolPrefixer {
+            prefix: SYMBOL_PREFIX.to_string(),
+        }));
     for dir in &include_dirs {
         builder = builder.clang_arg(format!("-I{}", dir.display()));
     }
