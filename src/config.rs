@@ -51,6 +51,7 @@ impl Default for PipelineProcessingRate {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "derive_serde", serde(default))]
+#[derive(Default)]
 pub struct Pipeline {
     /// Maximum allowed processing rate used internally. May only be set to
     /// 32000 or 48000 and any differing values will be treated as 48000.
@@ -66,17 +67,6 @@ pub struct Pipeline {
     /// Indicates how to downmix multi-channel capture audio to mono (when
     /// needed).
     pub capture_downmix_method: ffi::AudioProcessing_Config_Pipeline_DownmixMethod,
-}
-
-impl Default for Pipeline {
-    fn default() -> Self {
-        Self {
-            maximum_internal_processing_rate: PipelineProcessingRate::default(),
-            multi_channel_capture: false,
-            multi_channel_render: false,
-            capture_downmix_method: 0,
-        }
-    }
 }
 
 impl From<Pipeline> for ffi::AudioProcessing_Config_Pipeline {
@@ -483,15 +473,10 @@ impl From<GainController> for ffi::AudioProcessing_Config_GainController1 {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "derive_serde", serde(default))]
+#[derive(Default)]
 pub struct InputVolumeController {
     /// Enabled.
     pub enabled: bool,
-}
-
-impl Default for InputVolumeController {
-    fn default() -> Self {
-        Self { enabled: false }
-    }
 }
 
 impl From<InputVolumeController>
@@ -581,6 +566,7 @@ impl From<FixedDigital> for ffi::AudioProcessing_Config_GainController2_FixedDig
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "derive_serde", serde(default))]
+#[derive(Default)]
 pub struct GainController2 {
     /// AGC2 must be created if and only if `enabled` is true.
     pub enabled: bool,
@@ -596,17 +582,6 @@ pub struct GainController2 {
     /// digital gain after the adaptive digital controller and before the
     /// limiter.
     pub fixed_digital: FixedDigital,
-}
-
-impl Default for GainController2 {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            input_volume_controller: InputVolumeController::default(),
-            adaptive_digital: AdaptiveDigital::default(),
-            fixed_digital: FixedDigital::default(),
-        }
-    }
 }
 
 impl From<GainController2> for ffi::AudioProcessing_Config_GainController2 {
@@ -763,10 +738,8 @@ impl From<Config> for ffi::AudioProcessing_Config {
         };
 
         // Transient suppressor is being deprecated.
-        let transient_suppression = ffi::AudioProcessing_Config_TransientSuppression {
-            enabled: false,
-            ..Default::default()
-        };
+        let transient_suppression =
+            ffi::AudioProcessing_Config_TransientSuppression { enabled: false };
 
         let gain_controller1 = if let Some(config) = other.gain_controller {
             config.into()
@@ -1660,18 +1633,13 @@ impl Default for RenderLevels {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "derive_serde", serde(default))]
+#[derive(Default)]
 pub struct EchoRemovalControl {
     /// Whether clock drift is present
     pub has_clock_drift: bool,
 
     /// Whether echo path is linear and stable
     pub linear_and_stable_echo_path: bool,
-}
-
-impl Default for EchoRemovalControl {
-    fn default() -> Self {
-        Self { has_clock_drift: false, linear_and_stable_echo_path: false }
-    }
 }
 
 /// Echo model configuration

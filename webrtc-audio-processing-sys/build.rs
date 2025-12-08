@@ -78,7 +78,12 @@ mod webrtc {
             src_dir().join("webrtc-audio-processing"),
             src_dir().join("webrtc-audio-processing").join("webrtc"),
         ];
-        let mut lib_paths = vec![out_dir().join("lib")];
+        let mut lib_paths = vec![
+            // macOS
+            out_dir().join("lib"),
+            // linux
+            out_dir().join("lib").join("x86_64-linux-gnu"),
+        ];
 
         // Notes: c8896801 added support for 20250814, but the meson.build is still expecting
         // >=20240722 and the subproject will fetch 20240722. If the build environment has 20250814
@@ -124,13 +129,13 @@ mod webrtc {
         eprintln!("Building webrtc-audio-processing in {}", webrtc_build_dir.display());
 
         let mut meson = Command::new("meson");
-        meson.args(&["setup", "--prefix", install_dir.to_str().unwrap()]);
+        meson.args(["setup", "--prefix", install_dir.to_str().unwrap()]);
         meson.arg("--reconfigure");
 
         if cfg!(target_os = "macos") {
             let link_args = "['-framework', 'CoreFoundation', '-framework', 'Foundation']";
-            meson.arg(&format!("-Dc_link_args={}", link_args));
-            meson.arg(&format!("-Dcpp_link_args={}", link_args));
+            meson.arg(format!("-Dc_link_args={}", link_args));
+            meson.arg(format!("-Dcpp_link_args={}", link_args));
         }
 
         let status = meson
@@ -208,7 +213,7 @@ fn main() -> Result<()> {
         .flag("-Wno-unused-parameter")
         .flag("-Wno-deprecated-declarations")
         .flag("-Wno-nullability-completeness")
-        .out_dir(&out_dir())
+        .out_dir(out_dir())
         .compile("webrtc_audio_processing_wrapper");
 
     println!("cargo:rustc-link-lib=static=webrtc_audio_processing_wrapper");
@@ -231,7 +236,7 @@ fn main() -> Result<()> {
         .derive_debug(true)
         .derive_default(true);
     for dir in &include_dirs {
-        builder = builder.clang_arg(&format!("-I{}", dir.display()));
+        builder = builder.clang_arg(format!("-I{}", dir.display()));
     }
     builder
         .generate()

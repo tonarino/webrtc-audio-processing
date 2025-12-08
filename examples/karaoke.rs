@@ -3,8 +3,6 @@
 // underlying audio devices.
 // Optionally, a config file can be provided to override the default settings
 use anyhow::Error;
-use ctrlc;
-use portaudio;
 use serde::Deserialize;
 use std::{
     fs,
@@ -68,8 +66,8 @@ impl AppConfig {
 fn create_processor(config: &AppConfig) -> Result<Processor, Error> {
     let mut processor = Processor::with_aec3_config(
         &InitializationConfig {
-            num_capture_channels: config.num_capture_channels as usize,
-            num_render_channels: config.num_render_channels as usize,
+            num_capture_channels: config.num_capture_channels,
+            num_render_channels: config.num_render_channels,
             sample_rate_hz: SAMPLE_RATE as u32,
         },
         Some(config.aec3.clone()),
@@ -112,10 +110,8 @@ fn main() -> Result<(), Error> {
     )?;
 
     // Memory allocation should not happen inside the audio loop
-    let mut processed =
-        vec![0f32; FRAMES_PER_BUFFER as usize * config.num_capture_channels as usize];
-    let mut interleave_buffer =
-        vec![0f32; FRAMES_PER_BUFFER as usize * config.num_render_channels as usize];
+    let mut processed = vec![0f32; FRAMES_PER_BUFFER as usize * config.num_capture_channels];
+    let mut interleave_buffer = vec![0f32; FRAMES_PER_BUFFER as usize * config.num_render_channels];
     let output_channels = config.num_render_channels;
 
     let mut stream = pa.open_non_blocking_stream(

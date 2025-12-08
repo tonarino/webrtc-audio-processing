@@ -146,9 +146,7 @@ fn open_wav_writer(path: &Path, channels: u16) -> Result<WavWriter<BufWriter<Fil
     Ok(sink)
 }
 
-fn open_wav_reader(
-    path: &Path,
-) -> Result<Box<dyn Iterator<Item = Result<f32, hound::Error>>>, Error> {
+fn open_wav_reader(path: &Path) -> Result<WavIntoSamples<BufReader<File>, f32>, Error> {
     let reader = WavReader::<BufReader<File>>::open(path)?;
     Ok(reader.into_samples())
 }

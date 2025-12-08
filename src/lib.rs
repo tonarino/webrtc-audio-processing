@@ -64,14 +64,8 @@ impl Processor {
         let num_samples = inner.num_samples_per_frame();
         Ok(Self {
             inner,
-            deinterleaved_capture_frame: vec![
-                vec![0f32; num_samples];
-                config.num_capture_channels as usize
-            ],
-            deinterleaved_render_frame: vec![
-                vec![0f32; num_samples];
-                config.num_render_channels as usize
-            ],
+            deinterleaved_capture_frame: vec![vec![0f32; num_samples]; config.num_capture_channels],
+            deinterleaved_render_frame: vec![vec![0f32; num_samples]; config.num_render_channels],
         })
     }
 
