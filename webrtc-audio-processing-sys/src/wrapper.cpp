@@ -320,14 +320,6 @@ struct AudioProcessing {
   std::optional<int> stream_delay_ms;
 };
 
-}  // namespace webrtc_audio_processing_wrapper
-
-// Use extern "C" to avoid C++ name mangling for exported functions.
-// This makes symbol prefixing with objcopy work correctly.
-extern "C" {
-
-using namespace webrtc_audio_processing_wrapper;
-
 AudioProcessing* audio_processing_create(
     int num_capture_channels,
     int num_render_channels,
@@ -434,4 +426,4 @@ bool is_success(const int code) {
   return code == webrtc::AudioProcessing::kNoError;
 }
 
-}  // extern "C"
+}  // namespace webrtc_audio_processing_wrapper

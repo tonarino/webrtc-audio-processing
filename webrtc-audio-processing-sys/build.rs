@@ -14,29 +14,114 @@ fn src_dir() -> PathBuf {
     std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR environment var not set.").into()
 }
 
-/// Prefix all symbols in a static library using objcopy.
-/// This modifies the library in-place.
-/// Note: This only works on Linux. macOS's llvm-objcopy doesn't support --prefix-symbols for Mach-O.
-fn prefix_symbols_in_archive(archive_path: &std::path::Path, prefix: &str) -> Result<()> {
+/// Extract defined (non-external) symbols from a static library using nm.
+/// Returns a list of symbol names that are defined in the library.
+fn get_defined_symbols(archive_path: &std::path::Path) -> Result<Vec<String>> {
     if cfg!(target_os = "macos") {
-        // llvm-objcopy doesn't support --prefix-symbols for Mach-O format
+        return Ok(vec![]);
+    }
+
+    let output = Command::new("nm")
+        .arg("--defined-only")
+        .arg("--format=posix")
+        .arg(archive_path)
+        .output()
+        .context("Failed to execute nm")?;
+
+    if !output.status.success() {
+        anyhow::bail!("nm failed: {}", String::from_utf8_lossy(&output.stderr));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut symbols = Vec::new();
+
+    for line in stdout.lines() {
+        // POSIX format: "symbol_name type value size"
+        // We just need the first field (symbol name)
+        if let Some(symbol) = line.split_whitespace().next() {
+            symbols.push(symbol.to_string());
+        }
+    }
+
+    Ok(symbols)
+}
+
+/// Prefix only defined symbols in a static library using objcopy --redefine-sym.
+/// This avoids prefixing external references like __cxa_guard_acquire.
+/// Returns the list of symbols that were renamed.
+fn prefix_defined_symbols_in_archive(
+    archive_path: &std::path::Path,
+    prefix: &str,
+) -> Result<Vec<String>> {
+    if cfg!(target_os = "macos") {
         eprintln!(
             "Warning: Symbol prefixing is not supported on macOS. \
             Linking multiple versions of this crate may cause symbol conflicts."
         );
-        return Ok(());
+        return Ok(vec![]);
     }
 
-    eprintln!("Prefixing symbols in {} with '{}'", archive_path.display(), prefix);
+    let defined_symbols = get_defined_symbols(archive_path)?;
+    if defined_symbols.is_empty() {
+        return Ok(vec![]);
+    }
+
+    eprintln!(
+        "Prefixing {} defined symbols in {} with '{}'",
+        defined_symbols.len(),
+        archive_path.display(),
+        prefix
+    );
 
     let temp_path = archive_path.with_extension("prefixed.a");
 
-    let status = Command::new("objcopy")
-        .arg(format!("--prefix-symbols={}", prefix))
-        .arg(archive_path)
-        .arg(&temp_path)
-        .status()
-        .context("Failed to execute objcopy")?;
+    let mut cmd = Command::new("objcopy");
+    for symbol in &defined_symbols {
+        cmd.arg(format!("--redefine-sym={}={}{}", symbol, prefix, symbol));
+    }
+    cmd.arg(archive_path);
+    cmd.arg(&temp_path);
+
+    let status = cmd.status().context("Failed to execute objcopy")?;
+
+    if !status.success() {
+        anyhow::bail!("objcopy failed with status: {}", status);
+    }
+
+    std::fs::rename(&temp_path, archive_path).with_context(|| {
+        format!("Failed to rename {} to {}", temp_path.display(), archive_path.display())
+    })?;
+
+    Ok(defined_symbols)
+}
+
+/// Prefix only specific undefined symbols in a static library.
+/// This is used to update the wrapper library's references to match the renamed webrtc symbols.
+fn prefix_undefined_references_in_archive(
+    archive_path: &std::path::Path,
+    symbols_to_prefix: &[String],
+    prefix: &str,
+) -> Result<()> {
+    if cfg!(target_os = "macos") || symbols_to_prefix.is_empty() {
+        return Ok(());
+    }
+
+    eprintln!(
+        "Prefixing undefined references in {} to match {} renamed symbols",
+        archive_path.display(),
+        symbols_to_prefix.len()
+    );
+
+    let temp_path = archive_path.with_extension("prefixed.a");
+
+    let mut cmd = Command::new("objcopy");
+    for symbol in symbols_to_prefix {
+        cmd.arg(format!("--redefine-sym={}={}{}", symbol, prefix, symbol));
+    }
+    cmd.arg(archive_path);
+    cmd.arg(&temp_path);
+
+    let status = cmd.status().context("Failed to execute objcopy")?;
 
     if !status.success() {
         anyhow::bail!("objcopy failed with status: {}", status);
@@ -47,21 +132,6 @@ fn prefix_symbols_in_archive(archive_path: &std::path::Path, prefix: &str) -> Re
     })?;
 
     Ok(())
-}
-
-/// Bindgen callback to prefix link names.
-#[derive(Debug)]
-struct PrefixRenamer {
-    prefix: String,
-}
-
-impl bindgen::callbacks::ParseCallbacks for PrefixRenamer {
-    fn generated_link_name_override(
-        &self,
-        item_info: bindgen::callbacks::ItemInfo<'_>,
-    ) -> Option<String> {
-        Some(format!("{}{}", self.prefix, item_info.name))
-    }
 }
 
 #[cfg(not(feature = "bundled"))]
@@ -115,7 +185,7 @@ mod webrtc {
         Ok((lib.include_paths.first().cloned(), lib.link_paths.first().cloned()))
     }
 
-    pub(super) fn prefix_library_symbols(prefix: &str) -> Result<()> {
+    pub(super) fn prefix_library_symbols(_prefix: &str) -> Result<Vec<String>> {
         // For non-bundled builds, we can't prefix symbols in the system library.
         // Users would need to build with bundled feature for multi-version support.
         eprintln!(
@@ -123,7 +193,7 @@ mod webrtc {
             Without it, linking multiple versions of this crate may cause symbol conflicts."
         );
 
-        Ok(())
+        Ok(vec![])
     }
 }
 
@@ -229,7 +299,8 @@ mod webrtc {
     }
 
     /// Prefix symbols in the built webrtc-audio-processing static library.
-    pub(super) fn prefix_library_symbols(prefix: &str) -> Result<()> {
+    /// Returns the list of symbols that were renamed.
+    pub(super) fn prefix_library_symbols(prefix: &str) -> Result<Vec<String>> {
         // Find the library - it could be in lib/ or lib/x86_64-linux-gnu/
         let lib_candidates = [
             // macOS
@@ -238,13 +309,15 @@ mod webrtc {
             out_dir().join("lib").join("x86_64-linux-gnu").join("libwebrtc-audio-processing-2.a"),
         ];
 
+        let mut all_renamed = Vec::new();
         for lib_path in &lib_candidates {
             if lib_path.exists() {
-                prefix_symbols_in_archive(lib_path, prefix)?;
+                let renamed = prefix_defined_symbols_in_archive(lib_path, prefix)?;
+                all_renamed.extend(renamed);
             }
         }
 
-        Ok(())
+        Ok(all_renamed)
     }
 }
 
@@ -252,8 +325,9 @@ fn main() -> Result<()> {
     webrtc::build_if_necessary()?;
     let (include_dirs, lib_dirs) = webrtc::get_build_paths()?;
 
-    // Prefix symbols in the webrtc library (bundled builds only)
-    webrtc::prefix_library_symbols(SYMBOL_PREFIX)?;
+    // Prefix defined symbols in the webrtc library (bundled builds only)
+    // Returns the list of renamed symbols to update wrapper references later
+    let renamed_symbols = webrtc::prefix_library_symbols(SYMBOL_PREFIX)?;
 
     for dir in &lib_dirs {
         println!("cargo:rustc-link-search=native={}", dir.display());
@@ -302,11 +376,11 @@ fn main() -> Result<()> {
         .out_dir(out_dir())
         .compile("webrtc_audio_processing_wrapper");
 
-    // Prefix all symbols in the wrapper library so its references to webrtc symbols
-    // match the prefixed webrtc library.
+    // Prefix only the undefined references in the wrapper library that correspond
+    // to the renamed webrtc symbols. This keeps the wrapper's own defined symbols unchanged.
     let wrapper_lib = out_dir().join("libwebrtc_audio_processing_wrapper.a");
     if wrapper_lib.exists() {
-        prefix_symbols_in_archive(&wrapper_lib, SYMBOL_PREFIX)?;
+        prefix_undefined_references_in_archive(&wrapper_lib, &renamed_symbols, SYMBOL_PREFIX)?;
     }
 
     println!("cargo:rustc-link-lib=static=webrtc_audio_processing_wrapper");
@@ -323,31 +397,12 @@ fn main() -> Result<()> {
         .allowlist_type(".*webrtc::StreamConfig")
         .allowlist_type(".*webrtc::ProcessingConfig")
         .allowlist_type(".*webrtc_audio_processing_wrapper::.*")
-        // Functions are now at global scope with extern "C" linkage
-        .allowlist_function("audio_processing_create")
-        .allowlist_function("audio_processing_delete")
-        .allowlist_function("process_capture_frame")
-        .allowlist_function("process_render_frame")
-        .allowlist_function("get_stats")
-        .allowlist_function("get_num_samples_per_frame")
-        .allowlist_function("set_config")
-        .allowlist_function("set_runtime_setting")
-        .allowlist_function("set_stream_delay_ms")
-        .allowlist_function("set_output_will_be_muted")
-        .allowlist_function("set_stream_key_pressed")
-        .allowlist_function("initialize")
-        .allowlist_function("is_success")
+        .allowlist_function("webrtc_audio_processing_wrapper::.*")
         // The functions returns std::string, and is not FFI-safe.
         .blocklist_item("webrtc::AudioProcessing_Config_ToString")
         .opaque_type("std::.*")
         .derive_debug(true)
         .derive_default(true);
-
-    // Only add prefix callback on platforms where objcopy symbol prefixing works
-    if !cfg!(target_os = "macos") {
-        builder =
-            builder.parse_callbacks(Box::new(PrefixRenamer { prefix: SYMBOL_PREFIX.to_string() }));
-    }
 
     for dir in &include_dirs {
         builder = builder.clang_arg(format!("-I{}", dir.display()));

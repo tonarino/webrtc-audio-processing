@@ -226,14 +226,6 @@ struct EchoCanceller3ConfigOverride {
     float multi_channel_stereo_detection_hysteresis_seconds;
 };
 
-} // namespace webrtc_audio_processing_wrapper
-
-// Use extern "C" to avoid C++ name mangling for exported functions.
-// This makes symbol prefixing with objcopy work correctly.
-extern "C" {
-
-using namespace webrtc_audio_processing_wrapper;
-
 // Creates a new instance of AudioProcessing.
 AudioProcessing* audio_processing_create(
     int num_capture_channels,
@@ -292,4 +284,4 @@ void audio_processing_delete(AudioProcessing* ap);
 // Returns true iff the code indicates a successful operation.
 bool is_success(int code);
 
-} // extern "C"
+} // namespace webrtc_audio_processing_wrapper
