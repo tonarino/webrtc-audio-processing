@@ -67,10 +67,7 @@ mod tests {
                 enabled: true,
                 ..Default::default()
             },
-            transient_suppression: AudioProcessing_Config_TransientSuppression {
-                enabled: true,
-                ..Default::default()
-            },
+            transient_suppression: AudioProcessing_Config_TransientSuppression { enabled: true },
             gain_controller1: AudioProcessing_Config_GainController1 {
                 enabled: true,
                 mode: AudioProcessing_Config_GainController1_Mode_kAdaptiveDigital,
