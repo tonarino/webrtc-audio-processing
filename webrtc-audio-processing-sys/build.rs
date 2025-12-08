@@ -9,7 +9,11 @@ const SYMBOL_PREFIX: &str = "v2_";
 fn objcopy_tool() -> &'static str {
     // On macOS, use llvm-objcopy to preserve Mach-O format.
     // GNU objcopy produces GNU ar format which macOS linker can't read.
-    if cfg!(target_os = "macos") { "llvm-objcopy" } else { "objcopy" }
+    if cfg!(target_os = "macos") {
+        "llvm-objcopy"
+    } else {
+        "objcopy"
+    }
 }
 
 /// Prefix all symbols in a static library using objcopy.
@@ -51,11 +55,6 @@ impl bindgen::callbacks::ParseCallbacks for PrefixRenamer {
         &self,
         item_info: bindgen::callbacks::ItemInfo<'_>,
     ) -> Option<String> {
-        // Don't prefix symbols from our wrapper namespace - they're already unique
-        // due to the "v2" in the namespace name, and we don't prefix them with objcopy
-        if item_info.name.contains("webrtc_audio_processing_v2_wrapper") {
-            return None;
-        }
         // Prefix other symbols (e.g., webrtc internal symbols if we were binding them)
         Some(format!("{}{}", self.prefix, item_info.name))
     }
@@ -311,6 +310,14 @@ fn main() -> Result<()> {
         .flag("-Wno-nullability-completeness")
         .out_dir(out_dir())
         .compile("webrtc_audio_processing_wrapper");
+
+    // Prefix all symbols in the wrapper library so its references to webrtc symbols
+    // match the prefixed webrtc library. The bindgen callback will skip adding prefix
+    // for wrapper symbols since they already contain "v2" in the namespace name.
+    let wrapper_lib = out_dir().join("libwebrtc_audio_processing_wrapper.a");
+    if wrapper_lib.exists() {
+        prefix_symbols_in_archive(&wrapper_lib, SYMBOL_PREFIX)?;
+    }
 
     println!("cargo:rustc-link-lib=static=webrtc_audio_processing_wrapper");
 
