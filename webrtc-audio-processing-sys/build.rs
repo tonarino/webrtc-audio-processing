@@ -14,33 +14,32 @@ fn src_dir() -> PathBuf {
     std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR environment var not set.").into()
 }
 
-fn objcopy_tool() -> &'static str {
-    // On macOS, use llvm-objcopy to preserve Mach-O format.
-    // GNU objcopy produces GNU ar format which macOS linker can't read.
-    if cfg!(target_os = "macos") {
-        "llvm-objcopy"
-    } else {
-        "objcopy"
-    }
-}
-
 /// Prefix all symbols in a static library using objcopy.
 /// This modifies the library in-place.
+/// Note: This only works on Linux. macOS's llvm-objcopy doesn't support --prefix-symbols for Mach-O.
 fn prefix_symbols_in_archive(archive_path: &std::path::Path, prefix: &str) -> Result<()> {
+    if cfg!(target_os = "macos") {
+        // llvm-objcopy doesn't support --prefix-symbols for Mach-O format
+        eprintln!(
+            "Warning: Symbol prefixing is not supported on macOS. \
+            Linking multiple versions of this crate may cause symbol conflicts."
+        );
+        return Ok(());
+    }
+
     eprintln!("Prefixing symbols in {} with '{}'", archive_path.display(), prefix);
 
     let temp_path = archive_path.with_extension("prefixed.a");
-    let objcopy = objcopy_tool();
 
-    let status = Command::new(objcopy)
+    let status = Command::new("objcopy")
         .arg(format!("--prefix-symbols={}", prefix))
         .arg(archive_path)
         .arg(&temp_path)
         .status()
-        .with_context(|| format!("Failed to execute {}", objcopy))?;
+        .context("Failed to execute objcopy")?;
 
     if !status.success() {
-        anyhow::bail!("{} failed with status: {}", objcopy, status);
+        anyhow::bail!("objcopy failed with status: {}", status);
     }
 
     std::fs::rename(&temp_path, archive_path).with_context(|| {
@@ -50,7 +49,7 @@ fn prefix_symbols_in_archive(archive_path: &std::path::Path, prefix: &str) -> Re
     Ok(())
 }
 
-/// Bindgen callback to prefix link names for symbols.
+/// Bindgen callback to prefix link names.
 #[derive(Debug)]
 struct PrefixRenamer {
     prefix: String,
@@ -250,8 +249,6 @@ mod webrtc {
 }
 
 fn main() -> Result<()> {
-    eprintln!("Using symbol prefix: {}", SYMBOL_PREFIX);
-
     webrtc::build_if_necessary()?;
     let (include_dirs, lib_dirs) = webrtc::get_build_paths()?;
 
@@ -306,8 +303,7 @@ fn main() -> Result<()> {
         .compile("webrtc_audio_processing_wrapper");
 
     // Prefix all symbols in the wrapper library so its references to webrtc symbols
-    // match the prefixed webrtc library. The bindgen callback will skip adding prefix
-    // for wrapper symbols since they already contain "v2" in the namespace name.
+    // match the prefixed webrtc library.
     let wrapper_lib = out_dir().join("libwebrtc_audio_processing_wrapper.a");
     if wrapper_lib.exists() {
         prefix_symbols_in_archive(&wrapper_lib, SYMBOL_PREFIX)?;
@@ -326,16 +322,20 @@ fn main() -> Result<()> {
         .allowlist_type("webrtc::AudioProcessing_RealtimeSetting")
         .allowlist_type("webrtc::StreamConfig")
         .allowlist_type("webrtc::ProcessingConfig")
-        .allowlist_function("webrtc_audio_processing__wrapper::.*")
-        // The function returns std::string, and is not FFI-safe.
+        .allowlist_function("webrtc_audio_processing_wrapper::.*")
+        // The functions returns std::string, and is not FFI-safe.
         .blocklist_item("webrtc::AudioProcessing_Config_ToString")
         .opaque_type("std::.*")
         .derive_debug(true)
-        .derive_default(true)
-        // Prefix link names with SYMBOL_PREFIX
-        .parse_callbacks(Box::new(PrefixRenamer {
+        .derive_default(true);
+
+    // Only add prefix callback on platforms where objcopy symbol prefixing works
+    if !cfg!(target_os = "macos") {
+        builder = builder.parse_callbacks(Box::new(PrefixRenamer {
             prefix: SYMBOL_PREFIX.to_string(),
         }));
+    }
+
     for dir in &include_dirs {
         builder = builder.clang_arg(format!("-I{}", dir.display()));
     }
