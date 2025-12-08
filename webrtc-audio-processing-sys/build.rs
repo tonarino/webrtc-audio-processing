@@ -1,7 +1,10 @@
-use anyhow::Result;
-use std::{env, path::PathBuf};
+use anyhow::{Context, Result};
+use std::{collections::HashSet, env, path::PathBuf, process::Command};
 
 const DEPLOYMENT_TARGET_VAR: &str = "MACOSX_DEPLOYMENT_TARGET";
+
+/// Symbol prefix for the webrtc-audio-processing library to allow multiple versions to coexist.
+const SYMBOL_PREFIX: &str = "v2_";
 
 fn out_dir() -> PathBuf {
     std::env::var("OUT_DIR").expect("OUT_DIR environment var not set.").into()
@@ -9,6 +12,72 @@ fn out_dir() -> PathBuf {
 
 fn src_dir() -> PathBuf {
     std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR environment var not set.").into()
+}
+
+/// Extract defined (non-external) symbols from a static library using nm.
+fn get_defined_symbols(archive_path: &std::path::Path) -> Result<Vec<String>> {
+    let output = Command::new("nm")
+        .arg("--defined-only")
+        .arg("--format=posix")
+        .arg(archive_path)
+        .output()
+        .context("Failed to execute nm")?;
+
+    if !output.status.success() {
+        anyhow::bail!("nm failed: {}", String::from_utf8_lossy(&output.stderr));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut symbols = HashSet::new();
+
+    for line in stdout.lines() {
+        // POSIX format: "symbol_name type value size"
+        // We just need the first field (symbol name)
+        if let Some(symbol) = line.split_whitespace().next() {
+            symbols.insert(symbol.to_string());
+        }
+    }
+
+    Ok(symbols.into_iter().collect())
+}
+
+/// Prefix specified symbols in a static library using objcopy --redefine-sym.
+fn prefix_archive_symbols(
+    archive_path: &std::path::Path,
+    symbols: &[String],
+    prefix: &str,
+) -> Result<()> {
+    if symbols.is_empty() {
+        return Ok(());
+    }
+
+    eprintln!(
+        "Prefixing {} symbols in {} with '{}'",
+        symbols.len(),
+        archive_path.display(),
+        prefix
+    );
+
+    let temp_path = archive_path.with_extension("prefixed.a");
+
+    let mut cmd = Command::new("objcopy");
+    for symbol in symbols {
+        cmd.arg(format!("--redefine-sym={}={}{}", symbol, prefix, symbol));
+    }
+    cmd.arg(archive_path);
+    cmd.arg(&temp_path);
+
+    let status = cmd.status().context("Failed to execute objcopy")?;
+
+    if !status.success() {
+        anyhow::bail!("objcopy failed with status: {}", status);
+    }
+
+    std::fs::rename(&temp_path, archive_path).with_context(|| {
+        format!("Failed to rename {} to {}", temp_path.display(), archive_path.display())
+    })?;
+
+    Ok(())
 }
 
 #[cfg(not(feature = "bundled"))]
@@ -61,6 +130,20 @@ mod webrtc {
 
         Ok((lib.include_paths.first().cloned(), lib.link_paths.first().cloned()))
     }
+
+    pub(super) fn prefix_library_symbols(
+        _lib_dirs: &[PathBuf],
+        _prefix: &str,
+    ) -> Result<Vec<String>> {
+        // For non-bundled builds, we can't prefix symbols in the system library.
+        // Users would need to build with bundled feature for multi-version support.
+        eprintln!(
+            "Warning: Symbol prefixing is only supported with the 'bundled' feature. \
+            Without it, linking multiple versions of this crate may cause symbol conflicts."
+        );
+
+        Ok(vec![])
+    }
 }
 
 #[cfg(feature = "bundled")]
@@ -78,12 +161,8 @@ mod webrtc {
             src_dir().join("webrtc-audio-processing"),
             src_dir().join("webrtc-audio-processing").join("webrtc"),
         ];
-        let mut lib_paths = vec![
-            // macOS
-            out_dir().join("lib"),
-            // linux
-            out_dir().join("lib").join("x86_64-linux-gnu"),
-        ];
+        let mut lib_paths =
+            vec![out_dir().join("lib"), out_dir().join("lib").join("x86_64-linux-gnu")];
 
         // Notes: c8896801 added support for 20250814, but the meson.build is still expecting
         // >=20240722 and the subproject will fetch 20240722. If the build environment has 20250814
@@ -163,11 +242,42 @@ mod webrtc {
 
         Ok(())
     }
+
+    /// Prefix symbols in the built webrtc-audio-processing static library.
+    /// Returns the list of symbols that were renamed.
+    pub(super) fn prefix_library_symbols(
+        lib_dirs: &[PathBuf],
+        prefix: &str,
+    ) -> Result<Vec<String>> {
+        if cfg!(target_os = "macos") {
+            eprintln!(
+                "Warning: Symbol prefixing is not supported on macOS. \
+                Linking multiple versions of this crate may cause symbol conflicts."
+            );
+            return Ok(vec![]);
+        }
+
+        let mut all_symbols = Vec::new();
+        for lib_dir in lib_dirs {
+            let lib_path = lib_dir.join("libwebrtc-audio-processing-2.a");
+            if lib_path.exists() {
+                let symbols = get_defined_symbols(&lib_path)?;
+                prefix_archive_symbols(&lib_path, &symbols, prefix)?;
+                all_symbols.extend(symbols);
+            }
+        }
+
+        Ok(all_symbols)
+    }
 }
 
 fn main() -> Result<()> {
     webrtc::build_if_necessary()?;
     let (include_dirs, lib_dirs) = webrtc::get_build_paths()?;
+
+    // Prefix defined symbols in the webrtc library (bundled builds only)
+    // Returns the list of renamed symbols to update wrapper references later
+    let renamed_symbols = webrtc::prefix_library_symbols(&lib_dirs, SYMBOL_PREFIX)?;
 
     for dir in &lib_dirs {
         println!("cargo:rustc-link-search=native={}", dir.display());
@@ -215,6 +325,12 @@ fn main() -> Result<()> {
         .flag("-Wno-nullability-completeness")
         .out_dir(out_dir())
         .compile("webrtc_audio_processing_wrapper");
+
+    // Prefix the wrapper library's references to webrtc symbols to match the renamed webrtc library.
+    let wrapper_lib = out_dir().join("libwebrtc_audio_processing_wrapper.a");
+    if wrapper_lib.exists() {
+        prefix_archive_symbols(&wrapper_lib, &renamed_symbols, SYMBOL_PREFIX)?;
+    }
 
     println!("cargo:rustc-link-lib=static=webrtc_audio_processing_wrapper");
 
