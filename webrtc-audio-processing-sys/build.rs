@@ -9,22 +9,14 @@ const SYMBOL_PREFIX: &str = "v2_";
 /// Prefix all symbols in a static library using objcopy.
 /// This modifies the library in-place.
 fn prefix_symbols_in_archive(archive_path: &std::path::Path, prefix: &str) -> Result<()> {
-    eprintln!(
-        "Prefixing symbols in {} with '{}'",
-        archive_path.display(),
-        prefix
-    );
+    eprintln!("Prefixing symbols in {} with '{}'", archive_path.display(), prefix);
 
     // Create a temporary output path
     let temp_path = archive_path.with_extension("prefixed.a");
 
     // On macOS, use llvm-objcopy (comes with Xcode) to preserve Mach-O format.
     // GNU objcopy produces GNU ar format which macOS linker can't read.
-    let objcopy = if cfg!(target_os = "macos") {
-        "llvm-objcopy"
-    } else {
-        "objcopy"
-    };
+    let objcopy = if cfg!(target_os = "macos") { "llvm-objcopy" } else { "objcopy" };
 
     let status = Command::new(objcopy)
         .arg(format!("--prefix-symbols={}", prefix))
@@ -38,8 +30,9 @@ fn prefix_symbols_in_archive(archive_path: &std::path::Path, prefix: &str) -> Re
     }
 
     // Replace original with prefixed version
-    std::fs::rename(&temp_path, archive_path)
-        .with_context(|| format!("Failed to rename {} to {}", temp_path.display(), archive_path.display()))?;
+    std::fs::rename(&temp_path, archive_path).with_context(|| {
+        format!("Failed to rename {} to {}", temp_path.display(), archive_path.display())
+    })?;
 
     Ok(())
 }
@@ -246,7 +239,7 @@ mod webrtc {
             if let Ok(entries) = std::fs::read_dir(&abseil_lib_dir) {
                 for entry in entries.flatten() {
                     let path = entry.path();
-                    if path.extension().map_or(false, |e| e == "a") {
+                    if path.extension().is_some_and(|e| e == "a") {
                         prefix_symbols_in_archive(&path, prefix)?;
                     }
                 }
