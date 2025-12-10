@@ -37,6 +37,30 @@ pub enum PipelineProcessingRate {
     Max48000Hz = 48_000,
 }
 
+/// Downmix method for multi-channel capture audio.
+#[derive(Debug, Default, Copy, Default, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+pub enum DownmixMethod {
+    /// Mix by averaging.
+    #[default]
+    Average,
+    /// Mix by selecting the first channel.
+    UseFirstChannel,
+}
+
+impl From<DownmixMethod> for ffi::AudioProcessing_Config_Pipeline_DownmixMethod {
+    fn from(method: DownmixMethod) -> ffi::AudioProcessing_Config_Pipeline_DownmixMethod {
+        match method {
+            DownmixMethod::Average => {
+                ffi::AudioProcessing_Config_Pipeline_DownmixMethod_kAverageChannels
+            },
+            DownmixMethod::UseFirstChannel => {
+                ffi::AudioProcessing_Config_Pipeline_DownmixMethod_kUseFirstChannel
+            },
+        }
+    }
+}
+
 /// Sets the properties of the audio processing pipeline.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
@@ -56,16 +80,16 @@ pub struct Pipeline {
 
     /// Indicates how to downmix multi-channel capture audio to mono (when
     /// needed).
-    pub capture_downmix_method: ffi::AudioProcessing_Config_Pipeline_DownmixMethod,
+    pub capture_downmix_method: DownmixMethod,
 }
 
 impl From<Pipeline> for ffi::AudioProcessing_Config_Pipeline {
-    fn from(other: Pipeline) -> Self {
+    fn from(pipeline: Pipeline) -> Self {
         Self {
-            maximum_internal_processing_rate: other.maximum_internal_processing_rate as i32,
-            multi_channel_capture: other.multi_channel_capture,
-            multi_channel_render: other.multi_channel_render,
-            capture_downmix_method: other.capture_downmix_method,
+            maximum_internal_processing_rate: pipeline.maximum_internal_processing_rate as i32,
+            multi_channel_capture: pipeline.multi_channel_capture,
+            multi_channel_render: pipeline.multi_channel_render,
+            capture_downmix_method: pipeline.capture_downmix_method.into(),
         }
     }
 }
