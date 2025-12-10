@@ -52,7 +52,7 @@ impl Default for AppConfig {
 }
 
 impl AppConfig {
-    fn from_file_with_defaults(path: &PathBuf) -> Result<Self, Error> {
+    fn from_file_or_defaults(path: &PathBuf) -> Result<Self, Error> {
         // Load custom config if it exists, otherwise use defaults
         if path.exists() {
             let content = fs::read_to_string(path)?;
@@ -96,7 +96,7 @@ fn wait_ctrlc() -> Result<(), Error> {
 
 fn main() -> Result<(), Error> {
     let args = Args::from_args();
-    let config = AppConfig::from_file_with_defaults(&args.config_file)?;
+    let config = AppConfig::from_file_or_defaults(&args.config_file)?;
 
     let mut processor = create_processor(&config)?;
 
@@ -125,7 +125,7 @@ fn main() -> Result<(), Error> {
             // Play back the processed audio capture.
             out_buffer.copy_from_slice(&processed);
             processor.process_render_frame(out_buffer).unwrap();
-            // Handle mono to mono/stereo conversion
+            // Handle mono to mono/stereo conversion (assuming stereo output)
             if output_channels == 1 {
                 out_buffer.copy_from_slice(&processed);
             } else {

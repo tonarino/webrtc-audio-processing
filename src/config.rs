@@ -8,10 +8,10 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "derive_serde", serde(default))]
 pub struct InitializationConfig {
-    /// Number of the input and output channels for the capture frame.
+    /// Number of the input channels for the capture frame.
     pub num_capture_channels: usize,
 
-    /// Number of the input and output channels for the render frame.
+    /// Number of the output channels for the render frame.
     pub num_render_channels: usize,
 
     /// Sampling rate of the capture and render frames. Accepts an arbitrary value, but the maximum
@@ -26,25 +26,15 @@ impl Default for InitializationConfig {
 }
 
 /// Internal processing rate.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, Default, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
 pub enum PipelineProcessingRate {
     /// Limit the rate to 32k Hz.
     Max32000Hz = 32_000,
 
     /// Limit the rate to 48k Hz.
+    #[default]
     Max48000Hz = 48_000,
-}
-
-impl Default for PipelineProcessingRate {
-    fn default() -> Self {
-        // cf. https://gitlab.freedesktop.org/pulseaudio/webrtc-audio-processing/-/blob/master/webrtc/modules/audio_processing/include/audio_processing.cc#L55
-        if cfg!(target_arch = "arm") {
-            Self::Max32000Hz
-        } else {
-            Self::Max48000Hz
-        }
-    }
 }
 
 /// Sets the properties of the audio processing pipeline.
