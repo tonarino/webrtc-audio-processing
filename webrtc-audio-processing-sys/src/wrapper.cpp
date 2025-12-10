@@ -11,8 +11,6 @@
 #include <memory>
 #include <optional>
 
-#define WEBRTC_POSIX
-
 namespace webrtc_audio_processing_wrapper {
 namespace {
 
