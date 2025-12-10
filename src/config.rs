@@ -38,7 +38,7 @@ pub enum PipelineProcessingRate {
 }
 
 /// Downmix method for multi-channel capture audio.
-#[derive(Debug, Default, Copy, Default, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
 pub enum DownmixMethod {
     /// Mix by averaging.
@@ -94,15 +94,14 @@ impl From<Pipeline> for ffi::AudioProcessing_Config_Pipeline {
     }
 }
 
-/// Enabled the pre-amplifier. It amplifies the capture signal
-/// before any other processing is done.
+/// The `PreAmplifier` amplifies the capture signal before any other processing is done.
 /// TODO(webrtc:5298): Will be deprecated to use the pre-gain functionality
 /// in capture_level_adjustment instead.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "derive_serde", serde(default))]
 pub struct PreAmplifier {
-    /// Fixed linear gain multiplayer. The default is 1.0 (no effect).
+    /// Fixed linear gain multiplier. The default is 1.0 (no effect).
     pub fixed_gain_factor: f32,
 }
 
@@ -118,12 +117,12 @@ impl From<PreAmplifier> for ffi::AudioProcessing_Config_PreAmplifier {
     }
 }
 
-/// HPF (high-pass fitler) configuration.
+/// HPF (high-pass filter) configuration.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "derive_serde", serde(default))]
 pub struct HighPassFilter {
-    /// HPF should be applied in the full-band (i.e. 20 – 20,000 Hz).
+    /// Whether or not HPF should be applied in the full-band (i.e. 20 – 20,000 Hz).
     pub apply_in_full_band: bool,
 }
 
@@ -618,7 +617,7 @@ pub struct AnalogMicGainEmulation {
     pub enabled: bool,
     /// Initial analog gain level to use for the emulated analog gain. Must
     /// be in the range [0...255].
-    pub initial_level: i32,
+    pub initial_level: u8,
 }
 
 impl Default for AnalogMicGainEmulation {
@@ -631,7 +630,7 @@ impl From<AnalogMicGainEmulation>
     for ffi::AudioProcessing_Config_CaptureLevelAdjustment_AnalogMicGainEmulation
 {
     fn from(other: AnalogMicGainEmulation) -> Self {
-        Self { enabled: other.enabled, initial_level: other.initial_level }
+        Self { enabled: other.enabled, initial_level: other.initial_level as i32 }
     }
 }
 
@@ -858,7 +857,7 @@ impl From<EchoCanceller3Config> for ffi::EchoCanceller3ConfigOverride {
 
             // Delay
             delay_default_delay: other.delay.default_delay,
-            delay_down_sampling_factor: other.delay.down_sampling_factor,
+            delay_down_sampling_factor: other.delay.down_sampling_factor.value(),
             delay_num_filters: other.delay.num_filters,
             delay_delay_headroom_samples: other.delay.delay_headroom_samples,
             delay_hysteresis_limit_blocks: other.delay.hysteresis_limit_blocks,
@@ -1235,7 +1234,7 @@ pub struct Delay {
     pub default_delay: usize,
 
     /// Downsampling factor for delay estimation (must be either 4 or 8)
-    pub down_sampling_factor: usize,
+    pub down_sampling_factor: DownSamplingFactor,
 
     /// Number of filters for delay estimation
     pub num_filters: usize,
@@ -1281,7 +1280,7 @@ impl Default for Delay {
     fn default() -> Self {
         Self {
             default_delay: 5,
-            down_sampling_factor: 4,
+            down_sampling_factor: DownSamplingFactor::Factor4,
             num_filters: 5,
             delay_headroom_samples: 32,
             hysteresis_limit_blocks: 1,
@@ -1305,6 +1304,27 @@ impl Default for Delay {
                 prefer_first_two_channels: false,
             },
             detect_pre_echo: true,
+        }
+    }
+}
+
+/// Downsampling factor for delay estimation
+#[derive(Debug, Copy, Default, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+pub enum DownSamplingFactor {
+    #[default]
+    /// Downsample by a factor of 4.
+    Factor4,
+    /// Downsample by a factor of 8.
+    Factor8,
+}
+
+impl DownSamplingFactor {
+    /// Returns the integer value of the downsampling factor.
+    pub fn value(&self) -> usize {
+        match self {
+            DownSamplingFactor::Factor4 => 4,
+            DownSamplingFactor::Factor8 => 8,
         }
     }
 }
@@ -1532,13 +1552,13 @@ impl Default for Erle {
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "derive_serde", serde(default))]
 pub struct EpStrength {
-    /// Default gain value
+    /// Default gain value applied to the echo path.
     pub default_gain: f32,
 
-    /// Default echo path strength.
+    /// Default decay rate of the echo's reverb tail.
     pub default_len: f32,
 
-    /// Default nearend echo path strength.
+    /// Decay rate of the nearend echo's reverb tail.
     pub nearend_len: f32,
 
     /// Whether echo can saturate.
