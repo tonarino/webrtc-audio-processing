@@ -846,6 +846,12 @@ impl Default for EchoCanceller3Config {
 
 impl From<EchoCanceller3Config> for ffi::EchoCanceller3ConfigOverride {
     fn from(other: EchoCanceller3Config) -> Self {
+        (&other).into()
+    }
+}
+
+impl From<&EchoCanceller3Config> for ffi::EchoCanceller3ConfigOverride {
+    fn from(other: &EchoCanceller3Config) -> Self {
         Self {
             // Buffering
             buffering_excess_render_detection_interval_blocks: other
@@ -1202,8 +1208,32 @@ impl EchoCanceller3Config {
     /// Validates the configuration values.
     /// Returns true if all values are within acceptable ranges.
     pub fn validate(&self) -> bool {
-        // TODO: Implement validation logic matching C++
-        true
+        let ffi_override: ffi::EchoCanceller3ConfigOverride = self.into();
+        unsafe { ffi::webrtc_Aec3Config_Validate(&ffi_override) }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A simple test to check validation works.
+    #[test]
+    fn test_echo_canceller3_config_validation() {
+        let mut config = EchoCanceller3Config::default();
+        assert!(config.validate());
+
+        // Test invalid default delay (limit is 5000).
+        config.delay.default_delay = 6000;
+        assert!(!config.validate());
+
+        config.delay.default_delay = 5;
+        assert!(config.validate());
+
+        // Test invalid filter where refined length < refined initial length.
+        config.filter.refined.length_blocks = 5;
+        config.filter.refined_initial.length_blocks = 10;
+        assert!(!config.validate());
     }
 }
 

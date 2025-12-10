@@ -343,6 +343,7 @@ fn main() -> Result<()> {
         .allowlist_type("webrtc::AudioProcessing_Error")
         .allowlist_type("webrtc::AudioProcessing_Config")
         .allowlist_type("webrtc::AudioProcessing_RealtimeSetting")
+        .allowlist_type("webrtc::EchoCanceller3Config")
         .allowlist_type("webrtc::StreamConfig")
         .allowlist_type("webrtc::ProcessingConfig")
         .allowlist_function("webrtc_audio_processing_wrapper::.*")

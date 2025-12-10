@@ -8,6 +8,12 @@ include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
 pub use root::{webrtc::*, webrtc_audio_processing_wrapper::*};
 
+extern "C" {
+    pub fn webrtc_Aec3Config_Validate(
+        config: *const root::webrtc_audio_processing_wrapper::EchoCanceller3ConfigOverride,
+    ) -> bool;
+}
+
 impl From<OptionalInt> for Option<i32> {
     fn from(other: OptionalInt) -> Option<i32> {
         if other.has_value {
