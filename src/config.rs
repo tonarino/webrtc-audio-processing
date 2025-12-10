@@ -666,35 +666,35 @@ impl From<CaptureLevelAdjustment> for ffi::AudioProcessing_Config_CaptureLevelAd
 #[cfg_attr(feature = "derive_serde", serde(default))]
 pub struct Config {
     /// Sets the properties of the audio processing pipeline.
-    #[serde(default)]
+    #[cfg_attr(feature = "derive_serde", serde(default))]
     pub pipeline: Pipeline,
 
     /// Enables and configures level adjustment in the capture pipeline.
-    #[serde(default)]
+    #[cfg_attr(feature = "derive_serde", serde(default))]
     pub capture_level_adjustment: Option<CaptureLevelAdjustment>,
 
     /// Enables and configures high pass filter.
-    #[serde(default)]
+    #[cfg_attr(feature = "derive_serde", serde(default))]
     pub high_pass_filter: Option<HighPassFilter>,
 
     /// Enables and configures acoustic echo cancellation.
-    #[serde(default)]
+    #[cfg_attr(feature = "derive_serde", serde(default))]
     pub echo_canceller: Option<EchoCanceller>,
 
     /// Enables and configures background noise suppression.
-    #[serde(default)]
+    #[cfg_attr(feature = "derive_serde", serde(default))]
     pub noise_suppression: Option<NoiseSuppression>,
 
     /// Enables and configures automatic gain control.
-    #[serde(default)]
+    #[cfg_attr(feature = "derive_serde", serde(default))]
     pub gain_controller: Option<GainController>,
 
     /// Enables and configures Gain Controller 2.
-    #[serde(default)]
+    #[cfg_attr(feature = "derive_serde", serde(default))]
     pub gain_controller2: Option<GainController2>,
 
     /// Fine-grained AEC3 configuration parameters.
-    #[serde(default)]
+    #[cfg_attr(feature = "derive_serde", serde(default))]
     pub aec3_config: Option<EchoCanceller3Config>,
 }
 
