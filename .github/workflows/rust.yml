@@ -14,9 +14,7 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
-          # MacOS has problems building portaudio, skip for now
-          # https://github.com/tonarino/webrtc-audio-processing/pull/49#issuecomment-2728436014
-          # - macos-latest
+          - macos-latest
 
     steps:
       - uses: actions/checkout@v2
@@ -35,7 +33,10 @@ jobs:
       - name: Install Dependencies (if macos)
         env:
           ACCEPT_EULA: Y
-        run: brew update && brew install automake autoconf libtool pkg-config meson ninja
+        run: |
+          brew update
+          brew install automake autoconf libtool pkg-config meson ninja llvm
+          echo "$(brew --prefix llvm)/bin" >> $GITHUB_PATH
         if: contains(runner.os, 'macOS')
       - uses: Swatinem/rust-cache@v1
       - name: Clippy

@@ -18,7 +18,7 @@ fn src_dir() -> PathBuf {
 fn get_defined_symbols(archive_path: &std::path::Path) -> Result<Vec<String>> {
     let output = Command::new("nm")
         .arg("--defined-only")
-        .arg("--format=posix")
+        .arg("-P")
         .arg(archive_path)
         .output()
         .context("Failed to execute nm")?;
@@ -60,17 +60,26 @@ fn prefix_archive_symbols(
 
     let temp_path = archive_path.with_extension("prefixed.a");
 
-    let mut cmd = Command::new("objcopy");
+    // Use objcopy on linux and its llvm alternative on macos
+    let objcopy = if cfg!(target_os = "macos") { "llvm-objcopy" } else { "objcopy" };
+
+    let mut cmd = Command::new(objcopy);
+    if cfg!(target_os = "macos") {
+        cmd.env(
+            "PATH",
+            "/opt/homebrew/opt/llvm/bin:".to_string() + &env::var("PATH").unwrap_or_default(),
+        );
+    }
     for symbol in symbols {
         cmd.arg(format!("--redefine-sym={}={}{}", symbol, prefix, symbol));
     }
     cmd.arg(archive_path);
     cmd.arg(&temp_path);
 
-    let status = cmd.status().context("Failed to execute objcopy")?;
+    let status = cmd.status().context(format!("Failed to execute {}", objcopy))?;
 
     if !status.success() {
-        anyhow::bail!("objcopy failed with status: {}", status);
+        anyhow::bail!("{} failed with status: {}", objcopy, status);
     }
 
     std::fs::rename(&temp_path, archive_path).with_context(|| {
@@ -249,14 +258,6 @@ mod webrtc {
         lib_dirs: &[PathBuf],
         prefix: &str,
     ) -> Result<Vec<String>> {
-        if cfg!(target_os = "macos") {
-            eprintln!(
-                "Warning: Symbol prefixing is not supported on macOS. \
-                Linking multiple versions of this crate may cause symbol conflicts."
-            );
-            return Ok(vec![]);
-        }
-
         let mut all_symbols = Vec::new();
         for lib_dir in lib_dirs {
             let lib_path = lib_dir.join("libwebrtc-audio-processing-2.a");
