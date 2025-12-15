@@ -14,9 +14,7 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
-          # MacOS has problems building portaudio, skip for now
-          # https://github.com/tonarino/webrtc-audio-processing/pull/49#issuecomment-2728436014
-          # - macos-latest
+          - macos-latest
 
     steps:
       - uses: actions/checkout@v2
