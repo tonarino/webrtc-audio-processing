@@ -32,6 +32,7 @@ bundled = ["webrtc-audio-processing-sys/bundled"]
 [dependencies]
 serde = { version = "1", features = ["derive"], optional = true }
 webrtc-audio-processing-sys = { path = "webrtc-audio-processing-sys", version = "0.5.0" }
+# Only needed for examples
 portaudio = { version = "0.8", optional = true }
 
 [[example]]
