@@ -43,10 +43,6 @@ required-features = ["derive_serde", "portaudio"]
 name = "karaoke"
 required-features = ["derive_serde", "portaudio"]
 
-[[example]]
-name = "karaoke"
-required-features = ["derive_serde"]
-
 [dev-dependencies]
 anyhow = "1"
 crossbeam-channel = "0.5"
