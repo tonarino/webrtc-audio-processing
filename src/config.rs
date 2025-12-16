@@ -139,24 +139,15 @@ impl From<HighPassFilter> for ffi::AudioProcessing_Config_HighPassFilter {
 }
 
 /// AEC (acoustic echo cancellation) configuration.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
 pub enum EchoCanceller {
     /// Uses low-complexity AEC implementation that is optimized for mobile.
     Mobile,
 
     /// Uses the full AEC3 implementation.
-    Full {
-        /// Enforce the highpass filter to be on (has no effect for the mobile
-        /// mode).
-        enforce_high_pass_filtering: bool,
-    },
-}
-
-impl Default for EchoCanceller {
-    fn default() -> Self {
-        Self::Full { enforce_high_pass_filtering: true }
-    }
+    #[default]
+    Full,
 }
 
 impl From<EchoCanceller> for ffi::AudioProcessing_Config_EchoCanceller {
@@ -168,10 +159,10 @@ impl From<EchoCanceller> for ffi::AudioProcessing_Config_EchoCanceller {
                 enforce_high_pass_filtering: false,
                 export_linear_aec_output: false,
             },
-            EchoCanceller::Full { enforce_high_pass_filtering } => Self {
+            EchoCanceller::Full => Self {
                 enabled: true,
                 mobile_mode: false,
-                enforce_high_pass_filtering,
+                enforce_high_pass_filtering: true,
                 export_linear_aec_output: false,
             },
         }
