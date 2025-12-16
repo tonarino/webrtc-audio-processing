@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <mutex>
 #include <optional>
 
 namespace webrtc_audio_processing_wrapper {
@@ -350,6 +351,7 @@ private:
 } // namespace
 
 struct AudioProcessing {
+  std::mutex mutex;
   std::unique_ptr<webrtc::AudioProcessing> processor;
   webrtc::AudioProcessing::Config config;
   webrtc::StreamConfig capture_stream_config;
@@ -408,8 +410,11 @@ AudioProcessing *audio_processing_create(
 void initialize(AudioProcessing *ap) { ap->processor->Initialize(); }
 
 int process_capture_frame(AudioProcessing *ap, float **channels) {
-  if (ap->config.echo_canceller.enabled) {
-    ap->processor->set_stream_delay_ms(ap->stream_delay_ms.value_or(0));
+  {
+    std::lock_guard<std::mutex> lock(ap->mutex);
+    if (ap->config.echo_canceller.enabled) {
+      ap->processor->set_stream_delay_ms(ap->stream_delay_ms.value_or(0));
+    }
   }
 
   return ap->processor->ProcessStream(channels, ap->capture_stream_config,
@@ -444,6 +449,7 @@ int get_num_samples_per_frame(AudioProcessing *ap) {
 
 void set_config(AudioProcessing *ap,
                 const webrtc::AudioProcessing::Config &config) {
+  std::lock_guard<std::mutex> lock(ap->mutex);
   ap->config = config;
   ap->processor->ApplyConfig(config);
 }
@@ -454,7 +460,7 @@ void set_runtime_setting(AudioProcessing *ap,
 }
 
 void set_stream_delay_ms(AudioProcessing *ap, int delay) {
-  // TODO: Need to mutex lock.
+  std::lock_guard<std::mutex> lock(ap->mutex);
   ap->stream_delay_ms = delay;
 }
 
