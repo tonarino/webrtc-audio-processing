@@ -8,10 +8,10 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "derive_serde", serde(default))]
 pub struct InitializationConfig {
-    /// Number of the input channels for the capture frame.
+    /// Number of input channels for the capture frame.
     pub num_capture_channels: usize,
 
-    /// Number of the output channels for the render frame.
+    /// Number of output channels for the render frame.
     pub num_render_channels: usize,
 
     /// Sampling rate of the capture and render frames. Accepts an arbitrary value, but the maximum
@@ -572,9 +572,9 @@ impl From<FixedDigital> for ffi::AudioProcessing_Config_GainController2_FixedDig
 }
 
 /// Parameters for AGC2, an Automatic Gain Control (AGC) sub-module which
-/// replaces the AGC sub-module parametrized by `gain_controller1`.
+/// replaces the AGC sub-module parameterized by `gain_controller1`.
 /// AGC2 brings the captured audio signal to the desired level by combining
-/// three different controllers (namely, input volume controller, adapative
+/// three different controllers (namely, input volume controller, adaptive
 /// digital controller and fixed digital controller) and a limiter.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
