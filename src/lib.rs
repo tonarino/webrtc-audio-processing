@@ -612,10 +612,9 @@ mod tests {
         let render_frame = context.generate_sine_frame(440.0);
 
         // Measure for Full mode
-        context.processor.set_config(Config {
-            echo_canceller: Some(EchoCanceller::Full { enforce_high_pass_filtering: true }),
-            ..Default::default()
-        });
+        context
+            .processor
+            .set_config(Config { echo_canceller: Some(EchoCanceller::Full), ..Default::default() });
         let full_reduction = context.measure_steady_state_performance(&render_frame, 50, 10);
 
         // Measure for Mobile mode
@@ -713,10 +712,9 @@ mod tests {
         let mut capture_frame = render_frame.clone();
 
         // Configure initial Full mode
-        context.processor.set_config(Config {
-            echo_canceller: Some(EchoCanceller::Full { enforce_high_pass_filtering: true }),
-            ..Default::default()
-        });
+        context
+            .processor
+            .set_config(Config { echo_canceller: Some(EchoCanceller::Full), ..Default::default() });
 
         // Verify initial state
         let initial_stats = context.processor.get_stats();
