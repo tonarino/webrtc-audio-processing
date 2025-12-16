@@ -1,5 +1,12 @@
 use anyhow::{Context, Result};
-use std::{collections::HashSet, env, path::PathBuf, process::Command};
+use std::{
+    collections::HashSet,
+    env,
+    fs::File,
+    io::{BufWriter, Write},
+    path::PathBuf,
+    process::Command,
+};
 
 const DEPLOYMENT_TARGET_VAR: &str = "MACOSX_DEPLOYMENT_TARGET";
 
@@ -60,17 +67,38 @@ fn prefix_archive_symbols(
 
     let temp_path = archive_path.with_extension("prefixed.a");
 
-    let mut cmd = Command::new("objcopy");
+    // Use rust bundled objcopy
+    let rustc = env::var("RUSTC").unwrap_or_default();
+    let sysroot = PathBuf::from(rustc)
+        .parent()
+        .and_then(|p| p.parent())
+        .map(|p| p.to_path_buf())
+        .unwrap_or_default();
+    let objcopy = sysroot
+        .join("lib")
+        .join("rustlib")
+        .join(env::var("HOST").unwrap_or_default())
+        .join("bin")
+        .join("rust-objcopy");
+
+    // Write arguments to a temp file to avoid "Argument list too long" errors.
+    let args_path = archive_path.with_extension("args");
+    let mut writer = BufWriter::new(File::create(&args_path)?);
     for symbol in symbols {
-        cmd.arg(format!("--redefine-sym={}={}{}", symbol, prefix, symbol));
+        writeln!(writer, "--redefine-sym={}={}{}", symbol, prefix, symbol)?;
     }
+    writer.flush()?;
+    drop(writer);
+
+    let mut cmd = Command::new(&objcopy);
+    cmd.arg(format!("@{}", args_path.display()));
     cmd.arg(archive_path);
     cmd.arg(&temp_path);
 
-    let status = cmd.status().context("Failed to execute objcopy")?;
+    let status = cmd.status().context(format!("Failed to execute {:?}", objcopy))?;
 
     if !status.success() {
-        anyhow::bail!("objcopy failed with status: {}", status);
+        anyhow::bail!("{:?} failed with status: {}", objcopy, status);
     }
 
     std::fs::rename(&temp_path, archive_path).with_context(|| {
@@ -249,14 +277,6 @@ mod webrtc {
         lib_dirs: &[PathBuf],
         prefix: &str,
     ) -> Result<Vec<String>> {
-        if cfg!(target_os = "macos") {
-            eprintln!(
-                "Warning: Symbol prefixing is not supported on macOS. \
-                Linking multiple versions of this crate may cause symbol conflicts."
-            );
-            return Ok(vec![]);
-        }
-
         let mut all_symbols = Vec::new();
         for lib_dir in lib_dirs {
             let lib_path = lib_dir.join("libwebrtc-audio-processing-2.a");
