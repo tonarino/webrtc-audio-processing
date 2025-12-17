@@ -407,6 +407,19 @@ AudioProcessing *audio_processing_create(
   return ap;
 }
 
+bool validate_aec3_config(const EchoCanceller3ConfigOverride *config) {
+  if (config == nullptr) {
+    return false;
+  }
+  webrtc::EchoCanceller3Config aec3_config;
+  try {
+    aec3_config = build_aec3_config(*config);
+  } catch (const std::exception &) {
+    return false;
+  }
+  return webrtc::EchoCanceller3Config::Validate(&aec3_config);
+}
+
 void initialize(AudioProcessing *ap) { ap->processor->Initialize(); }
 
 int process_capture_frame(AudioProcessing *ap, float **channels) {

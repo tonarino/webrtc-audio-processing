@@ -1193,8 +1193,8 @@ impl EchoCanceller3Config {
     /// Validates the configuration values.
     /// Returns true if all values are within acceptable ranges.
     pub fn validate(&self) -> bool {
-        // TODO: Implement validation logic matching C++
-        true
+        let ffi_config: ffi::EchoCanceller3ConfigOverride = self.clone().into();
+        unsafe { ffi::validate_aec3_config(&ffi_config) }
     }
 }
 

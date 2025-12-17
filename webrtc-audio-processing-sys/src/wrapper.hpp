@@ -232,6 +232,9 @@ AudioProcessing *audio_processing_create(
     int num_capture_channels, int num_render_channels, int sample_rate_hz,
     const EchoCanceller3ConfigOverride *aec3_config_override, int *error);
 
+// Validates an EchoCanceller3ConfigOverride instance.
+bool validate_aec3_config(const EchoCanceller3ConfigOverride *config);
+
 // Processes and modifies the audio frame from a capture device.
 // Each element in |channels| is an array of float representing a single-channel
 // frame of 10 ms length (i.e. deinterleaved). Returns an error code or
