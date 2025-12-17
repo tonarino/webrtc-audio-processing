@@ -746,4 +746,14 @@ mod tests {
             "Echo metrics should remain available after config change"
         );
     }
+
+    #[test]
+    fn test_aec3_config_validation() {
+        let mut aec3_config = EchoCanceller3Config::default();
+        assert!(aec3_config.validate(), "Default config should be valid");
+
+        aec3_config.erle.min = 5.0;
+        aec3_config.erle.max_l = 4.0;
+        assert!(!aec3_config.validate(), "Config with min ERLE > max ERLE should be invalid");
+    }
 }
