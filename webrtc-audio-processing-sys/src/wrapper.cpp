@@ -451,7 +451,20 @@ void set_config(AudioProcessing *ap,
                 const webrtc::AudioProcessing::Config &config) {
   std::lock_guard<std::mutex> lock(ap->mutex);
   ap->config = config;
-  ap->processor->ApplyConfig(config);
+
+  // Exporting linear AEC output is only supported at 16kHz and in full AEC mode.
+  if (ap->capture_stream_config.sample_rate_hz() != 16000 ||
+      ap->config.echo_canceller.mobile_mode) {
+    ap->config.echo_canceller.export_linear_aec_output = false;
+  }
+
+  // If linear AEC output is not exported, we cannot analyze it.
+  if (!ap->config.echo_canceller.export_linear_aec_output) {
+    ap->config.noise_suppression.analyze_linear_aec_output_when_available =
+        false;
+  }
+
+  ap->processor->ApplyConfig(ap->config);
 }
 
 void set_runtime_setting(AudioProcessing *ap,
