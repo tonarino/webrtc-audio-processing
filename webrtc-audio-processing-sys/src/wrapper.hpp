@@ -5,8 +5,8 @@
 // TODO: Add support for AEC dump. webrtc-audio-processing library does not
 // include TaskQueue implementation, which is needed.
 
-#include "webrtc/modules/audio_processing/include/audio_processing.h"
 #include <optional>
+#include "webrtc/modules/audio_processing/include/audio_processing.h"
 
 namespace webrtc_audio_processing_wrapper {
 
@@ -228,69 +228,72 @@ struct EchoCanceller3ConfigOverride {
 };
 
 // Creates a new instance of AudioProcessing.
-AudioProcessing *audio_processing_create(
-    int num_capture_channels, int num_render_channels, int sample_rate_hz,
-    const EchoCanceller3ConfigOverride *aec3_config_override, int *error);
+AudioProcessing* audio_processing_create(
+    int num_capture_channels,
+    int num_render_channels,
+    int sample_rate_hz,
+    const EchoCanceller3ConfigOverride* aec3_config_override,
+    int* error);
 
 // Validates an EchoCanceller3ConfigOverride instance.
-bool validate_aec3_config(const EchoCanceller3ConfigOverride *config);
+bool validate_aec3_config(const EchoCanceller3ConfigOverride* config);
 
 // Processes and modifies the audio frame from a capture device.
 // Each element in |channels| is an array of float representing a single-channel
 // frame of 10 ms length (i.e. deinterleaved). Returns an error code or
 // |kNoError|.
-int process_capture_frame(AudioProcessing *ap, float **channels);
+int process_capture_frame(AudioProcessing* ap, float** channels);
 
 // Processes and optionally modifies the audio frame from a playback device.
 // Each element in |channels| is an array of float representing a single-channel
 // frame of 10 ms length (i.e. deinterleaved). Returns an error code or
 // |kNoError|.
-int process_render_frame(AudioProcessing *ap, float **channel3);
+int process_render_frame(AudioProcessing* ap, float** channel3);
 
 // Returns statistics from the last |process_capture_frame()| call.
-Stats get_stats(AudioProcessing *ap);
+Stats get_stats(AudioProcessing* ap);
 
 // Returns the number of samples per frame based on the current configuration of
 // sample rate and the frame chunk size. As of 2025/04/09, the chunk size is
 // fixed to 10ms.
-int get_num_samples_per_frame(AudioProcessing *ap);
+int get_num_samples_per_frame(AudioProcessing* ap);
 
 // Immediately updates the configurations of the signal processor.
 // This config is intended to be used during setup, and to enable/disable
 // top-level processing effects. Use during processing may cause undesired
 // submodule resets, affecting the audio quality. Use the RuntimeSetting
 // construct for runtime configuration.
-void set_config(AudioProcessing *ap,
-                const webrtc::AudioProcessing::Config &config);
+void set_config(AudioProcessing* ap,
+                const webrtc::AudioProcessing::Config& config);
 
 // Enqueues a runtime setting.
-void set_runtime_setting(AudioProcessing *ap,
+void set_runtime_setting(AudioProcessing* ap,
                          webrtc::AudioProcessing::RuntimeSetting setting);
 
 // Sets the |delay| in ms between process_render_frame() receiving a far-end
 // frame and process_capture_frame() receiving a near-end frame containing the
 // corresponding echo. It assumes that there is no such delay if this function
 // is not called.
-void set_stream_delay_ms(AudioProcessing *ap, int delay);
+void set_stream_delay_ms(AudioProcessing* ap, int delay);
 
 // Set to true when the output of AudioProcessing will be muted or in some other
 // way not used. Ideally, the captured audio would still be processed, but some
 // components may change behavior based on this information.
-void set_output_will_be_muted(AudioProcessing *ap, bool muted);
+void set_output_will_be_muted(AudioProcessing* ap, bool muted);
 
 /// Signals the AEC and AGC that the next frame will contain key press sound
-void set_stream_key_pressed(AudioProcessing *ap, bool pressed);
+void set_stream_key_pressed(AudioProcessing* ap, bool pressed);
 
 // Initializes internal states, while retaining all user settings. This should
 // be called before beginning to process a new audio stream. However, it is not
 // necessary to call before processing the first stream after creation.
-void initialize(AudioProcessing *ap);
+void initialize(AudioProcessing* ap);
 
 // Every AudioProcessing created by |audio_processing_create()| needs to
 // destroyed by this function.
-void audio_processing_delete(AudioProcessing *ap);
+void audio_processing_delete(AudioProcessing* ap);
 
 // Returns true iff the code indicates a successful operation.
 bool is_success(int code);
 
-} // namespace webrtc_audio_processing_wrapper
+}  // namespace webrtc_audio_processing_wrapper

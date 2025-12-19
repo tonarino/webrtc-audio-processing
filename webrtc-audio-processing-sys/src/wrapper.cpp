@@ -15,29 +15,29 @@
 namespace webrtc_audio_processing_wrapper {
 namespace {
 
-OptionalDouble from_absl_optional(const std::optional<double> &optional) {
+OptionalDouble from_absl_optional(const std::optional<double>& optional) {
   OptionalDouble rv;
   rv.has_value = optional.has_value();
   rv.value = optional.value_or(0.0);
   return rv;
 }
 
-OptionalInt from_absl_optional(const std::optional<int> &optional) {
+OptionalInt from_absl_optional(const std::optional<int>& optional) {
   OptionalInt rv;
   rv.has_value = optional.has_value();
   rv.value = optional.value_or(0);
   return rv;
 }
 
-OptionalBool from_absl_optional(const std::optional<bool> &optional) {
+OptionalBool from_absl_optional(const std::optional<bool>& optional) {
   OptionalBool rv;
   rv.has_value = optional.has_value();
   rv.value = optional.value_or(false);
   return rv;
 }
 
-webrtc::EchoCanceller3Config
-build_aec3_config(const EchoCanceller3ConfigOverride &override) {
+webrtc::EchoCanceller3Config build_aec3_config(
+    const EchoCanceller3ConfigOverride& override) {
   webrtc::EchoCanceller3Config config;
 
   // Buffering
@@ -326,13 +326,14 @@ build_aec3_config(const EchoCanceller3ConfigOverride &override) {
 }
 
 class EchoCanceller3Factory : public webrtc::EchoControlFactory {
-public:
-  explicit EchoCanceller3Factory(const webrtc::EchoCanceller3Config &config)
+ public:
+  explicit EchoCanceller3Factory(const webrtc::EchoCanceller3Config& config)
       : config_(config) {}
 
-  std::unique_ptr<webrtc::EchoControl>
-  Create(int sample_rate_hz, int num_render_channels,
-         int num_capture_channels) override {
+  std::unique_ptr<webrtc::EchoControl> Create(
+      int sample_rate_hz,
+      int num_render_channels,
+      int num_capture_channels) override {
     std::optional<webrtc::EchoCanceller3Config> multichannel_config;
     if (num_render_channels > 1 || num_capture_channels > 1) {
       // Use optimized multichannel config when processing multiple channels
@@ -344,11 +345,11 @@ public:
                                    num_render_channels, num_capture_channels));
   }
 
-private:
+ private:
   webrtc::EchoCanceller3Config config_;
 };
 
-} // namespace
+}  // namespace
 
 struct AudioProcessing {
   std::mutex mutex;
@@ -359,10 +360,13 @@ struct AudioProcessing {
   std::optional<int> stream_delay_ms;
 };
 
-AudioProcessing *audio_processing_create(
-    int num_capture_channels, int num_render_channels, int sample_rate_hz,
-    const EchoCanceller3ConfigOverride *aec3_config_override, int *error) {
-  AudioProcessing *ap = new AudioProcessing;
+AudioProcessing* audio_processing_create(
+    int num_capture_channels,
+    int num_render_channels,
+    int sample_rate_hz,
+    const EchoCanceller3ConfigOverride* aec3_config_override,
+    int* error) {
+  AudioProcessing* ap = new AudioProcessing;
 
   webrtc::AudioProcessingBuilder builder;
   if (aec3_config_override != nullptr) {
@@ -374,12 +378,12 @@ AudioProcessing *audio_processing_create(
       if (!webrtc::EchoCanceller3Config::Validate(&config)) {
         throw std::runtime_error("Config validation failed");
       }
-    } catch (const std::exception &) {
+    } catch (const std::exception&) {
       // Return WebRTC's default config on any error
       config = webrtc::EchoCanceller3Config();
     }
 
-    auto *factory = new EchoCanceller3Factory(config);
+    auto* factory = new EchoCanceller3Factory(config);
     builder.SetEchoControlFactory(
         std::unique_ptr<webrtc::EchoControlFactory>(factory));
   }
@@ -392,10 +396,10 @@ AudioProcessing *audio_processing_create(
 
   // The input and output streams must have the same number of channels.
   webrtc::ProcessingConfig pconfig = {
-      ap->capture_stream_config, // capture input
-      ap->capture_stream_config, // capture output
-      ap->render_stream_config,  // render input
-      ap->render_stream_config,  // render output
+      ap->capture_stream_config,  // capture input
+      ap->capture_stream_config,  // capture output
+      ap->render_stream_config,   // render input
+      ap->render_stream_config,   // render output
   };
   const int code = ap->processor->Initialize(pconfig);
   if (code != webrtc::AudioProcessing::kNoError) {
@@ -407,22 +411,24 @@ AudioProcessing *audio_processing_create(
   return ap;
 }
 
-bool validate_aec3_config(const EchoCanceller3ConfigOverride *config) {
+bool validate_aec3_config(const EchoCanceller3ConfigOverride* config) {
   if (config == nullptr) {
     return false;
   }
   webrtc::EchoCanceller3Config aec3_config;
   try {
     aec3_config = build_aec3_config(*config);
-  } catch (const std::exception &) {
+  } catch (const std::exception&) {
     return false;
   }
   return webrtc::EchoCanceller3Config::Validate(&aec3_config);
 }
 
-void initialize(AudioProcessing *ap) { ap->processor->Initialize(); }
+void initialize(AudioProcessing* ap) {
+  ap->processor->Initialize();
+}
 
-int process_capture_frame(AudioProcessing *ap, float **channels) {
+int process_capture_frame(AudioProcessing* ap, float** channels) {
   {
     std::lock_guard<std::mutex> lock(ap->mutex);
     if (ap->config.echo_canceller.enabled) {
@@ -434,13 +440,13 @@ int process_capture_frame(AudioProcessing *ap, float **channels) {
                                       ap->capture_stream_config, channels);
 }
 
-int process_render_frame(AudioProcessing *ap, float **channels) {
+int process_render_frame(AudioProcessing* ap, float** channels) {
   return ap->processor->ProcessReverseStream(
       channels, ap->render_stream_config, ap->render_stream_config, channels);
 }
 
-Stats get_stats(AudioProcessing *ap) {
-  const webrtc::AudioProcessingStats &stats = ap->processor->GetStatistics();
+Stats get_stats(AudioProcessing* ap) {
+  const webrtc::AudioProcessingStats& stats = ap->processor->GetStatistics();
 
   return Stats{
       from_absl_optional(stats.voice_detected),
@@ -455,17 +461,18 @@ Stats get_stats(AudioProcessing *ap) {
   };
 }
 
-int get_num_samples_per_frame(AudioProcessing *ap) {
+int get_num_samples_per_frame(AudioProcessing* ap) {
   return ap->capture_stream_config.sample_rate_hz() *
          webrtc::AudioProcessing::kChunkSizeMs / 1000;
 }
 
-void set_config(AudioProcessing *ap,
-                const webrtc::AudioProcessing::Config &config) {
+void set_config(AudioProcessing* ap,
+                const webrtc::AudioProcessing::Config& config) {
   std::lock_guard<std::mutex> lock(ap->mutex);
   ap->config = config;
 
-  // Exporting linear AEC output is only supported at 16kHz and in full AEC mode.
+  // Exporting linear AEC output is only supported at 16kHz and in full AEC
+  // mode.
   if (ap->capture_stream_config.sample_rate_hz() != 16000 ||
       ap->config.echo_canceller.mobile_mode) {
     ap->config.echo_canceller.export_linear_aec_output = false;
@@ -480,28 +487,30 @@ void set_config(AudioProcessing *ap,
   ap->processor->ApplyConfig(ap->config);
 }
 
-void set_runtime_setting(AudioProcessing *ap,
+void set_runtime_setting(AudioProcessing* ap,
                          webrtc::AudioProcessing::RuntimeSetting setting) {
   ap->processor->SetRuntimeSetting(setting);
 }
 
-void set_stream_delay_ms(AudioProcessing *ap, int delay) {
+void set_stream_delay_ms(AudioProcessing* ap, int delay) {
   std::lock_guard<std::mutex> lock(ap->mutex);
   ap->stream_delay_ms = delay;
 }
 
-void set_output_will_be_muted(AudioProcessing *ap, bool muted) {
+void set_output_will_be_muted(AudioProcessing* ap, bool muted) {
   ap->processor->set_output_will_be_muted(muted);
 }
 
-void set_stream_key_pressed(AudioProcessing *ap, bool pressed) {
+void set_stream_key_pressed(AudioProcessing* ap, bool pressed) {
   ap->processor->set_stream_key_pressed(pressed);
 }
 
-void audio_processing_delete(AudioProcessing *ap) { delete ap; }
+void audio_processing_delete(AudioProcessing* ap) {
+  delete ap;
+}
 
 bool is_success(const int code) {
   return code == webrtc::AudioProcessing::kNoError;
 }
 
-} // namespace webrtc_audio_processing_wrapper
+}  // namespace webrtc_audio_processing_wrapper
