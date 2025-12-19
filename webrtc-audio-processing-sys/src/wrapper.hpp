@@ -6,8 +6,8 @@
 // include TaskQueue implementation, which is needed.
 
 #include <optional>
-#include "webrtc/modules/audio_processing/include/audio_processing.h"
 #include "webrtc/api/audio/echo_canceller3_config.h"
+#include "webrtc/modules/audio_processing/include/audio_processing.h"
 
 namespace webrtc_audio_processing_wrapper {
 
@@ -43,7 +43,8 @@ struct Stats {
 };
 
 // Creates a new instance of AudioProcessing.
-// Takes a mutable pointer to the AEC3 config, as it internally calls validate_aec3_config.
+// Takes a mutable pointer to the AEC3 config, as it internally calls
+// validate_aec3_config.
 AudioProcessing* audio_processing_create(
     int num_capture_channels,
     int num_render_channels,

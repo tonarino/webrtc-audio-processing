@@ -83,7 +83,7 @@ AudioProcessing* audio_processing_create(
   if (aec3_config != nullptr) {
     // Validate the configuration
     if (!validate_aec3_config(aec3_config)) {
-        return nullptr;
+      return nullptr;
     }
 
     auto* factory = new EchoCanceller3Factory(*aec3_config);
@@ -114,8 +114,8 @@ AudioProcessing* audio_processing_create(
 }
 
 webrtc::EchoCanceller3Config create_aec3_config() {
-    webrtc::EchoCanceller3Config config;
-    return config;
+  webrtc::EchoCanceller3Config config;
+  return config;
 }
 
 bool validate_aec3_config(webrtc::EchoCanceller3Config* config) {
