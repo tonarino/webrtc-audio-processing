@@ -41,10 +41,7 @@ Building from source and static linking can be enabled with the `bundled` featur
 * `clang` or `gcc`
 * `pkg-config` (macOS: `brew install pkg-config`)
 * `meson` (masOS: `brew install meson`)
-* `ninja` (macOS: `brew install ninja`)
-* (to confirm) `autotools` (MacOS: `brew install automake`, `brew install autoconf`)
-* (to confirm) `libtoolize` (typically `glibtoolize` on MacOS: `brew install libtool`)
-* (to confirm) `automake` (MacOS: `brew install automake`)
+* `ninja-build` (macOS: `brew install ninja`)
 
 ## Publishing
 

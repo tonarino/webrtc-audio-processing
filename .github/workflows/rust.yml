@@ -28,12 +28,12 @@ jobs:
       - name: Install Dependencies (if Ubuntu)
         env:
           ACCEPT_EULA: Y
-        run: sudo apt-get -y update && sudo apt-get install -f && sudo apt-get -y install portaudio19-dev pkg-config libclang-19-dev autotools-dev libtool automake meson ninja-build
+        run: sudo apt-get -y update && sudo apt-get install -f && sudo apt-get -y install portaudio19-dev pkg-config meson ninja-build
         if: contains(runner.os, 'Linux')
       - name: Install Dependencies (if macos)
         env:
           ACCEPT_EULA: Y
-        run: brew update && brew install automake autoconf libtool pkg-config meson ninja
+        run: brew update && brew install pkg-config meson ninja
         if: contains(runner.os, 'macOS')
       - uses: Swatinem/rust-cache@v1
       - name: Clippy
@@ -69,3 +69,9 @@ jobs:
         with:
           command: fmt
           args: --all -- --check
+      - name: clang-format
+        uses: jidicula/clang-format-action@v4.16.0
+        with:
+          clang-format-version: 13
+          check-path: webrtc-audio-processing-sys/src
+          fallback-style: Chromium
