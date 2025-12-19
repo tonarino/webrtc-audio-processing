@@ -23,7 +23,7 @@ bundled = []
 [build-dependencies]
 anyhow = "1"
 autotools = "0.2"
-bindgen = "0.69"
+bindgen = "0.72"
 cc = "1"
 fs_extra = "1"
 regex = "1"

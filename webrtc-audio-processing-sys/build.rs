@@ -341,8 +341,6 @@ fn main() -> Result<()> {
         .includes(&include_dirs)
         .flag("-std=c++17")
         .flag("-Wno-unused-parameter")
-        .flag("-Wno-deprecated-declarations")
-        .flag("-Wno-nullability-completeness")
         .out_dir(out_dir())
         .compile("webrtc_audio_processing_wrapper");
 
@@ -360,14 +358,8 @@ fn main() -> Result<()> {
         .clang_args(&["-x", "c++", "-std=c++17", "-fparse-all-comments"])
         .generate_comments(true)
         .enable_cxx_namespaces()
-        .allowlist_type("webrtc::AudioProcessing_Error")
-        .allowlist_type("webrtc::AudioProcessing_Config")
-        .allowlist_type("webrtc::AudioProcessing_RealtimeSetting")
-        .allowlist_type("webrtc::StreamConfig")
-        .allowlist_type("webrtc::ProcessingConfig")
+        // Transitive dependencies are automatically included.
         .allowlist_function("webrtc_audio_processing_wrapper::.*")
-        // The functions returns std::string, and is not FFI-safe.
-        .blocklist_item("webrtc::AudioProcessing_Config_ToString")
         .opaque_type("std::.*")
         .derive_debug(true)
         .derive_default(true);
