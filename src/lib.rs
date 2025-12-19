@@ -208,7 +208,7 @@ impl AudioProcessing {
         aec3_config: Option<EchoCanceller3Config>,
     ) -> Result<Self, Error> {
         let aec3_config = if let Some(mut aec3_config) = aec3_config {
-            &mut aec3_config.0 as *mut ffi::EchoCanceller3Config
+            &raw mut aec3_config.0
         } else {
             null_mut()
         };
