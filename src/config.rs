@@ -820,28 +820,22 @@ impl DerefMut for EchoCanceller3Config {
 
 // [Highly experimental] Expose all of the inner structs of the EchoCanceller3Config.
 // These do not have Default implementations and other ergonomic Rust APIs.
-pub use ffi::EchoCanceller3Config_Buffering;
-pub use ffi::EchoCanceller3Config_ComfortNoise;
-pub use ffi::EchoCanceller3Config_Delay;
-pub use ffi::EchoCanceller3Config_Delay_AlignmentMixing;
-pub use ffi::EchoCanceller3Config_Delay_DelaySelectionThresholds;
-pub use ffi::EchoCanceller3Config_EchoAudibility;
-pub use ffi::EchoCanceller3Config_EchoModel;
-pub use ffi::EchoCanceller3Config_EchoRemovalControl;
-pub use ffi::EchoCanceller3Config_EpStrength;
-pub use ffi::EchoCanceller3Config_Erle;
-pub use ffi::EchoCanceller3Config_Filter;
-pub use ffi::EchoCanceller3Config_Filter_CoarseConfiguration;
-pub use ffi::EchoCanceller3Config_Filter_RefinedConfiguration;
-pub use ffi::EchoCanceller3Config_MultiChannel;
-pub use ffi::EchoCanceller3Config_RenderLevels;
-pub use ffi::EchoCanceller3Config_Suppressor;
-pub use ffi::EchoCanceller3Config_Suppressor_DominantNearendDetection;
-pub use ffi::EchoCanceller3Config_Suppressor_HighBandsSuppression;
-pub use ffi::EchoCanceller3Config_Suppressor_MaskingThresholds;
-pub use ffi::EchoCanceller3Config_Suppressor_SubbandNearendDetection;
-pub use ffi::EchoCanceller3Config_Suppressor_SubbandNearendDetection_SubbandRegion;
-pub use ffi::EchoCanceller3Config_Suppressor_Tuning;
+pub use ffi::{
+    EchoCanceller3Config_Buffering, EchoCanceller3Config_ComfortNoise, EchoCanceller3Config_Delay,
+    EchoCanceller3Config_Delay_AlignmentMixing,
+    EchoCanceller3Config_Delay_DelaySelectionThresholds, EchoCanceller3Config_EchoAudibility,
+    EchoCanceller3Config_EchoModel, EchoCanceller3Config_EchoRemovalControl,
+    EchoCanceller3Config_EpStrength, EchoCanceller3Config_Erle, EchoCanceller3Config_Filter,
+    EchoCanceller3Config_Filter_CoarseConfiguration,
+    EchoCanceller3Config_Filter_RefinedConfiguration, EchoCanceller3Config_MultiChannel,
+    EchoCanceller3Config_RenderLevels, EchoCanceller3Config_Suppressor,
+    EchoCanceller3Config_Suppressor_DominantNearendDetection,
+    EchoCanceller3Config_Suppressor_HighBandsSuppression,
+    EchoCanceller3Config_Suppressor_MaskingThresholds,
+    EchoCanceller3Config_Suppressor_SubbandNearendDetection,
+    EchoCanceller3Config_Suppressor_SubbandNearendDetection_SubbandRegion,
+    EchoCanceller3Config_Suppressor_Tuning,
+};
 
 #[cfg(test)]
 mod tests {
