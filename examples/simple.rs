@@ -4,25 +4,17 @@ fn main() {
     let config = InitializationConfig {
         num_capture_channels: 2, // Stereo mic input
         num_render_channels: 2,  // Stereo speaker output
-        ..InitializationConfig::default()
+        sample_rate_hz: 48_000,  // The maximum processing rate
     };
 
     let mut ap = Processor::new(&config).unwrap();
 
-    let config = Config {
-        echo_cancellation: Some(EchoCancellation {
-            suppression_level: EchoCancellationSuppressionLevel::High,
-            enable_delay_agnostic: false,
-            enable_extended_filter: false,
-            stream_delay_ms: None,
-        }),
-        ..Config::default()
-    };
+    let config = Config { echo_canceller: Some(EchoCanceller::default()), ..Default::default() };
     ap.set_config(config);
 
     // The render_frame is what is sent to the speakers, and
     // capture_frame is audio captured from a microphone.
-    let (render_frame, capture_frame) = sample_stereo_frames();
+    let (render_frame, capture_frame) = sample_stereo_frames(&ap);
 
     let mut render_frame_output = render_frame.clone();
     ap.process_render_frame(&mut render_frame_output).unwrap();
@@ -43,8 +35,8 @@ fn main() {
 
 /// Generate example stereo frames that simulates a situation where the
 /// microphone (capture) would be picking up the speaker (render) output.
-fn sample_stereo_frames() -> (Vec<f32>, Vec<f32>) {
-    let num_samples_per_frame = NUM_SAMPLES_PER_FRAME as usize;
+fn sample_stereo_frames(processor: &Processor) -> (Vec<f32>, Vec<f32>) {
+    let num_samples_per_frame = processor.num_samples_per_frame();
 
     let mut render_frame = Vec::with_capacity(num_samples_per_frame * 2);
     let mut capture_frame = Vec::with_capacity(num_samples_per_frame * 2);
