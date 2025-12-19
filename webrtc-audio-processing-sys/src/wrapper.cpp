@@ -37,7 +37,7 @@ OptionalBool from_absl_optional(const std::optional<bool>& optional) {
 }
 
 webrtc::EchoCanceller3Config build_aec3_config(
-    const EchoCanceller3ConfigOverride& override) {
+    const EchoCanceller3ConfigOverride &override) {
   webrtc::EchoCanceller3Config config;
 
   // Buffering

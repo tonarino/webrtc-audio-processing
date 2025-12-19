@@ -28,7 +28,7 @@ jobs:
       - name: Install Dependencies (if Ubuntu)
         env:
           ACCEPT_EULA: Y
-        run: sudo apt-get -y update && sudo apt-get install -f && sudo apt-get -y install portaudio19-dev pkg-config meson ninja-build
+        run: sudo apt-get -y update && sudo apt-get install -f && sudo apt-get -y install pkg-config meson ninja-build
         if: contains(runner.os, 'Linux')
       - name: Install Dependencies (if macos)
         env:
