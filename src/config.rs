@@ -698,10 +698,6 @@ pub struct Config {
     /// Enables and configures Gain Controller 2.
     #[cfg_attr(feature = "derive_serde", serde(default))]
     pub gain_controller2: Option<GainController2>,
-
-    /// Fine-grained AEC3 configuration parameters.
-    #[cfg_attr(feature = "derive_serde", serde(default))]
-    pub aec3_config: Option<EchoCanceller3Config>,
 }
 
 impl From<Config> for ffi::AudioProcessing_Config {
@@ -849,5 +845,15 @@ mod tests {
         assert_eq!(8, default_aec3_config.buffering.max_allowed_excess_render_blocks);
         assert!(default_aec3_config.delay.detect_pre_echo);
         assert_eq!(1.0, default_aec3_config.erle.min);
+    }
+
+    #[test]
+    fn test_aec3_config_validation() {
+        let mut aec3_config = EchoCanceller3Config::default();
+        assert!(aec3_config.validate(), "Default config should be valid");
+
+        aec3_config.erle.min = 5.0;
+        aec3_config.erle.max_l = 4.0;
+        assert!(!aec3_config.validate(), "Config with min ERLE > max ERLE should be invalid");
     }
 }
