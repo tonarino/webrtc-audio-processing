@@ -8,7 +8,7 @@
 mod config;
 mod stats;
 
-use std::{error, fmt, ptr::null, sync::Arc};
+use std::{error, fmt, ptr::null_mut, sync::Arc};
 use webrtc_audio_processing_sys as ffi;
 
 pub use config::*;
@@ -207,10 +207,10 @@ impl AudioProcessing {
         config: &InitializationConfig,
         aec3_config: Option<EchoCanceller3Config>,
     ) -> Result<Self, Error> {
-        let aec3_config = if let Some(aec3_config) = aec3_config {
-            &aec3_config.into() as *const ffi::EchoCanceller3ConfigOverride
+        let aec3_config = if let Some(mut aec3_config) = aec3_config {
+            &mut aec3_config.0 as *mut ffi::EchoCanceller3Config
         } else {
-            null()
+            null_mut()
         };
 
         let mut code = 0;
@@ -637,47 +637,29 @@ mod tests {
     /// different results (in this case, 4dB of ERL).
     #[test]
     fn test_aec3_configuration_tuning() {
+        let mut strong_aec3_config = EchoCanceller3Config::default();
+        strong_aec3_config.suppressor.dominant_nearend_detection.enr_threshold = 0.75;
+        strong_aec3_config.suppressor.dominant_nearend_detection.snr_threshold = 20.0;
+        strong_aec3_config.suppressor.high_bands_suppression.enr_threshold = 1.2;
+        strong_aec3_config.suppressor.high_bands_suppression.max_gain_during_echo = 0.3;
+
         // Strong suppression configuration
         let strong_config = Config {
             echo_canceller: Some(EchoCanceller::default()),
-            aec3_config: Some(EchoCanceller3Config {
-                suppressor: Suppressor {
-                    dominant_nearend_detection: DominantNearendDetection {
-                        enr_threshold: 0.75,
-                        snr_threshold: 20.0,
-                        ..Default::default()
-                    },
-                    high_bands_suppression: HighBandsSuppression {
-                        enr_threshold: 0.8,
-                        max_gain_during_echo: 0.3,
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                },
-                ..Default::default()
-            }),
+            aec3_config: Some(strong_aec3_config),
             ..Default::default()
         };
 
         // Light suppression configuration
+        let mut light_aec3_config = EchoCanceller3Config::default();
+        light_aec3_config.suppressor.dominant_nearend_detection.enr_threshold = 0.25;
+        light_aec3_config.suppressor.dominant_nearend_detection.snr_threshold = 30.0;
+        light_aec3_config.suppressor.high_bands_suppression.enr_threshold = 1.2;
+        light_aec3_config.suppressor.high_bands_suppression.max_gain_during_echo = 0.8;
+
         let light_config = Config {
             echo_canceller: Some(EchoCanceller::default()),
-            aec3_config: Some(EchoCanceller3Config {
-                suppressor: Suppressor {
-                    dominant_nearend_detection: DominantNearendDetection {
-                        enr_threshold: 0.25,
-                        snr_threshold: 30.0,
-                        ..Default::default()
-                    },
-                    high_bands_suppression: HighBandsSuppression {
-                        enr_threshold: 1.2,
-                        max_gain_during_echo: 0.8,
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                },
-                ..Default::default()
-            }),
+            aec3_config: Some(light_aec3_config),
             ..Default::default()
         };
 

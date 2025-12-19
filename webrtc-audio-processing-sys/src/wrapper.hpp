@@ -7,6 +7,7 @@
 
 #include <optional>
 #include "webrtc/modules/audio_processing/include/audio_processing.h"
+#include "webrtc/api/audio/echo_canceller3_config.h"
 
 namespace webrtc_audio_processing_wrapper {
 
@@ -41,202 +42,21 @@ struct Stats {
   OptionalInt delay_ms;
 };
 
-// A slimmed-down version of webrtc::EchoCanceller3Config.
-// We can not just expose the webrtc variant as the binding loses all the
-// default values.
-struct EchoCanceller3ConfigOverride {
-  // Buffering
-  size_t buffering_excess_render_detection_interval_blocks;
-  size_t buffering_max_allowed_excess_render_blocks;
-
-  // Delay
-  size_t delay_default_delay;
-  size_t delay_down_sampling_factor;
-  size_t delay_num_filters;
-  size_t delay_delay_headroom_samples;
-  size_t delay_hysteresis_limit_blocks;
-  size_t delay_fixed_capture_delay_samples;
-  float delay_estimate_smoothing;
-  float delay_estimate_smoothing_delay_found;
-  float delay_candidate_detection_threshold;
-  int32_t delay_selection_thresholds_initial;
-  int32_t delay_selection_thresholds_converged;
-  bool delay_use_external_delay_estimator;
-  bool delay_log_warning_on_delay_changes;
-  bool delay_detect_pre_echo;
-
-  // Delay AlignmentMixing (Render)
-  bool delay_render_alignment_mixing_downmix;
-  bool delay_render_alignment_mixing_adaptive_selection;
-  float delay_render_alignment_mixing_activity_power_threshold;
-  bool delay_render_alignment_mixing_prefer_first_two_channels;
-
-  // Delay AlignmentMixing (Capture)
-  bool delay_capture_alignment_mixing_downmix;
-  bool delay_capture_alignment_mixing_adaptive_selection;
-  float delay_capture_alignment_mixing_activity_power_threshold;
-  bool delay_capture_alignment_mixing_prefer_first_two_channels;
-
-  // Filter
-  size_t filter_refined_length_blocks;
-  float filter_refined_leakage_converged;
-  float filter_refined_leakage_diverged;
-  float filter_refined_error_floor;
-  float filter_refined_error_ceil;
-  float filter_refined_noise_gate;
-
-  // Filter (continued)
-  size_t filter_coarse_length_blocks;
-  float filter_coarse_rate;
-  float filter_coarse_noise_gate;
-
-  size_t filter_refined_initial_length_blocks;
-  float filter_refined_initial_leakage_converged;
-  float filter_refined_initial_leakage_diverged;
-  float filter_refined_initial_error_floor;
-  float filter_refined_initial_error_ceil;
-  float filter_refined_initial_noise_gate;
-
-  size_t filter_coarse_initial_length_blocks;
-  float filter_coarse_initial_rate;
-  float filter_coarse_initial_noise_gate;
-
-  size_t filter_config_change_duration_blocks;
-  float filter_initial_state_seconds;
-  int32_t filter_coarse_reset_hangover_blocks;
-  bool filter_conservative_initial_phase;
-  bool filter_enable_coarse_filter_output_usage;
-  bool filter_use_linear_filter;
-  bool filter_high_pass_filter_echo_reference;
-  bool filter_export_linear_aec_output;
-
-  // Erle
-  float erle_min;
-  float erle_max_l;
-  float erle_max_h;
-  bool erle_onset_detection;
-  size_t erle_num_sections;
-  bool erle_clamp_quality_estimate_to_zero;
-  bool erle_clamp_quality_estimate_to_one;
-
-  // EpStrength
-  float ep_strength_default_gain;
-  float ep_strength_default_len;
-  float ep_strength_nearend_len;
-  bool ep_strength_echo_can_saturate;
-  bool ep_strength_bounded_erl;
-  bool ep_strength_erle_onset_compensation_in_dominant_nearend;
-  bool ep_strength_use_conservative_tail_frequency_response;
-
-  // EchoAudibility
-  float echo_audibility_low_render_limit;
-  float echo_audibility_normal_render_limit;
-  float echo_audibility_floor_power;
-  float echo_audibility_audibility_threshold_lf;
-  float echo_audibility_audibility_threshold_mf;
-  float echo_audibility_audibility_threshold_hf;
-  bool echo_audibility_use_stationarity_properties;
-  bool echo_audibility_use_stationarity_properties_at_init;
-
-  // RenderLevels
-  float render_levels_active_render_limit;
-  float render_levels_poor_excitation_render_limit;
-  float render_levels_poor_excitation_render_limit_ds8;
-  float render_levels_render_power_gain_db;
-
-  // EchoRemovalControl
-  bool echo_removal_control_has_clock_drift;
-  bool echo_removal_control_linear_and_stable_echo_path;
-
-  // EchoModel
-  size_t echo_model_noise_floor_hold;
-  float echo_model_min_noise_floor_power;
-  float echo_model_stationary_gate_slope;
-  float echo_model_noise_gate_power;
-  float echo_model_noise_gate_slope;
-  size_t echo_model_render_pre_window_size;
-  size_t echo_model_render_post_window_size;
-  bool echo_model_model_reverb_in_nonlinear_mode;
-
-  // ComfortNoise
-  float comfort_noise_noise_floor_dbfs;
-
-  // Suppressor
-  size_t suppressor_nearend_average_blocks;
-
-  // Suppressor Normal Tuning
-  float suppressor_normal_tuning_mask_lf_enr_transparent;
-  float suppressor_normal_tuning_mask_lf_enr_suppress;
-  float suppressor_normal_tuning_mask_lf_emr_transparent;
-  float suppressor_normal_tuning_mask_hf_enr_transparent;
-  float suppressor_normal_tuning_mask_hf_enr_suppress;
-  float suppressor_normal_tuning_mask_hf_emr_transparent;
-  float suppressor_normal_tuning_max_inc_factor;
-  float suppressor_normal_tuning_max_dec_factor_lf;
-
-  // Suppressor Nearend Tuning
-  float suppressor_nearend_tuning_mask_lf_enr_transparent;
-  float suppressor_nearend_tuning_mask_lf_enr_suppress;
-  float suppressor_nearend_tuning_mask_lf_emr_transparent;
-  float suppressor_nearend_tuning_mask_hf_enr_transparent;
-  float suppressor_nearend_tuning_mask_hf_enr_suppress;
-  float suppressor_nearend_tuning_mask_hf_emr_transparent;
-  float suppressor_nearend_tuning_max_inc_factor;
-  float suppressor_nearend_tuning_max_dec_factor_lf;
-
-  // Suppressor Smoothing
-  float suppressor_floor_first_increase;
-  bool suppressor_lf_smoothing_during_initial_phase;
-  int32_t suppressor_last_permanent_lf_smoothing_band;
-  int32_t suppressor_last_lf_smoothing_band;
-  int32_t suppressor_last_lf_band;
-  int32_t suppressor_first_hf_band;
-
-  // Suppressor DominantNearendDetection
-  float suppressor_dominant_nearend_detection_enr_threshold;
-  float suppressor_dominant_nearend_detection_enr_exit_threshold;
-  float suppressor_dominant_nearend_detection_snr_threshold;
-  int32_t suppressor_dominant_nearend_detection_hold_duration;
-  int32_t suppressor_dominant_nearend_detection_trigger_threshold;
-  bool suppressor_dominant_nearend_detection_use_during_initial_phase;
-  bool suppressor_dominant_nearend_detection_use_unbounded_echo_spectrum;
-
-  // Suppressor SubbandNearendDetection
-  size_t suppressor_subband_nearend_detection_nearend_average_blocks;
-  size_t suppressor_subband_nearend_detection_subband1_low;
-  size_t suppressor_subband_nearend_detection_subband1_high;
-  size_t suppressor_subband_nearend_detection_subband2_low;
-  size_t suppressor_subband_nearend_detection_subband2_high;
-  float suppressor_subband_nearend_detection_nearend_threshold;
-  float suppressor_subband_nearend_detection_snr_threshold;
-
-  bool suppressor_use_subband_nearend_detection;
-
-  // Suppressor HighBandsSuppression
-  float suppressor_high_bands_suppression_enr_threshold;
-  float suppressor_high_bands_suppression_max_gain_during_echo;
-  float suppressor_high_bands_suppression_anti_howling_activation_threshold;
-  float suppressor_high_bands_suppression_anti_howling_gain;
-
-  bool suppressor_conservative_hf_suppression;
-
-  // MultiChannel
-  bool multi_channel_detect_stereo_content;
-  float multi_channel_stereo_detection_threshold;
-  int32_t multi_channel_stereo_detection_timeout_threshold_seconds;
-  float multi_channel_stereo_detection_hysteresis_seconds;
-};
-
 // Creates a new instance of AudioProcessing.
+// Takes a mutable pointer to the AEC3 config, as it internally calls validate_aec3_config.
 AudioProcessing* audio_processing_create(
     int num_capture_channels,
     int num_render_channels,
     int sample_rate_hz,
-    const EchoCanceller3ConfigOverride* aec3_config_override,
+    webrtc::EchoCanceller3Config* aec3_config,
     int* error);
 
-// Validates an EchoCanceller3ConfigOverride instance.
-bool validate_aec3_config(const EchoCanceller3ConfigOverride* config);
+// Instantiates an EchoCanceller3Config with the webrtc's default settings.
+webrtc::EchoCanceller3Config create_aec3_config();
+
+// Checks and updates the config parameters to lie within (mostly) reasonable
+// ranges. Returns true if and only of the config did not need to be changed.
+bool validate_aec3_config(webrtc::EchoCanceller3Config* config);
 
 // Processes and modifies the audio frame from a capture device.
 // Each element in |channels| is an array of float representing a single-channel

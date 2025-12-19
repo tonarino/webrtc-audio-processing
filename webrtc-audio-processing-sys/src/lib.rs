@@ -42,7 +42,7 @@ impl From<OptionalBool> for Option<bool> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::ptr::null;
+    use std::ptr::null_mut;
 
     const SAMPLE_RATE_HZ: i32 = 48_000;
 
@@ -100,7 +100,7 @@ mod tests {
     fn test_create_failure() {
         unsafe {
             let mut error = 0;
-            let ap = audio_processing_create(0, 0, SAMPLE_RATE_HZ, null(), &mut error);
+            let ap = audio_processing_create(0, 0, SAMPLE_RATE_HZ, null_mut(), &mut error);
             assert!(!ap.is_null());
             assert_success(error);
         }
@@ -110,7 +110,7 @@ mod tests {
     fn test_create_delete() {
         unsafe {
             let mut error = 0;
-            let ap = audio_processing_create(1, 1, SAMPLE_RATE_HZ, null(), &mut error);
+            let ap = audio_processing_create(1, 1, SAMPLE_RATE_HZ, null_mut(), &mut error);
             assert!(!ap.is_null());
             assert_success(error);
             audio_processing_delete(ap);
@@ -121,7 +121,7 @@ mod tests {
     fn test_config() {
         unsafe {
             let mut error = 0;
-            let ap = audio_processing_create(1, 1, SAMPLE_RATE_HZ, null(), &mut error);
+            let ap = audio_processing_create(1, 1, SAMPLE_RATE_HZ, null_mut(), &mut error);
             assert!(!ap.is_null());
             assert_success(error);
 
@@ -139,7 +139,7 @@ mod tests {
     fn test_process() {
         unsafe {
             let mut error = 0;
-            let ap = audio_processing_create(1, 1, SAMPLE_RATE_HZ, null(), &mut error);
+            let ap = audio_processing_create(1, 1, SAMPLE_RATE_HZ, null_mut(), &mut error);
             assert!(!ap.is_null());
             assert_success(error);
 
@@ -160,7 +160,7 @@ mod tests {
     fn test_empty_stats() {
         unsafe {
             let mut error = 0;
-            let ap = audio_processing_create(1, 1, SAMPLE_RATE_HZ, null(), &mut error);
+            let ap = audio_processing_create(1, 1, SAMPLE_RATE_HZ, null_mut(), &mut error);
             assert!(!ap.is_null());
             assert_success(error);
 
@@ -184,7 +184,7 @@ mod tests {
     fn test_some_stats() {
         unsafe {
             let mut error = 0;
-            let ap = audio_processing_create(1, 1, SAMPLE_RATE_HZ, null(), &mut error);
+            let ap = audio_processing_create(1, 1, SAMPLE_RATE_HZ, null_mut(), &mut error);
             assert!(!ap.is_null());
             assert_success(error);
 
