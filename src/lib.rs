@@ -636,6 +636,8 @@ mod tests {
     /// This test is used to verify that a AEC3 configuration will apply and output
     /// different results (in this case, 4dB of ERL).
     #[test]
+    // TODO: Fix the test. The two AEC3 parameters are resulting in the same reduction level.
+    #[should_panic]
     fn test_aec3_configuration_tuning() {
         // Test strong suppression
         let strong_reduction = {
@@ -670,14 +672,12 @@ mod tests {
         };
 
         // Verify the configurations produce measurably different results
-        // TODO: Fix this unit test. The above two AEC3 parameters are resulting in the same
-        // reduction level.
-        //assert!(
-        //    strong_reduction > light_reduction + 3.0,
-        //    "Strong suppression ({:.1} dB) should achieve at least 3dB more reduction than light suppression ({:.1} dB)",
-        //    strong_reduction,
-        //    light_reduction
-        //);
+        assert!(
+            strong_reduction > light_reduction + 3.0,
+            "Strong suppression ({:.1} dB) should achieve at least 3dB more reduction than light suppression ({:.1} dB)",
+            strong_reduction,
+            light_reduction
+        );
     }
 
     /// Validates AEC configuration state management across processing modes.

@@ -297,9 +297,11 @@ struct CustomDeriveCallbacks;
 
 impl ParseCallbacks for CustomDeriveCallbacks {
     fn add_derives(&self, info: &DeriveInfo) -> Vec<String> {
-        if info.name.contains("EchoCanceller3Config") && cfg!(feature = "derive_serde") {
+        // Matches EchoCanceller3Config, EchoCanceller3Config_Suppressor etc
+        if info.name.starts_with("EchoCanceller3Config") && cfg!(feature = "derive_serde") {
             vec!["serde::Deserialize".into(), "serde::Serialize".into()]
-        } else if info.name.contains("AudioProcessing_Config") {
+        // Matches AudioProcessing_Config, AudioProcessing_Config_EchoCanceller etc
+        } else if info.name.starts_with("AudioProcessing_Config") {
             // Only derive Default for AudioProcessing_Config and its inner structs.
             // bindgen Default implementation ignores C/C++ struct default values
             // and thus misleading to enable globally.
