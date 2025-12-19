@@ -791,7 +791,7 @@ impl EchoCanceller3Config {
     /// Checks and updates the config parameters to lie within (mostly) reasonable ranges.
     /// Returns true if and only of the config did not need to be changed.
     pub fn validate(&mut self) -> bool {
-        unsafe { ffi::validate_aec3_config(&mut self.0 as *mut ffi::EchoCanceller3Config) }
+        unsafe { ffi::validate_aec3_config(&raw mut self.0) }
     }
 }
 
