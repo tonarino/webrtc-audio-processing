@@ -636,18 +636,15 @@ mod tests {
     /// This test is used to verify that a AEC3 configuration will apply and output
     /// different results (in this case, 4dB of ERL).
     #[test]
-    // TODO: Fix the test. The two AEC3 parameters are resulting in the same reduction level.
-    #[should_panic]
     fn test_aec3_configuration_tuning() {
         // Test strong suppression
         let strong_reduction = {
             let config =
                 Config { echo_canceller: Some(EchoCanceller::default()), ..Default::default() };
             let mut aec3_config = EchoCanceller3Config::default();
-            aec3_config.suppressor.dominant_nearend_detection.enr_threshold = 0.75;
-            aec3_config.suppressor.dominant_nearend_detection.snr_threshold = 20.0;
-            aec3_config.suppressor.high_bands_suppression.enr_threshold = 1.2;
-            aec3_config.suppressor.high_bands_suppression.max_gain_during_echo = 0.3;
+            // Aggressive suppression
+            aec3_config.suppressor.normal_tuning.mask_lf.enr_suppress = 5.0;
+            aec3_config.suppressor.normal_tuning.mask_hf.enr_suppress = 5.0;
 
             let mut context = TestContext::new(2, Some(aec3_config));
             let render_frame = context.generate_sine_frame(440.0);
@@ -660,10 +657,9 @@ mod tests {
             let config =
                 Config { echo_canceller: Some(EchoCanceller::default()), ..Default::default() };
             let mut aec3_config = EchoCanceller3Config::default();
-            aec3_config.suppressor.dominant_nearend_detection.enr_threshold = 0.25;
-            aec3_config.suppressor.dominant_nearend_detection.snr_threshold = 30.0;
-            aec3_config.suppressor.high_bands_suppression.enr_threshold = 1.2;
-            aec3_config.suppressor.high_bands_suppression.max_gain_during_echo = 0.8;
+            // Very light suppression
+            aec3_config.suppressor.normal_tuning.mask_lf.enr_suppress = 0.1;
+            aec3_config.suppressor.normal_tuning.mask_hf.enr_suppress = 0.1;
 
             let mut context = TestContext::new(2, Some(aec3_config));
             let render_frame = context.generate_sine_frame(440.0);
