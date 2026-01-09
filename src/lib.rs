@@ -205,9 +205,9 @@ impl AudioProcessing {
     /// at any time during processing.
     pub fn new(
         config: &InitializationConfig,
-        aec3_config: Option<EchoCanceller3Config>,
+        mut aec3_config: Option<EchoCanceller3Config>,
     ) -> Result<Self, Error> {
-        let aec3_config = if let Some(mut aec3_config) = aec3_config {
+        let aec3_config = if let Some(aec3_config) = aec3_config.as_mut() {
             &raw mut aec3_config.0
         } else {
             null_mut()

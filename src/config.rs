@@ -810,6 +810,8 @@ impl Deref for EchoCanceller3Config {
 }
 
 impl DerefMut for EchoCanceller3Config {
+    /// After mutating the internals of the struct, the users are responsible for calling
+    /// [`validate()`] before passing it to [`Processor`], or function calls may fail.
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
