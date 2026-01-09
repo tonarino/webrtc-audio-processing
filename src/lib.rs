@@ -8,7 +8,7 @@
 mod config;
 mod stats;
 
-use std::{error, fmt, ptr::null, sync::Arc};
+use std::{error, fmt, ptr::null_mut, sync::Arc};
 use webrtc_audio_processing_sys as ffi;
 
 pub use config::*;
@@ -205,12 +205,12 @@ impl AudioProcessing {
     /// at any time during processing.
     pub fn new(
         config: &InitializationConfig,
-        aec3_config: Option<EchoCanceller3Config>,
+        mut aec3_config: Option<EchoCanceller3Config>,
     ) -> Result<Self, Error> {
-        let aec3_config = if let Some(aec3_config) = aec3_config {
-            &aec3_config.into() as *const ffi::EchoCanceller3ConfigOverride
+        let aec3_config = if let Some(aec3_config) = aec3_config.as_mut() {
+            &raw mut aec3_config.0
         } else {
-            null()
+            null_mut()
         };
 
         let mut code = 0;
@@ -373,9 +373,9 @@ mod tests {
     }
 
     impl TestContext {
-        fn new(num_channels: usize) -> Self {
+        fn new(num_channels: usize, aec3_config: Option<EchoCanceller3Config>) -> Self {
             let config = init_config(num_channels);
-            let processor = Processor::new(&config).unwrap();
+            let processor = Processor::with_aec3_config(&config, aec3_config).unwrap();
             let num_samples = processor.num_samples_per_frame();
             Self { processor, num_samples, num_channels }
         }
@@ -583,7 +583,7 @@ mod tests {
     /// achieves at least 18dB ERL.
     #[test]
     fn test_echo_cancellation_effectiveness() {
-        let mut context = TestContext::new(1);
+        let mut context = TestContext::new(1, None);
 
         // Configure AEC
         context.processor.set_config(Config {
@@ -608,7 +608,7 @@ mod tests {
     /// These modes should have distinct echo cancellation behaviors by design.
     #[test]
     fn test_aec3_configuration_impact() {
-        let mut context = TestContext::new(2); // Use stereo
+        let mut context = TestContext::new(2, None); // Use stereo
         let render_frame = context.generate_sine_frame(440.0);
 
         // Measure for Full mode
@@ -631,66 +631,41 @@ mod tests {
         );
     }
 
-    /// Verifies that unique AEC configurations produce measurably different results.
+    /// Verifies that unique AEC3 configurations produce measurably different results.
     ///
     /// This test is used to verify that a AEC3 configuration will apply and output
     /// different results (in this case, 4dB of ERL).
     #[test]
     fn test_aec3_configuration_tuning() {
-        // Strong suppression configuration
-        let strong_config = Config {
-            echo_canceller: Some(EchoCanceller::default()),
-            aec3_config: Some(EchoCanceller3Config {
-                suppressor: Suppressor {
-                    dominant_nearend_detection: DominantNearendDetection {
-                        enr_threshold: 0.75,
-                        snr_threshold: 20.0,
-                        ..Default::default()
-                    },
-                    high_bands_suppression: HighBandsSuppression {
-                        enr_threshold: 0.8,
-                        max_gain_during_echo: 0.3,
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                },
-                ..Default::default()
-            }),
-            ..Default::default()
-        };
-
-        // Light suppression configuration
-        let light_config = Config {
-            echo_canceller: Some(EchoCanceller::default()),
-            aec3_config: Some(EchoCanceller3Config {
-                suppressor: Suppressor {
-                    dominant_nearend_detection: DominantNearendDetection {
-                        enr_threshold: 0.25,
-                        snr_threshold: 30.0,
-                        ..Default::default()
-                    },
-                    high_bands_suppression: HighBandsSuppression {
-                        enr_threshold: 1.2,
-                        max_gain_during_echo: 0.8,
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                },
-                ..Default::default()
-            }),
-            ..Default::default()
-        };
-
-        let mut context = TestContext::new(2);
-        let render_frame = context.generate_sine_frame(440.0);
-
         // Test strong suppression
-        context.processor.set_config(strong_config);
-        let strong_reduction = context.measure_steady_state_performance(&render_frame, 50, 10);
+        let strong_reduction = {
+            let config =
+                Config { echo_canceller: Some(EchoCanceller::default()), ..Default::default() };
+            let mut aec3_config = EchoCanceller3Config::default();
+            // Aggressive suppression
+            aec3_config.suppressor.normal_tuning.mask_lf.enr_suppress = 5.0;
+            aec3_config.suppressor.normal_tuning.mask_hf.enr_suppress = 5.0;
+
+            let mut context = TestContext::new(2, Some(aec3_config));
+            let render_frame = context.generate_sine_frame(440.0);
+            context.processor.set_config(config);
+            context.measure_steady_state_performance(&render_frame, 50, 10)
+        };
 
         // Test light suppression
-        context.processor.set_config(light_config);
-        let light_reduction = context.measure_steady_state_performance(&render_frame, 50, 10);
+        let light_reduction = {
+            let config =
+                Config { echo_canceller: Some(EchoCanceller::default()), ..Default::default() };
+            let mut aec3_config = EchoCanceller3Config::default();
+            // Very light suppression
+            aec3_config.suppressor.normal_tuning.mask_lf.enr_suppress = 0.1;
+            aec3_config.suppressor.normal_tuning.mask_hf.enr_suppress = 0.1;
+
+            let mut context = TestContext::new(2, Some(aec3_config));
+            let render_frame = context.generate_sine_frame(440.0);
+            context.processor.set_config(config);
+            context.measure_steady_state_performance(&render_frame, 50, 10)
+        };
 
         // Verify the configurations produce measurably different results
         assert!(
@@ -707,7 +682,7 @@ mod tests {
     /// between different modes (Full vs Mobile).
     #[test]
     fn test_aec3_configuration_behavior() {
-        let mut context = TestContext::new(2);
+        let mut context = TestContext::new(2, None);
         let render_frame = context.generate_sine_frame(440.0);
         let mut capture_frame = render_frame.clone();
 
@@ -745,15 +720,5 @@ mod tests {
             final_stats.echo_return_loss.is_some(),
             "Echo metrics should remain available after config change"
         );
-    }
-
-    #[test]
-    fn test_aec3_config_validation() {
-        let mut aec3_config = EchoCanceller3Config::default();
-        assert!(aec3_config.validate(), "Default config should be valid");
-
-        aec3_config.erle.min = 5.0;
-        aec3_config.erle.max_l = 4.0;
-        assert!(!aec3_config.validate(), "Config with min ERLE > max ERLE should be invalid");
     }
 }

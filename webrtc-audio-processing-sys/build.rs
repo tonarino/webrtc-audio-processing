@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use bindgen::callbacks::{DeriveInfo, ParseCallbacks};
 use std::{
     collections::HashSet,
     env,
@@ -95,6 +96,7 @@ fn prefix_archive_symbols(
     cmd.arg(archive_path);
     cmd.arg(&temp_path);
 
+    eprintln!("Running {cmd:?}");
     let status = cmd.status().context(format!("Failed to execute {:?}", objcopy))?;
 
     if !status.success() {
@@ -291,6 +293,26 @@ mod webrtc {
     }
 }
 
+#[derive(Debug)]
+struct CustomDeriveCallbacks;
+
+impl ParseCallbacks for CustomDeriveCallbacks {
+    fn add_derives(&self, info: &DeriveInfo) -> Vec<String> {
+        // Matches EchoCanceller3Config, EchoCanceller3Config_Suppressor etc
+        if info.name.starts_with("EchoCanceller3Config") && cfg!(feature = "derive_serde") {
+            vec!["serde::Deserialize".into(), "serde::Serialize".into()]
+        // Matches AudioProcessing_Config, AudioProcessing_Config_EchoCanceller etc
+        } else if info.name.starts_with("AudioProcessing_Config") {
+            // Only derive Default for AudioProcessing_Config and its inner structs.
+            // bindgen Default implementation ignores C/C++ struct default values
+            // and thus misleading to enable globally.
+            vec!["Default".into()]
+        } else {
+            vec![]
+        }
+    }
+}
+
 fn main() -> Result<()> {
     webrtc::build_if_necessary()?;
     let (include_dirs, lib_dirs) = webrtc::get_build_paths()?;
@@ -361,8 +383,10 @@ fn main() -> Result<()> {
         // Transitive dependencies are automatically included.
         .allowlist_function("webrtc_audio_processing_wrapper::.*")
         .opaque_type("std::.*")
+        .parse_callbacks(Box::new(CustomDeriveCallbacks))
         .derive_debug(true)
-        .derive_default(true);
+        .derive_default(false)
+        .derive_partialeq(true);
     for dir in &include_dirs {
         builder = builder.clang_arg(format!("-I{}", dir.display()));
     }
