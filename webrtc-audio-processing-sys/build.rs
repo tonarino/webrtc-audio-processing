@@ -191,11 +191,15 @@ mod webrtc {
             src_dir().join("webrtc-audio-processing"),
             src_dir().join("webrtc-audio-processing").join("webrtc"),
         ];
+        // TODO(strohel): instead of hardcoding the paths, we should consult the pkgconfig file that
+        // the bundled webrtc-audio-processing build produces.
         let mut lib_paths = vec![
             // MacOS, Arch Linux, baseline default
             out_dir().join("lib"),
             // Ubuntu Linux (our CI)
-            //out_dir().join("lib").join("x86_64-linux-gnu"),
+            out_dir().join("lib").join("x86_64-linux-gnu"),
+            // Gentoo Linux (x86_64 multilib)
+            out_dir().join("lib64"),
         ];
 
         // Notes: c8896801 added support for 20250814, but the meson.build is still expecting
