@@ -334,13 +334,6 @@ fn main() -> Result<()> {
         println!("cargo:rustc-link-search=native={}", dir.display());
     }
 
-    if cfg!(feature = "bundled") {
-        println!("cargo:rustc-link-lib=static=webrtc-audio-processing-2");
-        println!("cargo:rustc-link-lib=absl_strings");
-    } else {
-        println!("cargo:rustc-link-lib=dylib=webrtc-audio-processing-2");
-    }
-
     if cfg!(target_os = "macos") {
         println!("cargo:rustc-link-lib=framework=CoreFoundation");
     }
@@ -366,6 +359,11 @@ fn main() -> Result<()> {
         cc_build.flag(format!("-mmacos-version-min={}", min_version));
     }
 
+    // This automatically emits "cargo:rustc-link-lib=static=webrtc_audio_processing_wrapper".
+    // The wrapper library should be linked before webrtc-audio-processing-2, otherwise strict
+    // linkers (like when passing -Wl,--as-needed) may discard the c++ library (automatically
+    // added by cc) from the linking list, resulting in build failure.
+    // The linking order should respect the dependency graph, i.e. wrapper -> webrtc-2.
     cc_build
         .cpp(true)
         .file("src/wrapper.cpp")
@@ -381,7 +379,12 @@ fn main() -> Result<()> {
         prefix_archive_symbols(&wrapper_lib, &renamed_symbols, SYMBOL_PREFIX)?;
     }
 
-    println!("cargo:rustc-link-lib=static=webrtc_audio_processing_wrapper");
+    if cfg!(feature = "bundled") {
+        println!("cargo:rustc-link-lib=static=webrtc-audio-processing-2");
+        println!("cargo:rustc-link-lib=absl_strings");
+    } else {
+        println!("cargo:rustc-link-lib=dylib=webrtc-audio-processing-2");
+    }
 
     let binding_file = out_dir().join("bindings.rs");
     let mut builder = bindgen::Builder::default()
