@@ -63,6 +63,7 @@ class EchoCanceller3Factory : public webrtc::EchoControlFactory {
 }  // namespace
 
 struct AudioProcessing {
+  // Needed to guard config and stream_delay_ms
   std::mutex mutex;
   std::unique_ptr<webrtc::AudioProcessing> processor;
   webrtc::AudioProcessing::Config config;
