@@ -98,6 +98,12 @@ fn main() -> Result<(), Error> {
     let args = Args::from_args();
     let config = AppConfig::from_file_or_defaults(&args.config_file)?;
 
+    assert_eq!(config.num_capture_channels, 1, "Capture channels must be 1");
+    assert!(
+        config.num_render_channels == 1 || config.num_render_channels == 2,
+        "Render channels must be 1 or 2"
+    );
+
     let mut processor = create_processor(&config)?;
 
     let pa = portaudio::PortAudio::new()?;
