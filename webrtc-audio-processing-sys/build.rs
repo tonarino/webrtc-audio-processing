@@ -191,8 +191,12 @@ mod webrtc {
             src_dir().join("webrtc-audio-processing"),
             src_dir().join("webrtc-audio-processing").join("webrtc"),
         ];
-        let mut lib_paths =
-            vec![out_dir().join("lib"), out_dir().join("lib").join("x86_64-linux-gnu")];
+        let mut lib_paths = vec![
+            // MacOS, Arch Linux, baseline default
+            out_dir().join("lib"),
+            // Ubuntu Linux (our CI)
+            //out_dir().join("lib").join("x86_64-linux-gnu"),
+        ];
 
         // Notes: c8896801 added support for 20250814, but the meson.build is still expecting
         // >=20240722 and the subproject will fetch 20240722. If the build environment has 20250814
@@ -279,17 +283,18 @@ mod webrtc {
         lib_dirs: &[PathBuf],
         prefix: &str,
     ) -> Result<Vec<String>> {
-        let mut all_symbols = Vec::new();
+        let static_lib_filename = "libwebrtc-audio-processing-2.a";
+
         for lib_dir in lib_dirs {
-            let lib_path = lib_dir.join("libwebrtc-audio-processing-2.a");
+            let lib_path = lib_dir.join(static_lib_filename);
             if lib_path.exists() {
                 let symbols = get_defined_symbols(&lib_path)?;
                 prefix_archive_symbols(&lib_path, &symbols, prefix)?;
-                all_symbols.extend(symbols);
+                return Ok(symbols);
             }
         }
 
-        Ok(all_symbols)
+        bail!("Cannot find {static_lib_filename} in {lib_dirs:?} to prefix its symbols.");
     }
 }
 
