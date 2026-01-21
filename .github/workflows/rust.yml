@@ -15,6 +15,11 @@ jobs:
         os:
           - ubuntu-latest
           - macos-latest
+        features:
+          - bundled
+          - bundled,derive_serde
+          # aec-config implicitly activates bundled (build would fail if it doesn't)
+          - aec3-config,derive_serde
 
     steps:
       - uses: actions/checkout@v2
@@ -40,20 +45,28 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --features bundled --features derive_serde --all-targets -- -D warnings
+          args: --features "${{ matrix.features }}" --all-targets -- -D warnings
       - name: Build
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --verbose --features bundled --features derive_serde
+          args: --verbose --features "${{ matrix.features }}"
       - name: Test
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --verbose --features bundled --features derive_serde
+          args: --verbose --features "${{ matrix.features }}"
 
   test-non-bundled:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        features:
+          - ""
+          - derive_serde
+          # all other flags activate bundled, which is tested elsewhere
+
     steps:
       - uses: actions/checkout@v2
         # No need for submodules here
@@ -79,17 +92,17 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --features derive_serde --all-targets -- -D warnings
+          args: --features "${{ matrix.features }}" --all-targets -- -D warnings
       - name: Build
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --verbose --features derive_serde
+          args: --verbose --features "${{ matrix.features }}"
       - name: Test
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --verbose --features derive_serde
+          args: --verbose --features "${{ matrix.features }}"
 
   fmt:
     runs-on: ubuntu-latest
