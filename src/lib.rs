@@ -581,6 +581,74 @@ mod tests {
         // it shouldn't crash
     }
 
+    #[test]
+    fn test_stream_delay() {
+        let make_config = |delay_ms| Config {
+            echo_canceller: Some(EchoCanceller {
+                mode: EchoCancellerMode::Full,
+                stream_delay_ms: Some(delay_ms),
+            }),
+            ..Default::default()
+        };
+
+        // Verify via stats & warm up
+        let mut context = TestContext::new(1, None);
+        context.processor.set_config(make_config(200));
+
+        let mut frame = vec![0.1f32; context.num_samples];
+        for _ in 0..20 {
+            context.processor.process_render_frame(&mut frame).unwrap();
+            context.processor.process_capture_frame(&mut frame).unwrap();
+        }
+
+        assert!(
+            context.processor.get_stats().delay_ms.is_some(),
+            "Stream delay should be reported in statistics"
+        );
+
+        // Verify matched delay should handle a signal pulse better
+        let measure_pulse_reduction = |applied_delay_ms| {
+            let mut context = TestContext::new(1, None);
+            // Apply either a correct hint (200ms) or an incorrect one (0ms)
+            context.processor.set_config(make_config(applied_delay_ms));
+
+            let num_samples = context.num_samples;
+            // Make a fake path delay of 200ms (20 frames of 10ms)
+            let mut history = vec![vec![0.0; num_samples]; 20];
+            let (mut total_in_p, mut total_out_p) = (0.0, 0.0);
+
+            for i in 0..100 {
+                // Make a pulse for 50ms (5 frames), then silence
+                let mut render =
+                    if i < 5 { context.generate_sine_frame(440.0) } else { vec![0.0; num_samples] };
+
+                // Add the render frame to history and pop the delayed frame as the "echo"
+                history.push(render.clone());
+                // Capture is the staggered echo signal
+                let mut capture: Vec<_> = history.remove(0).iter().map(|x| x * 0.8).collect();
+
+                // Get the energy before and after processing across the entire run
+                total_in_p += capture.iter().map(|x| x * x).sum::<f32>();
+                context.processor.process_render_frame(&mut render).unwrap();
+                context.processor.process_capture_frame(&mut capture).unwrap();
+                total_out_p += capture.iter().map(|x| x * x).sum::<f32>();
+            }
+            // Return the global reduction ratio
+            total_in_p / total_out_p.max(1e-9)
+        };
+
+        // Measure reduction with a 0ms hint
+        let reduction_mismatched = measure_pulse_reduction(0);
+        // Measure reduction with a 200ms hint
+        let reduction_matched = measure_pulse_reduction(200);
+
+        // Correct alignment should result in much better cancellation
+        assert!(
+            reduction_matched * 1000 > reduction_mismatched,
+            "Matched delay should have better echo cancellation"
+        );
+    }
+
     /// Measures baseline echo cancellation performance.
     ///
     /// Uses a pure sine wave to create ideal test conditions. Verifies the AEC
