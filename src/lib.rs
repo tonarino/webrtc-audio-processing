@@ -10,7 +10,7 @@ mod stats;
 
 /// [Highly experimental]
 /// Exposes finer-grained control of the internal AEC3 configuration.
-#[cfg(feature = "aec3-config")]
+#[cfg(feature = "experimental-aec3-config")]
 pub mod experimental;
 
 use std::{error, fmt, ptr::null_mut, sync::Arc};
@@ -65,7 +65,7 @@ impl Processor {
 
     /// [Highly experimental]
     /// Creates a new `Processor` with custom AEC3 configuration.
-    #[cfg(feature = "aec3-config")]
+    #[cfg(feature = "experimental-aec3-config")]
     pub fn with_aec3_config(
         config: &InitializationConfig,
         aec3_config: experimental::EchoCanceller3Config,
@@ -219,7 +219,7 @@ impl AudioProcessing {
 
     /// [Highly experimental]
     /// Creates a new `Processor` with custom AEC3 configuration.
-    #[cfg(feature = "aec3-config")]
+    #[cfg(feature = "experimental-aec3-config")]
     pub fn with_aec3_config(
         config: &InitializationConfig,
         mut aec3_config: experimental::EchoCanceller3Config,
@@ -399,7 +399,7 @@ mod tests {
     }
 
     impl TestContext {
-        #[cfg(feature = "aec3-config")]
+        #[cfg(feature = "experimental-aec3-config")]
         fn new(
             num_channels: usize,
             aec3_config: Option<experimental::EchoCanceller3Config>,
@@ -413,7 +413,7 @@ mod tests {
             Self { processor, num_samples, num_channels }
         }
 
-        #[cfg(not(feature = "aec3-config"))]
+        #[cfg(not(feature = "experimental-aec3-config"))]
         fn new(num_channels: usize, _: Option<()>) -> Self {
             let config = init_config(num_channels);
             let processor = Processor::new(&config).unwrap();
@@ -752,7 +752,7 @@ mod tests {
     /// This test is used to verify that a AEC3 configuration will apply and output
     /// different results (in this case, 4dB of ERL).
     #[test]
-    #[cfg(feature = "aec3-config")]
+    #[cfg(feature = "experimental-aec3-config")]
     fn test_aec3_configuration_tuning() {
         // Test strong suppression
         let strong_reduction = {

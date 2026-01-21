@@ -28,7 +28,7 @@ maintenance = { status = "actively-developed" }
 [features]
 derive_serde = ["webrtc-audio-processing-sys/derive_serde", "serde"]
 bundled = ["webrtc-audio-processing-sys/bundled"]
-aec3-config = ["webrtc-audio-processing-sys/aec3-config"]
+experimental-aec3-config = ["webrtc-audio-processing-sys/experimental-aec3-config"]
 
 [dependencies]
 serde = { version = "1", features = ["derive"], optional = true }
