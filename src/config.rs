@@ -1,9 +1,10 @@
-use std::ops::{Deref, DerefMut};
-
 use webrtc_audio_processing_sys as ffi;
 
 #[cfg(feature = "derive_serde")]
 use serde::{Deserialize, Serialize};
+
+#[cfg(feature = "aec3-config")]
+pub use crate::experimental::EchoCanceller3Config;
 
 /// A configuration for initializing a Processor instance.
 #[derive(Debug, Clone, PartialEq)]
@@ -778,96 +779,5 @@ impl From<Config> for ffi::AudioProcessing_Config {
             gain_controller1,
             gain_controller2,
         }
-    }
-}
-
-/// [Highly experimental]
-/// Exposes a finer-grained control of the internal AEC3 configuration.
-/// It's minimally documented and highly experimental, and we don't yet provide Rust-idiomatic API.
-/// If you want to create a new instance of `EchoCanceller3Config`, and only modify
-/// some of the fields you are interested in, you need to do in the following way:
-///
-/// ```
-/// use webrtc_audio_processing::EchoCanceller3Config;
-/// let mut aec3_config = EchoCanceller3Config::default();
-/// aec3_config.suppressor.dominant_nearend_detection.enr_threshold = 0.25;
-/// aec3_config.suppressor.dominant_nearend_detection.snr_threshold = 30.0;
-/// assert!(aec3_config.validate());
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "derive_serde", serde(default))]
-pub struct EchoCanceller3Config(pub ffi::EchoCanceller3Config);
-
-impl EchoCanceller3Config {
-    /// Checks and updates the config parameters to lie within (mostly) reasonable ranges.
-    /// Returns true if and only of the config did not need to be changed.
-    pub fn validate(&mut self) -> bool {
-        unsafe { ffi::validate_aec3_config(&raw mut self.0) }
-    }
-}
-
-impl Default for EchoCanceller3Config {
-    fn default() -> Self {
-        Self(unsafe { ffi::create_aec3_config() })
-    }
-}
-
-impl Deref for EchoCanceller3Config {
-    type Target = ffi::EchoCanceller3Config;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for EchoCanceller3Config {
-    /// After mutating the internals of the struct, the users are responsible for calling
-    /// [`validate()`] before passing it to [`Processor`], or function calls may fail.
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-// [Highly experimental] Expose all of the inner structs of the EchoCanceller3Config.
-// These do not have Default implementations and other ergonomic Rust APIs.
-pub use ffi::{
-    EchoCanceller3Config_Buffering, EchoCanceller3Config_ComfortNoise, EchoCanceller3Config_Delay,
-    EchoCanceller3Config_Delay_AlignmentMixing,
-    EchoCanceller3Config_Delay_DelaySelectionThresholds, EchoCanceller3Config_EchoAudibility,
-    EchoCanceller3Config_EchoModel, EchoCanceller3Config_EchoRemovalControl,
-    EchoCanceller3Config_EpStrength, EchoCanceller3Config_Erle, EchoCanceller3Config_Filter,
-    EchoCanceller3Config_Filter_CoarseConfiguration,
-    EchoCanceller3Config_Filter_RefinedConfiguration, EchoCanceller3Config_MultiChannel,
-    EchoCanceller3Config_RenderLevels, EchoCanceller3Config_Suppressor,
-    EchoCanceller3Config_Suppressor_DominantNearendDetection,
-    EchoCanceller3Config_Suppressor_HighBandsSuppression,
-    EchoCanceller3Config_Suppressor_MaskingThresholds,
-    EchoCanceller3Config_Suppressor_SubbandNearendDetection,
-    EchoCanceller3Config_Suppressor_SubbandNearendDetection_SubbandRegion,
-    EchoCanceller3Config_Suppressor_Tuning,
-};
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn aec3_config_default() {
-        let default_aec3_config = EchoCanceller3Config::default();
-        // Check if the default values are pulled from the C/C++ code rather than the rust defaults.
-        assert_eq!(8, default_aec3_config.buffering.max_allowed_excess_render_blocks);
-        assert!(default_aec3_config.delay.detect_pre_echo);
-        assert_eq!(1.0, default_aec3_config.erle.min);
-    }
-
-    #[test]
-    fn test_aec3_config_validation() {
-        let mut aec3_config = EchoCanceller3Config::default();
-        assert!(aec3_config.validate(), "Default config should be valid");
-
-        aec3_config.erle.min = 5.0;
-        aec3_config.erle.max_l = 4.0;
-        assert!(!aec3_config.validate(), "Config with min ERLE > max ERLE should be invalid");
     }
 }

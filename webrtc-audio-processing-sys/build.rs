@@ -341,7 +341,11 @@ fn main() -> Result<()> {
 
     let mut cc_build = cc::Build::new();
 
-    // set mac minimum version
+    if cfg!(feature = "aec3-config") {
+        cc_build.define("WEBRTC_AEC3_CONFIG", None);
+    }
+
+    // Set macos minimum version
     if cfg!(target_os = "macos") {
         let min_version = match env::var(DEPLOYMENT_TARGET_VAR) {
             Ok(ver) => ver,
@@ -392,7 +396,13 @@ fn main() -> Result<()> {
         .header("src/wrapper.hpp")
         .clang_args(&["-x", "c++", "-std=c++17", "-fparse-all-comments"])
         .generate_comments(true)
-        .enable_cxx_namespaces()
+        .enable_cxx_namespaces();
+
+    if cfg!(feature = "aec3-config") {
+        builder = builder.clang_arg("-DWEBRTC_AEC3_CONFIG");
+    }
+
+    builder = builder
         // Transitive dependencies are automatically included.
         .allowlist_function("webrtc_audio_processing_wrapper::.*")
         .opaque_type("std::.*")
