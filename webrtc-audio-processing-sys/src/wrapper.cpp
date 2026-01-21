@@ -134,11 +134,7 @@ bool validate_aec3_config(webrtc::EchoCanceller3Config* config) {
   if (config == nullptr) {
     return false;
   }
-#ifdef WEBRTC_AEC3_CONFIG
   return webrtc::EchoCanceller3Config::Validate(config);
-#else
-  return true;
-#endif
 }
 
 void initialize(AudioProcessing* ap) {

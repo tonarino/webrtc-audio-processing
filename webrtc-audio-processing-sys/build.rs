@@ -398,10 +398,6 @@ fn main() -> Result<()> {
         .generate_comments(true)
         .enable_cxx_namespaces();
 
-    if cfg!(feature = "aec3-config") {
-        builder = builder.clang_arg("-DWEBRTC_AEC3_CONFIG");
-    }
-
     builder = builder
         // Transitive dependencies are automatically included.
         .allowlist_function("webrtc_audio_processing_wrapper::.*")
