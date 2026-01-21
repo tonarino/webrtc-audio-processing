@@ -378,6 +378,12 @@ fn main() -> Result<()> {
         .out_dir(out_dir())
         .compile("webrtc_audio_processing_wrapper");
 
+    // The the cc and bindgen commands emit `cargo:rerun-if-env-changed=...`, and these deactivate
+    // the default behavior to rerun if _any_ source file changes. So state these explicitly.
+    // build.rs is always included and doesn't have to be specified.
+    println!("cargo:rerun-if-changed=src/wrapper.hpp");
+    println!("cargo:rerun-if-changed=src/wrapper.cpp");
+
     // Prefix the wrapper library's references to webrtc symbols to match the renamed webrtc library.
     let wrapper_lib = out_dir().join("libwebrtc_audio_processing_wrapper.a");
     if wrapper_lib.exists() {
