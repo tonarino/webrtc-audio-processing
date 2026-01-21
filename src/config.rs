@@ -73,12 +73,12 @@ pub struct Pipeline {
     /// 32000 or 48000 and any differing values will be treated as 48000.
     pub maximum_internal_processing_rate: PipelineProcessingRate,
 
+    /// Allow multi-channel processing of render audio.
+    pub multi_channel_render: bool,
+
     /// Allow multi-channel processing of capture audio when AEC3 is active
     /// or a custom AEC is injected.
     pub multi_channel_capture: bool,
-
-    /// Allow multi-channel processing of render audio.
-    pub multi_channel_render: bool,
 
     /// Indicates how to downmix multi-channel capture audio to mono (when
     /// needed).
@@ -89,8 +89,8 @@ impl From<Pipeline> for ffi::AudioProcessing_Config_Pipeline {
     fn from(pipeline: Pipeline) -> Self {
         Self {
             maximum_internal_processing_rate: pipeline.maximum_internal_processing_rate as i32,
-            multi_channel_capture: pipeline.multi_channel_capture,
             multi_channel_render: pipeline.multi_channel_render,
+            multi_channel_capture: pipeline.multi_channel_capture,
             capture_downmix_method: pipeline.capture_downmix_method.into(),
         }
     }
