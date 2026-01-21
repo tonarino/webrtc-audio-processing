@@ -42,7 +42,7 @@ required-features = ["derive_serde", "portaudio"]
 
 [[example]]
 name = "karaoke"
-required-features = ["derive_serde", "portaudio"]
+required-features = ["derive_serde", "portaudio", "experimental-aec3-config"]
 
 [dev-dependencies]
 anyhow = "1"

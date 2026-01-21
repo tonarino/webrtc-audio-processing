@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 /// some of the fields you are interested in, you need to do in the following way:
 ///
 /// ```
-/// use webrtc_audio_processing::EchoCanceller3Config;
+/// use webrtc_audio_processing::experimental::EchoCanceller3Config;
 /// let mut aec3_config = EchoCanceller3Config::default();
 /// aec3_config.suppressor.dominant_nearend_detection.enr_threshold = 0.25;
 /// aec3_config.suppressor.dominant_nearend_detection.snr_threshold = 30.0;

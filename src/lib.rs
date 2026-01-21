@@ -68,7 +68,7 @@ impl Processor {
     #[cfg(feature = "aec3-config")]
     pub fn with_aec3_config(
         config: &InitializationConfig,
-        aec3_config: EchoCanceller3Config,
+        aec3_config: experimental::EchoCanceller3Config,
     ) -> Result<Self, Error> {
         let inner = Arc::new(AudioProcessing::with_aec3_config(config, aec3_config)?);
         let num_samples = inner.num_samples_per_frame();
@@ -222,7 +222,7 @@ impl AudioProcessing {
     #[cfg(feature = "aec3-config")]
     pub fn with_aec3_config(
         config: &InitializationConfig,
-        mut aec3_config: EchoCanceller3Config,
+        mut aec3_config: experimental::EchoCanceller3Config,
     ) -> Result<Self, Error> {
         Self::new_with_ptr(config, &raw mut aec3_config.0)
     }
@@ -400,7 +400,10 @@ mod tests {
 
     impl TestContext {
         #[cfg(feature = "aec3-config")]
-        fn new(num_channels: usize, aec3_config: Option<EchoCanceller3Config>) -> Self {
+        fn new(
+            num_channels: usize,
+            aec3_config: Option<experimental::EchoCanceller3Config>,
+        ) -> Self {
             let config = init_config(num_channels);
             let processor = match aec3_config {
                 Some(aec3_config) => Processor::with_aec3_config(&config, aec3_config).unwrap(),
@@ -755,7 +758,7 @@ mod tests {
         let strong_reduction = {
             let config =
                 Config { echo_canceller: Some(EchoCanceller::default()), ..Default::default() };
-            let mut aec3_config = EchoCanceller3Config::default();
+            let mut aec3_config = experimental::EchoCanceller3Config::default();
             // Aggressive suppression
             aec3_config.suppressor.normal_tuning.mask_lf.enr_suppress = 5.0;
             aec3_config.suppressor.normal_tuning.mask_hf.enr_suppress = 5.0;
@@ -770,7 +773,7 @@ mod tests {
         let light_reduction = {
             let config =
                 Config { echo_canceller: Some(EchoCanceller::default()), ..Default::default() };
-            let mut aec3_config = EchoCanceller3Config::default();
+            let mut aec3_config = experimental::EchoCanceller3Config::default();
             // Very light suppression
             aec3_config.suppressor.normal_tuning.mask_lf.enr_suppress = 0.1;
             aec3_config.suppressor.normal_tuning.mask_hf.enr_suppress = 0.1;
