@@ -3,9 +3,6 @@ use webrtc_audio_processing_sys as ffi;
 #[cfg(feature = "derive_serde")]
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "aec3-config")]
-pub use crate::experimental::EchoCanceller3Config;
-
 /// A configuration for initializing a Processor instance.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]

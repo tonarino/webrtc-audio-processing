@@ -37,7 +37,7 @@ struct AppConfig {
     #[serde(default)]
     config: Config,
     #[serde(default)]
-    aec3: EchoCanceller3Config,
+    aec3: experimental::EchoCanceller3Config,
 }
 
 impl Default for AppConfig {
@@ -46,7 +46,7 @@ impl Default for AppConfig {
             num_capture_channels: 1,
             num_render_channels: 1,
             config: Config::default(),
-            aec3: EchoCanceller3Config::default(),
+            aec3: experimental::EchoCanceller3Config::default(),
         }
     }
 }
