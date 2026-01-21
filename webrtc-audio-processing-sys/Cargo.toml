@@ -19,7 +19,7 @@ maintenance = { status = "actively-developed" }
 [features]
 derive_serde = ["serde"]
 bundled = []
-aec3-config = ["bundled"]
+experimental-aec3-config = ["bundled"]
 
 [build-dependencies]
 anyhow = "1"

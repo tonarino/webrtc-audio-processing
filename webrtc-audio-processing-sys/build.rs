@@ -341,7 +341,7 @@ fn main() -> Result<()> {
 
     let mut cc_build = cc::Build::new();
 
-    if cfg!(feature = "aec3-config") {
+    if cfg!(feature = "experimental-aec3-config") {
         cc_build.define("WEBRTC_AEC3_CONFIG", None);
     }
 
