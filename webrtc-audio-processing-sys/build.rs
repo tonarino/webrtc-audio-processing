@@ -1,7 +1,6 @@
 use anyhow::{Context, Result};
 use bindgen::callbacks::{DeriveInfo, ParseCallbacks};
 use std::{
-    collections::HashSet,
     env,
     fs::File,
     io::{BufWriter, Write},
@@ -16,37 +15,6 @@ const SYMBOL_PREFIX: &str = "v2_";
 
 fn out_dir() -> PathBuf {
     std::env::var("OUT_DIR").expect("OUT_DIR environment var not set.").into()
-}
-
-fn src_dir() -> PathBuf {
-    std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR environment var not set.").into()
-}
-
-/// Extract defined (non-external) symbols from a static library using nm.
-fn get_defined_symbols(archive_path: &std::path::Path) -> Result<Vec<String>> {
-    let output = Command::new("nm")
-        .arg("--defined-only")
-        .arg("--format=posix")
-        .arg(archive_path)
-        .output()
-        .context("Failed to execute nm")?;
-
-    if !output.status.success() {
-        anyhow::bail!("nm failed: {}", String::from_utf8_lossy(&output.stderr));
-    }
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let mut symbols = HashSet::new();
-
-    for line in stdout.lines() {
-        // POSIX format: "symbol_name type value size"
-        // We just need the first field (symbol name)
-        if let Some(symbol) = line.split_whitespace().next() {
-            symbols.insert(symbol.to_string());
-        }
-    }
-
-    Ok(symbols.into_iter().collect())
 }
 
 /// Prefix specified symbols in a static library using objcopy --redefine-sym.
@@ -180,7 +148,7 @@ mod webrtc {
 mod webrtc {
     use super::*;
     use anyhow::{bail, Context};
-    use std::{path::Path, process::Command};
+    use std::{collections::HashSet, path::Path, process::Command};
 
     const BUNDLED_SOURCE_PATH: &str = "./webrtc-audio-processing";
 
@@ -299,6 +267,39 @@ mod webrtc {
         }
 
         bail!("Cannot find {static_lib_filename} in {lib_dirs:?} to prefix its symbols.");
+    }
+
+    fn src_dir() -> PathBuf {
+        std::env::var("CARGO_MANIFEST_DIR")
+            .expect("CARGO_MANIFEST_DIR environment var not set.")
+            .into()
+    }
+
+    /// Extract defined (non-external) symbols from a static library using nm.
+    fn get_defined_symbols(archive_path: &std::path::Path) -> Result<Vec<String>> {
+        let output = Command::new("nm")
+            .arg("--defined-only")
+            .arg("--format=posix")
+            .arg(archive_path)
+            .output()
+            .context("Failed to execute nm")?;
+
+        if !output.status.success() {
+            anyhow::bail!("nm failed: {}", String::from_utf8_lossy(&output.stderr));
+        }
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let mut symbols = HashSet::new();
+
+        for line in stdout.lines() {
+            // POSIX format: "symbol_name type value size"
+            // We just need the first field (symbol name)
+            if let Some(symbol) = line.split_whitespace().next() {
+                symbols.insert(symbol.to_string());
+            }
+        }
+
+        Ok(symbols.into_iter().collect())
     }
 }
 

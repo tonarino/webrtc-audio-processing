@@ -6,8 +6,8 @@
 // include TaskQueue implementation, which is needed.
 
 #include <optional>
-#include "webrtc/api/audio/echo_canceller3_config.h"
-#include "webrtc/modules/audio_processing/include/audio_processing.h"
+#include "api/audio/echo_canceller3_config.h"
+#include "modules/audio_processing/include/audio_processing.h"
 
 namespace webrtc_audio_processing_wrapper {
 

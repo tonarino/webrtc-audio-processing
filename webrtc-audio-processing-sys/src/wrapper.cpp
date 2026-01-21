@@ -5,7 +5,7 @@
 // when including the internal header file of echo_canceller3.h
 #define WEBRTC_APM_DEBUG_DUMP 0
 #define WEBRTC_POSIX
-#include "webrtc/modules/audio_processing/aec3/echo_canceller3.h"
+#include "modules/audio_processing/aec3/echo_canceller3.h"
 
 #include <algorithm>
 #include <memory>
