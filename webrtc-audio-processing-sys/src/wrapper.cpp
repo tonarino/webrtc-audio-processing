@@ -5,7 +5,9 @@
 // when including the internal header file of echo_canceller3.h
 #define WEBRTC_APM_DEBUG_DUMP 0
 #define WEBRTC_POSIX
+#ifdef WEBRTC_AEC3_CONFIG
 #include "modules/audio_processing/aec3/echo_canceller3.h"
+#endif
 
 #include <algorithm>
 #include <memory>
@@ -36,6 +38,7 @@ OptionalBool from_absl_optional(const std::optional<bool>& optional) {
   return rv;
 }
 
+#ifdef WEBRTC_AEC3_CONFIG
 class EchoCanceller3Factory : public webrtc::EchoControlFactory {
  public:
   explicit EchoCanceller3Factory(const webrtc::EchoCanceller3Config& config)
@@ -59,6 +62,7 @@ class EchoCanceller3Factory : public webrtc::EchoControlFactory {
  private:
   webrtc::EchoCanceller3Config config_;
 };
+#endif
 
 }  // namespace
 
@@ -87,9 +91,16 @@ AudioProcessing* audio_processing_create(
       return nullptr;
     }
 
+#ifdef WEBRTC_AEC3_CONFIG
     auto* factory = new EchoCanceller3Factory(*aec3_config);
     builder.SetEchoControlFactory(
         std::unique_ptr<webrtc::EchoControlFactory>(factory));
+#else
+    // Fallback: advanced AEC3 configuration is not available in
+    // non-experimental builds.
+    *error = webrtc::AudioProcessing::kUnsupportedComponentError;
+    return nullptr;
+#endif
   }
   ap->processor.reset(builder.Create().release());
 
@@ -123,7 +134,11 @@ bool validate_aec3_config(webrtc::EchoCanceller3Config* config) {
   if (config == nullptr) {
     return false;
   }
+#ifdef WEBRTC_AEC3_CONFIG
   return webrtc::EchoCanceller3Config::Validate(config);
+#else
+  return true;
+#endif
 }
 
 void initialize(AudioProcessing* ap) {
