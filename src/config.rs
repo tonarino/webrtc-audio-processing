@@ -140,10 +140,10 @@ impl From<HighPassFilter> for ffi::AudioProcessing_Config_HighPassFilter {
     }
 }
 
-/// AEC (acoustic echo cancellation) configuration.
+/// AEC (acoustic echo cancellation) mode.
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
-pub enum EchoCanceller {
+pub enum EchoCancellerMode {
     /// Uses low-complexity AEC implementation that is optimized for mobile.
     Mobile,
 
@@ -152,16 +152,28 @@ pub enum EchoCanceller {
     Full,
 }
 
+/// AEC (acoustic echo cancellation) configuration.
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "derive_serde", serde(default))]
+pub struct EchoCanceller {
+    /// AEC mode.
+    pub mode: EchoCancellerMode,
+
+    /// Sets the delay in ms between process_render_frame() and process_capture_frame().
+    pub stream_delay_ms: Option<i32>,
+}
+
 impl From<EchoCanceller> for ffi::AudioProcessing_Config_EchoCanceller {
     fn from(other: EchoCanceller) -> Self {
-        match other {
-            EchoCanceller::Mobile => Self {
+        match other.mode {
+            EchoCancellerMode::Mobile => Self {
                 enabled: true,
                 mobile_mode: true,
                 enforce_high_pass_filtering: false,
                 export_linear_aec_output: false,
             },
-            EchoCanceller::Full => Self {
+            EchoCancellerMode::Full => Self {
                 enabled: true,
                 mobile_mode: false,
                 enforce_high_pass_filtering: true,
