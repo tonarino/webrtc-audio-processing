@@ -54,18 +54,23 @@ impl Processor {
     /// instantiation, however new configs can be be passed to `set_config()`
     /// at any time during processing.
     pub fn new(config: &InitializationConfig) -> Result<Self, Error> {
-        Self::with_aec3_config(config, None)
+        let inner = Arc::new(AudioProcessing::new(config)?);
+        let num_samples = inner.num_samples_per_frame();
+        Ok(Self {
+            inner,
+            deinterleaved_capture_frame: vec![vec![0f32; num_samples]; config.num_capture_channels],
+            deinterleaved_render_frame: vec![vec![0f32; num_samples]; config.num_render_channels],
+        })
     }
 
+    /// [Highly experimental]
     /// Creates a new `Processor` with custom AEC3 configuration.
+    #[cfg(feature = "aec3-config")]
     pub fn with_aec3_config(
         config: &InitializationConfig,
-        aec3_config: Option<EchoCanceller3Config>,
+        aec3_config: EchoCanceller3Config,
     ) -> Result<Self, Error> {
-        if config.num_capture_channels == 0 || config.num_render_channels == 0 {
-            return Err(Error { code: -9 }); // kBadNumberChannelsError
-        }
-        let inner = Arc::new(AudioProcessing::new(config, aec3_config)?);
+        let inner = Arc::new(AudioProcessing::with_aec3_config(config, aec3_config)?);
         let num_samples = inner.num_samples_per_frame();
         Ok(Self {
             inner,
@@ -208,15 +213,27 @@ impl AudioProcessing {
     /// Creates a new `Processor`. `InitializationConfig` is only used on
     /// instantiation, however new configs can be be passed to `set_config()`
     /// at any time during processing.
-    pub fn new(
+    pub fn new(config: &InitializationConfig) -> Result<Self, Error> {
+        Self::new_with_ptr(config, null_mut())
+    }
+
+    /// [Highly experimental]
+    /// Creates a new `Processor` with custom AEC3 configuration.
+    #[cfg(feature = "aec3-config")]
+    pub fn with_aec3_config(
         config: &InitializationConfig,
-        mut aec3_config: Option<EchoCanceller3Config>,
+        mut aec3_config: EchoCanceller3Config,
     ) -> Result<Self, Error> {
-        let aec3_config = if let Some(aec3_config) = aec3_config.as_mut() {
-            &raw mut aec3_config.0
-        } else {
-            null_mut()
-        };
+        Self::new_with_ptr(config, &raw mut aec3_config.0)
+    }
+
+    fn new_with_ptr(
+        config: &InitializationConfig,
+        aec3_config: *mut ffi::EchoCanceller3Config,
+    ) -> Result<Self, Error> {
+        if config.num_capture_channels == 0 || config.num_render_channels == 0 {
+            return Err(Error { code: -9 }); // kBadNumberChannelsError
+        }
 
         let mut code = 0;
         let inner = unsafe {
@@ -382,9 +399,21 @@ mod tests {
     }
 
     impl TestContext {
+        #[cfg(feature = "aec3-config")]
         fn new(num_channels: usize, aec3_config: Option<EchoCanceller3Config>) -> Self {
             let config = init_config(num_channels);
-            let processor = Processor::with_aec3_config(&config, aec3_config).unwrap();
+            let processor = match aec3_config {
+                Some(aec3_config) => Processor::with_aec3_config(&config, aec3_config).unwrap(),
+                None => Processor::new(&config).unwrap(),
+            };
+            let num_samples = processor.num_samples_per_frame();
+            Self { processor, num_samples, num_channels }
+        }
+
+        #[cfg(not(feature = "aec3-config"))]
+        fn new(num_channels: usize, _: Option<()>) -> Self {
+            let config = init_config(num_channels);
+            let processor = Processor::new(&config).unwrap();
             let num_samples = processor.num_samples_per_frame();
             Self { processor, num_samples, num_channels }
         }
@@ -720,6 +749,7 @@ mod tests {
     /// This test is used to verify that a AEC3 configuration will apply and output
     /// different results (in this case, 4dB of ERL).
     #[test]
+    #[cfg(feature = "aec3-config")]
     fn test_aec3_configuration_tuning() {
         // Test strong suppression
         let strong_reduction = {
