@@ -6,7 +6,15 @@
 // include TaskQueue implementation, which is needed.
 
 #include <optional>
+#ifdef WEBRTC_AEC3_CONFIG
 #include "api/audio/echo_canceller3_config.h"
+#else
+namespace webrtc {
+struct EchoCanceller3Config {
+  static bool Validate(EchoCanceller3Config* config) { return true; }
+};
+}  // namespace webrtc
+#endif
 #include "modules/audio_processing/include/audio_processing.h"
 
 namespace webrtc_audio_processing_wrapper {

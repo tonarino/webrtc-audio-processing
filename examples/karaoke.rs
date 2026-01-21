@@ -70,7 +70,7 @@ fn create_processor(config: &AppConfig) -> Result<Processor, Error> {
             num_render_channels: config.num_render_channels,
             sample_rate_hz: SAMPLE_RATE as u32,
         },
-        Some(config.aec3.clone()),
+        config.aec3.clone(),
     )?;
 
     processor.set_config(config.config.clone());
