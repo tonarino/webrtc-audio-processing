@@ -8,6 +8,11 @@
 mod config;
 mod stats;
 
+/// [Highly experimental]
+/// Exposes finer-grained control of the internal AEC3 configuration.
+#[cfg(feature = "aec3-config")]
+pub mod experimental;
+
 use std::{error, fmt, ptr::null_mut, sync::Arc};
 use webrtc_audio_processing_sys as ffi;
 
