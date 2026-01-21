@@ -274,8 +274,12 @@ impl AudioProcessing {
     /// May be called multiple times after the initialization and during
     /// processing.
     pub fn set_config(&self, config: Config) {
+        let delay_ms = config.echo_canceller.as_ref().and_then(|ec| ec.stream_delay_ms);
         unsafe {
             ffi::set_config(self.inner, &config.into());
+        }
+        if let Some(delay) = delay_ms {
+            self.set_stream_delay_ms(delay);
         }
     }
 
@@ -612,14 +616,21 @@ mod tests {
         let render_frame = context.generate_sine_frame(440.0);
 
         // Measure for Full mode
-        context
-            .processor
-            .set_config(Config { echo_canceller: Some(EchoCanceller::Full), ..Default::default() });
+        context.processor.set_config(Config {
+            echo_canceller: Some(EchoCanceller {
+                mode: EchoCancellerMode::Full,
+                ..Default::default()
+            }),
+            ..Default::default()
+        });
         let full_reduction = context.measure_steady_state_performance(&render_frame, 50, 10);
 
         // Measure for Mobile mode
         context.processor.set_config(Config {
-            echo_canceller: Some(EchoCanceller::Mobile),
+            echo_canceller: Some(EchoCanceller {
+                mode: EchoCancellerMode::Mobile,
+                ..Default::default()
+            }),
             ..Default::default()
         });
         let mobile_reduction = context.measure_steady_state_performance(&render_frame, 50, 10);
@@ -687,9 +698,13 @@ mod tests {
         let mut capture_frame = render_frame.clone();
 
         // Configure initial Full mode
-        context
-            .processor
-            .set_config(Config { echo_canceller: Some(EchoCanceller::Full), ..Default::default() });
+        context.processor.set_config(Config {
+            echo_canceller: Some(EchoCanceller {
+                mode: EchoCancellerMode::Full,
+                ..Default::default()
+            }),
+            ..Default::default()
+        });
 
         // Verify initial state
         let initial_stats = context.processor.get_stats();
@@ -709,7 +724,10 @@ mod tests {
 
         // Switch to Mobile mode and verify persistence
         context.processor.set_config(Config {
-            echo_canceller: Some(EchoCanceller::Mobile),
+            echo_canceller: Some(EchoCanceller {
+                mode: EchoCancellerMode::Mobile,
+                ..Default::default()
+            }),
             ..Default::default()
         });
 
