@@ -135,8 +135,8 @@ mod webrtc {
     ) -> Result<Vec<String>> {
         // For non-bundled builds, we can't prefix symbols in the system library.
         // Users would need to build with bundled feature for multi-version support.
-        eprintln!(
-            "Warning: Symbol prefixing is only supported with the 'bundled' feature. \
+        println!(
+            "cargo:warning=Symbol prefixing is only supported with the 'bundled' feature. \
             Without it, linking multiple versions of this crate may cause symbol conflicts."
         );
 
