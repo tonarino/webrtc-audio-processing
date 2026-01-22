@@ -5,8 +5,7 @@ use serde::{Deserialize, Serialize};
 
 /// A configuration for initializing a Processor instance.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "derive_serde", serde(default))]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize), serde(default))]
 pub struct InitializationConfig {
     /// Number of input channels for the capture frame.
     pub num_capture_channels: usize,
@@ -29,35 +28,27 @@ impl Default for InitializationConfig {
 /// by changing the default values in this `Config` struct.
 /// The config is applied by passing the struct to the [`set_config`] method.
 #[derive(Debug, Default, Clone, PartialEq)]
-#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "derive_serde", serde(default))]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize), serde(default))]
 pub struct Config {
     /// Sets the properties of the audio processing pipeline.
-    #[cfg_attr(feature = "derive_serde", serde(default))]
     pub pipeline: Pipeline,
 
     /// Enables and configures level adjustment in the capture pipeline.
-    #[cfg_attr(feature = "derive_serde", serde(default))]
     pub capture_level_adjustment: Option<CaptureLevelAdjustment>,
 
     /// Enables and configures high pass filter.
-    #[cfg_attr(feature = "derive_serde", serde(default))]
     pub high_pass_filter: Option<HighPassFilter>,
 
     /// Enables and configures acoustic echo cancellation.
-    #[cfg_attr(feature = "derive_serde", serde(default))]
     pub echo_canceller: Option<EchoCanceller>,
 
     /// Enables and configures background noise suppression.
-    #[cfg_attr(feature = "derive_serde", serde(default))]
     pub noise_suppression: Option<NoiseSuppression>,
 
     /// Enables and configures automatic gain control.
-    #[cfg_attr(feature = "derive_serde", serde(default))]
     pub gain_controller: Option<GainController>,
 
     /// Enables and configures Gain Controller 2.
-    #[cfg_attr(feature = "derive_serde", serde(default))]
     pub gain_controller2: Option<GainController2>,
 }
 
@@ -168,8 +159,7 @@ impl From<DownmixMethod> for ffi::AudioProcessing_Config_Pipeline_DownmixMethod 
 
 /// Sets the properties of the audio processing pipeline.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "derive_serde", serde(default))]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize), serde(default))]
 #[derive(Default)]
 pub struct Pipeline {
     /// Maximum allowed processing rate used internally. May only be set to
@@ -203,8 +193,7 @@ impl From<Pipeline> for ffi::AudioProcessing_Config_Pipeline {
 /// TODO(webrtc:5298): Will be deprecated to use the pre-gain functionality
 /// in capture_level_adjustment instead.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "derive_serde", serde(default))]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize), serde(default))]
 pub struct PreAmplifier {
     /// Fixed linear gain multiplier. The default is 1.0 (no effect).
     pub fixed_gain_factor: f32,
@@ -224,8 +213,7 @@ impl From<PreAmplifier> for ffi::AudioProcessing_Config_PreAmplifier {
 
 /// HPF (high-pass filter) configuration.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "derive_serde", serde(default))]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize), serde(default))]
 pub struct HighPassFilter {
     /// Whether or not HPF should be applied in the full-band (i.e. 20 – 20,000 Hz).
     pub apply_in_full_band: bool,
@@ -257,8 +245,7 @@ pub enum EchoCancellerMode {
 
 /// AEC (acoustic echo cancellation) configuration.
 #[derive(Debug, Clone, PartialEq, Default)]
-#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "derive_serde", serde(default))]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize), serde(default))]
 pub struct EchoCanceller {
     /// AEC mode.
     pub mode: EchoCancellerMode,
@@ -317,8 +304,7 @@ impl From<NoiseSuppressionLevel> for ffi::AudioProcessing_Config_NoiseSuppressio
 
 /// Enables background noise suppression.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "derive_serde", serde(default))]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize), serde(default))]
 pub struct NoiseSuppression {
     /// Determines the aggressiveness of the suppression. Increasing the level will reduce the
     /// noise level at the expense of a higher speech distortion.
@@ -415,8 +401,7 @@ impl From<ClippingPredictorMode>
 
 /// Enables clipping prediction functionality.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "derive_serde", serde(default))]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize), serde(default))]
 pub struct ClippingPredictor {
     /// Enabled.
     pub enabled: bool,
@@ -472,8 +457,7 @@ impl From<ClippingPredictor>
 
 /// Enables the analog gain controller functionality.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "derive_serde", serde(default))]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize), serde(default))]
 pub struct AnalogGainController {
     /// Enabled.
     pub enabled: bool,
@@ -536,8 +520,7 @@ impl From<AnalogGainController>
 /// HAL.
 /// Recommended to be enabled on the client-side.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "derive_serde", serde(default))]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize), serde(default))]
 pub struct GainController {
     /// AGC mode.
     pub mode: GainControllerMode,
@@ -592,8 +575,7 @@ impl From<GainController> for ffi::AudioProcessing_Config_GainController1 {
 /// volume applied when the audio is captured (e.g., microphone volume on
 /// a soundcard, input volume on HAL).
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "derive_serde", serde(default))]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize), serde(default))]
 #[derive(Default)]
 pub struct InputVolumeController {
     /// Enabled.
@@ -612,8 +594,7 @@ impl From<InputVolumeController>
 /// applies a digital gain after echo cancellation and after noise
 /// suppression.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "derive_serde", serde(default))]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize), serde(default))]
 pub struct AdaptiveDigital {
     /// Enabled.
     pub enabled: bool,
@@ -659,8 +640,7 @@ impl From<AdaptiveDigital> for ffi::AudioProcessing_Config_GainController2_Adapt
 /// digital gain after the adaptive digital controller and before the
 /// limiter.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "derive_serde", serde(default))]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize), serde(default))]
 pub struct FixedDigital {
     /// By setting `gain_db` to a value greater than zero, the limiter can be
     /// turned into a compressor that first applies a fixed gain.
@@ -685,8 +665,7 @@ impl From<FixedDigital> for ffi::AudioProcessing_Config_GainController2_FixedDig
 /// three different controllers (namely, input volume controller, adaptive
 /// digital controller and fixed digital controller) and a limiter.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "derive_serde", serde(default))]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize), serde(default))]
 #[derive(Default)]
 pub struct GainController2 {
     /// AGC2 must be created if and only if `enabled` is true.
@@ -718,8 +697,7 @@ impl From<GainController2> for ffi::AudioProcessing_Config_GainController2 {
 
 /// Analog mic gain emulation for capture level adjustment.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "derive_serde", serde(default))]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize), serde(default))]
 pub struct AnalogMicGainEmulation {
     /// Enabled.
     pub enabled: bool,
@@ -745,8 +723,7 @@ impl From<AnalogMicGainEmulation>
 /// Functionality for general level adjustment in the capture pipeline. This
 /// should not be used together with the legacy PreAmplifier functionality.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "derive_serde", serde(default))]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize), serde(default))]
 pub struct CaptureLevelAdjustment {
     /// The `pre_gain_factor` scales the signal before any processing is done.
     pub pre_gain_factor: f32,

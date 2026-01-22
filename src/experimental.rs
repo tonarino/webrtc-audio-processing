@@ -18,8 +18,7 @@ use serde::{Deserialize, Serialize};
 /// assert!(aec3_config.validate());
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "derive_serde", serde(default))]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize), serde(default))]
 pub struct EchoCanceller3Config(pub ffi::EchoCanceller3Config);
 
 impl EchoCanceller3Config {
