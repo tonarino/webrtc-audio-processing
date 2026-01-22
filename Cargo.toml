@@ -26,7 +26,7 @@ travis-ci = { repository = "tonarino/webrtc-audio-processing", branch = "master"
 maintenance = { status = "actively-developed" }
 
 [features]
-derive_serde = ["webrtc-audio-processing-sys/derive_serde", "serde"]
+serde = ["webrtc-audio-processing-sys/serde", "dep:serde"]
 bundled = ["webrtc-audio-processing-sys/bundled"]
 experimental-aec3-config = ["webrtc-audio-processing-sys/experimental-aec3-config"]
 
@@ -38,15 +38,15 @@ portaudio = { version = "0.8", optional = true }
 
 [[example]]
 name = "recording"
-required-features = ["derive_serde", "portaudio"]
+required-features = ["serde", "portaudio"]
 
 [[example]]
 name = "karaoke"
-required-features = ["derive_serde", "portaudio", "experimental-aec3-config"]
+required-features = ["serde", "portaudio", "experimental-aec3-config"]
 
 [[example]]
 name = "aec_config"
-required-features = ["derive_serde"]
+required-features = ["serde"]
 
 [dev-dependencies]
 anyhow = "1"

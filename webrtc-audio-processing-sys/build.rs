@@ -297,7 +297,7 @@ struct CustomDeriveCallbacks;
 impl ParseCallbacks for CustomDeriveCallbacks {
     fn add_derives(&self, info: &DeriveInfo) -> Vec<String> {
         // Matches EchoCanceller3Config, EchoCanceller3Config_Suppressor etc
-        if info.name.starts_with("EchoCanceller3Config") && cfg!(feature = "derive_serde") {
+        if info.name.starts_with("EchoCanceller3Config") && cfg!(feature = "serde") {
             vec!["serde::Deserialize".into(), "serde::Serialize".into()]
         // Matches AudioProcessing_Config, AudioProcessing_Config_EchoCanceller etc
         } else if info.name.starts_with("AudioProcessing_Config") {

@@ -8,7 +8,7 @@
 /// input as a WAV file.
 ///
 /// ```
-/// $ cargo run --example recording --features bundled --features derive_serde -- --config-file \
+/// $ cargo run --example recording --features bundled --features serde -- --config-file \
 ///     examples/recording-configs/record-sample.json5
 /// ```
 ///
@@ -18,7 +18,7 @@
 /// analyze the capture-processed.wav to understand the effect produced by the pipeline.
 ///
 /// ```
-/// $ cargo run --example recording --features bundled --features derive_serde -- --config-file \
+/// $ cargo run --example recording --features bundled --features serde -- --config-file \
 ///     examples/recording-configs/record-pipeline.json5
 /// ```
 use anyhow::{anyhow, Error};

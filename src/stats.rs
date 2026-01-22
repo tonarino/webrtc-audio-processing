@@ -1,11 +1,11 @@
 use webrtc_audio_processing_sys as ffi;
 
-#[cfg(feature = "derive_serde")]
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 /// Statistics about the processor state.
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Stats {
     /// True if voice is detected in the current frame.
     pub voice_detected: Option<bool>,

@@ -17,9 +17,9 @@ jobs:
           - macos-latest
         features:
           - bundled
-          - bundled,derive_serde
+          - bundled,serde
           # experimental-aec3-config implicitly activates bundled (build would fail if it doesn't)
-          - experimental-aec3-config,derive_serde
+          - experimental-aec3-config,serde
 
     steps:
       - uses: actions/checkout@v2
@@ -65,7 +65,7 @@ jobs:
       matrix:
         features:
           - ""
-          - derive_serde
+          - serde
           # all other flags activate bundled, which is tested elsewhere
 
     steps:

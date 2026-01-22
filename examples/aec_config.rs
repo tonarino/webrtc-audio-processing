@@ -79,7 +79,7 @@ mod tests {
         assert_eq!(
             file_contents.trim(), default_json.trim(),
             "The library's default config does not match examples/aec-configs/defaults.json5.\n\
-             Update the file by running: cargo run --example aec_config --features \"derive_serde experimental-aec3-config\" > examples/aec-configs/defaults.json5"
+             Update the file by running: cargo run --example aec_config --features \"serde experimental-aec3-config\" > examples/aec-configs/defaults.json5"
         );
     }
 }
