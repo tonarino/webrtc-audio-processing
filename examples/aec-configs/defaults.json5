@@ -12,8 +12,7 @@
     "high_pass_filter": null,
     "echo_canceller": null,
     "noise_suppression": null,
-    "gain_controller1": null,
-    "gain_controller2": null
+    "gain_controller": null
   },
   "aec3": {
     "buffering": {
