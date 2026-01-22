@@ -97,7 +97,7 @@ impl error::Error for Error {}
 /// cancellation and automatic gain control. It can be cloned, and cloned
 /// instances share the same underlying processor module. It's the recommended
 /// way to run the `Processor` in multi-threaded application.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Processor {
     inner: Arc<AudioProcessing>,
     // TODO: Refactor. It's not necessary to have two frame buffers as
@@ -262,6 +262,7 @@ impl Processor {
 /// This is a low level API that may require wrapping in an Arc to be shared between threads,
 /// depending on the use case. See [`Processor`] for a simple wrapper around this API that enables
 /// sharing the processor between threads.
+#[derive(Debug)]
 pub struct AudioProcessing {
     inner: *mut ffi::AudioProcessing,
 }
