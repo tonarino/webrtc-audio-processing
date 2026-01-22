@@ -164,9 +164,8 @@ impl From<DownmixMethod> for ffi::AudioProcessing_Config_Pipeline_DownmixMethod 
 }
 
 /// Sets the properties of the audio processing pipeline.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize), serde(default))]
-#[derive(Default)]
 pub struct Pipeline {
     /// Maximum allowed processing rate used internally. May only be set to
     /// 32000 or 48000 and any differing values will be treated as 48000.
@@ -580,9 +579,8 @@ impl From<GainController> for ffi::AudioProcessing_Config_GainController1 {
 /// Parameters for the input volume controller, which adjusts the input
 /// volume applied when the audio is captured (e.g., microphone volume on
 /// a soundcard, input volume on HAL).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize), serde(default))]
-#[derive(Default)]
 pub struct InputVolumeController {
     /// Enabled.
     pub enabled: bool,
@@ -670,9 +668,8 @@ impl From<FixedDigital> for ffi::AudioProcessing_Config_GainController2_FixedDig
 /// AGC2 brings the captured audio signal to the desired level by combining
 /// three different controllers (namely, input volume controller, adaptive
 /// digital controller and fixed digital controller) and a limiter.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize), serde(default))]
-#[derive(Default)]
 pub struct GainController2 {
     /// AGC2 must be created if and only if `enabled` is true.
     pub enabled: bool,
