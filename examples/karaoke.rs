@@ -2,10 +2,8 @@
 // creating an experience similar to Karaoke microphones. It uses PortAudio as an interface to the
 // underlying audio devices.
 // Optionally, a config file can be provided to override the default settings
-use anyhow::Error;
-use serde::Deserialize;
+use anyhow::{Error, Result};
 use std::{
-    fs,
     path::PathBuf,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -23,44 +21,14 @@ const SAMPLE_RATE: f64 = 48_000.0;
 // webrtc-audio-processing expects a 10ms chunk for each process call.
 const FRAMES_PER_BUFFER: u32 = 480;
 
+#[allow(dead_code)]
+mod aec_config;
+use aec_config::AppConfig;
+
 #[derive(Debug, StructOpt)]
 struct Args {
-    #[structopt(short, long, default_value = "examples/aec-configs/config.json5")]
-    config_file: PathBuf,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(default)]
-struct AppConfig {
-    num_capture_channels: usize,
-    num_render_channels: usize,
-    #[serde(default)]
-    config: Config,
-    #[serde(default)]
-    aec3: experimental::EchoCanceller3Config,
-}
-
-impl Default for AppConfig {
-    fn default() -> Self {
-        Self {
-            num_capture_channels: 1,
-            num_render_channels: 1,
-            config: Config::default(),
-            aec3: experimental::EchoCanceller3Config::default(),
-        }
-    }
-}
-
-impl AppConfig {
-    fn from_file_or_defaults(path: &PathBuf) -> Result<Self, Error> {
-        // Load custom config if it exists, otherwise use defaults
-        if path.exists() {
-            let content = fs::read_to_string(path)?;
-            Ok(json5::from_str(&content)?)
-        } else {
-            Ok(Self::default())
-        }
-    }
+    #[structopt(short, long)]
+    config_file: Option<PathBuf>,
 }
 
 fn create_processor(config: &AppConfig) -> Result<Processor, Error> {
@@ -96,7 +64,7 @@ fn wait_ctrlc() -> Result<(), Error> {
 
 fn main() -> Result<(), Error> {
     let args = Args::from_args();
-    let config = AppConfig::from_file_or_defaults(&args.config_file)?;
+    let config = AppConfig::load(args.config_file)?;
 
     assert_eq!(config.num_capture_channels, 1, "Capture channels must be 1");
     assert!(

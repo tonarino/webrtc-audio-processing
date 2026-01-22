@@ -1,200 +1,214 @@
 {
-  num_capture_channels: 1,
-  num_render_channels: 1,
-  aec3: {
-    buffering: {
-      excess_render_detection_interval_blocks: 250,
-      max_allowed_excess_render_blocks: 8
+  "num_capture_channels": 1,
+  "num_render_channels": 1,
+  "config": {
+    "pipeline": {
+      "maximum_internal_processing_rate": "Max48000Hz",
+      "multi_channel_render": false,
+      "multi_channel_capture": false,
+      "capture_downmix_method": "Average"
     },
-    delay: {
-      default_delay: 5,
-      down_sampling_factor: 4,
-      num_filters: 5,
-      delay_headroom_samples: 32,
-      hysteresis_limit_blocks: 1,
-      fixed_capture_delay_samples: 0,
-      delay_estimate_smoothing: 0.7,
-      delay_estimate_smoothing_delay_found: 0.7,
-      delay_candidate_detection_threshold: 0.2,
-      delay_selection_thresholds: {
-        initial: 5,
-        converged: 20
+    "capture_level_adjustment": null,
+    "high_pass_filter": null,
+    "echo_canceller": null,
+    "noise_suppression": null,
+    "gain_controller": null,
+    "gain_controller2": null
+  },
+  "aec3": {
+    "buffering": {
+      "excess_render_detection_interval_blocks": 250,
+      "max_allowed_excess_render_blocks": 8
+    },
+    "delay": {
+      "default_delay": 5,
+      "down_sampling_factor": 4,
+      "num_filters": 5,
+      "delay_headroom_samples": 32,
+      "hysteresis_limit_blocks": 1,
+      "fixed_capture_delay_samples": 0,
+      "delay_estimate_smoothing": 0.7,
+      "delay_estimate_smoothing_delay_found": 0.7,
+      "delay_candidate_detection_threshold": 0.2,
+      "delay_selection_thresholds": {
+        "initial": 5,
+        "converged": 20
       },
-      use_external_delay_estimator: false,
-      log_warning_on_delay_changes: false,
-      detect_pre_echo: true,
-      render_alignment_mixing: {
-        downmix: false,
-        adaptive_selection: true,
-        activity_power_threshold: 10000.0,
-        prefer_first_two_channels: true
+      "use_external_delay_estimator": false,
+      "log_warning_on_delay_changes": false,
+      "render_alignment_mixing": {
+        "downmix": false,
+        "adaptive_selection": true,
+        "activity_power_threshold": 10000.0,
+        "prefer_first_two_channels": true
       },
-      capture_alignment_mixing: {
-        downmix: false,
-        adaptive_selection: true,
-        activity_power_threshold: 10000.0,
-        prefer_first_two_channels: false
-      }
-    },
-    filter: {
-      refined: {
-        length_blocks: 13,
-        leakage_converged: 0.00005,
-        leakage_diverged: 0.05,
-        error_floor: 0.001,
-        error_ceil: 2.0,
-        noise_gate: 20075344.0
+      "capture_alignment_mixing": {
+        "downmix": false,
+        "adaptive_selection": true,
+        "activity_power_threshold": 10000.0,
+        "prefer_first_two_channels": false
       },
-      coarse: {
-        length_blocks: 13,
-        rate: 0.7,
-        noise_gate: 20075344.0
+      "detect_pre_echo": true
+    },
+    "filter": {
+      "refined": {
+        "length_blocks": 13,
+        "leakage_converged": 0.00005,
+        "leakage_diverged": 0.05,
+        "error_floor": 0.001,
+        "error_ceil": 2.0,
+        "noise_gate": 20075344.0
       },
-      refined_initial: {
-        length_blocks: 12,
-        leakage_converged: 0.005,
-        leakage_diverged: 0.5,
-        error_floor: 0.001,
-        error_ceil: 2.0,
-        noise_gate: 20075344.0
+      "coarse": {
+        "length_blocks": 13,
+        "rate": 0.7,
+        "noise_gate": 20075344.0
       },
-      coarse_initial: {
-        length_blocks: 12,
-        rate: 0.9,
-        noise_gate: 20075344.0
+      "refined_initial": {
+        "length_blocks": 12,
+        "leakage_converged": 0.005,
+        "leakage_diverged": 0.5,
+        "error_floor": 0.001,
+        "error_ceil": 2.0,
+        "noise_gate": 20075344.0
       },
-      config_change_duration_blocks: 250,
-      initial_state_seconds: 2.5,
-      coarse_reset_hangover_blocks: 25,
-      conservative_initial_phase: false,
-      enable_coarse_filter_output_usage: true,
-      use_linear_filter: true,
-      high_pass_filter_echo_reference: false,
-      export_linear_aec_output: false,
+      "coarse_initial": {
+        "length_blocks": 12,
+        "rate": 0.9,
+        "noise_gate": 20075344.0
+      },
+      "config_change_duration_blocks": 250,
+      "initial_state_seconds": 2.5,
+      "coarse_reset_hangover_blocks": 25,
+      "conservative_initial_phase": false,
+      "enable_coarse_filter_output_usage": true,
+      "use_linear_filter": true,
+      "high_pass_filter_echo_reference": false,
+      "export_linear_aec_output": false
     },
-    erle: {
-      min: 1.0,
-      max_l: 4.0,
-      max_h: 1.5,
-      onset_detection: true,
-      num_sections: 1,
-      clamp_quality_estimate_to_zero: true,
-      clamp_quality_estimate_to_one: true
+    "erle": {
+      "min": 1.0,
+      "max_l": 4.0,
+      "max_h": 1.5,
+      "onset_detection": true,
+      "num_sections": 1,
+      "clamp_quality_estimate_to_zero": true,
+      "clamp_quality_estimate_to_one": true
     },
-    ep_strength: {
-      default_gain: 1.0,
-      default_len: 0.83,
-      nearend_len: 0.83,
-      echo_can_saturate: true,
-      bounded_erl: false,
-      erle_onset_compensation_in_dominant_nearend: false,
-      use_conservative_tail_frequency_response: true
+    "ep_strength": {
+      "default_gain": 1.0,
+      "default_len": 0.83,
+      "nearend_len": 0.83,
+      "echo_can_saturate": true,
+      "bounded_erl": false,
+      "erle_onset_compensation_in_dominant_nearend": false,
+      "use_conservative_tail_frequency_response": true
     },
-    echo_audibility: {
-      low_render_limit: 256.0,
-      normal_render_limit: 64.0,
-      floor_power: 128.0,
-      audibility_threshold_lf: 10.0,
-      audibility_threshold_mf: 10.0,
-      audibility_threshold_hf: 10.0,
-      use_stationarity_properties: false,
-      use_stationarity_properties_at_init: false
+    "echo_audibility": {
+      "low_render_limit": 256.0,
+      "normal_render_limit": 64.0,
+      "floor_power": 128.0,
+      "audibility_threshold_lf": 10.0,
+      "audibility_threshold_mf": 10.0,
+      "audibility_threshold_hf": 10.0,
+      "use_stationarity_properties": false,
+      "use_stationarity_properties_at_init": false
     },
-    render_levels: {
-      active_render_limit: 100.0,
-      poor_excitation_render_limit: 150.0,
-      poor_excitation_render_limit_ds8: 20.0,
-      render_power_gain_db: 0.0
+    "render_levels": {
+      "active_render_limit": 100.0,
+      "poor_excitation_render_limit": 150.0,
+      "poor_excitation_render_limit_ds8": 20.0,
+      "render_power_gain_db": 0.0
     },
-    echo_removal_control: {
-      has_clock_drift: false,
-      linear_and_stable_echo_path: false
+    "echo_removal_control": {
+      "has_clock_drift": false,
+      "linear_and_stable_echo_path": false
     },
-    echo_model: {
-      noise_floor_hold: 50,
-      min_noise_floor_power: 1638400.0,
-      stationary_gate_slope: 10.0,
-      noise_gate_power: 27509.42,
-      noise_gate_slope: 0.3,
-      render_pre_window_size: 1,
-      render_post_window_size: 1,
-      model_reverb_in_nonlinear_mode: true
+    "echo_model": {
+      "noise_floor_hold": 50,
+      "min_noise_floor_power": 1638400.0,
+      "stationary_gate_slope": 10.0,
+      "noise_gate_power": 27509.42,
+      "noise_gate_slope": 0.3,
+      "render_pre_window_size": 1,
+      "render_post_window_size": 1,
+      "model_reverb_in_nonlinear_mode": true
     },
-    comfort_noise: {
-      noise_floor_dbfs: -96.03406
+    "comfort_noise": {
+      "noise_floor_dbfs": -96.03406
     },
-    suppressor: {
-      nearend_average_blocks: 4,
-      normal_tuning: {
-        mask_lf: {
-          enr_transparent: 0.3,
-          enr_suppress: 0.4,
-          emr_transparent: 0.3
+    "suppressor": {
+      "nearend_average_blocks": 4,
+      "normal_tuning": {
+        "mask_lf": {
+          "enr_transparent": 0.3,
+          "enr_suppress": 0.4,
+          "emr_transparent": 0.3
         },
-        mask_hf: {
-          enr_transparent: 0.07,
-          enr_suppress: 0.1,
-          emr_transparent: 0.3
+        "mask_hf": {
+          "enr_transparent": 0.07,
+          "enr_suppress": 0.1,
+          "emr_transparent": 0.3
         },
-        max_inc_factor: 2.0,
-        max_dec_factor_lf: 0.25
+        "max_inc_factor": 2.0,
+        "max_dec_factor_lf": 0.25
       },
-      nearend_tuning: {
-        mask_lf: {
-          enr_transparent: 1.09,
-          enr_suppress: 1.1,
-          emr_transparent: 0.3
+      "nearend_tuning": {
+        "mask_lf": {
+          "enr_transparent": 1.09,
+          "enr_suppress": 1.1,
+          "emr_transparent": 0.3
         },
-        mask_hf: {
-          enr_transparent: 0.1,
-          enr_suppress: 0.3,
-          emr_transparent: 0.3
+        "mask_hf": {
+          "enr_transparent": 0.1,
+          "enr_suppress": 0.3,
+          "emr_transparent": 0.3
         },
-        max_inc_factor: 2.0,
-        max_dec_factor_lf: 0.25
+        "max_inc_factor": 2.0,
+        "max_dec_factor_lf": 0.25
       },
-      lf_smoothing_during_initial_phase: true,
-      last_permanent_lf_smoothing_band: 0,
-      last_lf_smoothing_band: 5,
-      last_lf_band: 5,
-      first_hf_band: 8,
-      dominant_nearend_detection: {
-        enr_threshold: 0.25,
-        enr_exit_threshold: 10.0,
-        snr_threshold: 30.0,
-        hold_duration: 50,
-        trigger_threshold: 12,
-        use_during_initial_phase: true,
-        use_unbounded_echo_spectrum: true
+      "lf_smoothing_during_initial_phase": true,
+      "last_permanent_lf_smoothing_band": 0,
+      "last_lf_smoothing_band": 5,
+      "last_lf_band": 5,
+      "first_hf_band": 8,
+      "dominant_nearend_detection": {
+        "enr_threshold": 0.25,
+        "enr_exit_threshold": 10.0,
+        "snr_threshold": 30.0,
+        "hold_duration": 50,
+        "trigger_threshold": 12,
+        "use_during_initial_phase": true,
+        "use_unbounded_echo_spectrum": true
       },
-      subband_nearend_detection: {
-        nearend_average_blocks: 1,
-        subband1: {
-          low: 1,
-          high: 1
+      "subband_nearend_detection": {
+        "nearend_average_blocks": 1,
+        "subband1": {
+          "low": 1,
+          "high": 1
         },
-        subband2: {
-          low: 1,
-          high: 1
+        "subband2": {
+          "low": 1,
+          "high": 1
         },
-        nearend_threshold: 1.0,
-        snr_threshold: 1.0
+        "nearend_threshold": 1.0,
+        "snr_threshold": 1.0
       },
-      use_subband_nearend_detection: false,
-      high_bands_suppression: {
-        enr_threshold: 1.0,
-        max_gain_during_echo: 1.0,
-        anti_howling_activation_threshold: 400.0,
-        anti_howling_gain: 1.0
+      "use_subband_nearend_detection": false,
+      "high_bands_suppression": {
+        "enr_threshold": 1.0,
+        "max_gain_during_echo": 1.0,
+        "anti_howling_activation_threshold": 400.0,
+        "anti_howling_gain": 1.0
       },
-      floor_first_increase: 0.00001,
-      conservative_hf_suppression: false,
+      "floor_first_increase": 0.00001,
+      "conservative_hf_suppression": false
     },
-    multi_channel: {
-      detect_stereo_content: true,
-      stereo_detection_threshold: 0.0,
-      stereo_detection_timeout_threshold_seconds: 300,
-      stereo_detection_hysteresis_seconds: 2.0
+    "multi_channel": {
+      "detect_stereo_content": true,
+      "stereo_detection_threshold": 0.0,
+      "stereo_detection_timeout_threshold_seconds": 300,
+      "stereo_detection_hysteresis_seconds": 2.0
     }
   }
 }
