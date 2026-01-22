@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(default))]
-pub struct EchoCanceller3Config(pub ffi::EchoCanceller3Config);
+pub struct EchoCanceller3Config(ffi::EchoCanceller3Config);
 
 impl EchoCanceller3Config {
     /// Checks and updates the config parameters to lie within (mostly) reasonable ranges.

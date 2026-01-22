@@ -1,5 +1,5 @@
 use anyhow::{bail, Context, Result};
-use bindgen::callbacks::{DeriveInfo, ParseCallbacks};
+use bindgen::callbacks::{AttributeInfo, DeriveInfo, ParseCallbacks};
 use std::{
     env,
     fs::File,
@@ -307,6 +307,16 @@ impl ParseCallbacks for CustomDeriveCallbacks {
             // bindgen Default implementation ignores C/C++ struct default values
             // and thus misleading to enable globally.
             vec!["Default".into()]
+        } else {
+            vec![]
+        }
+    }
+
+    fn add_attributes(&self, info: &AttributeInfo<'_>) -> Vec<String> {
+        if info.name.starts_with("EchoCanceller3Config") {
+            // Prohibit construction of ffi EchoCanceller3Config and its children structs.
+            // The only allowed API is through the wrapper struct in the webrtc_audio_processing crate.
+            vec!["#[non_exhaustive]".into()]
         } else {
             vec![]
         }

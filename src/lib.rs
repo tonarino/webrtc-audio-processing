@@ -282,7 +282,7 @@ impl AudioProcessing {
         config: &InitializationConfig,
         mut aec3_config: experimental::EchoCanceller3Config,
     ) -> Result<Self, Error> {
-        Self::new_with_ptr(config, &raw mut aec3_config.0)
+        Self::new_with_ptr(config, &raw mut *aec3_config)
     }
 
     fn new_with_ptr(
