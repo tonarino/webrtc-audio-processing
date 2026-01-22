@@ -45,11 +45,8 @@ pub struct Config {
     /// Enables and configures background noise suppression.
     pub noise_suppression: Option<NoiseSuppression>,
 
-    /// Enables and configures automatic gain control.
-    pub gain_controller1: Option<GainController1>,
-
-    /// Enables and configures Gain Controller 2.
-    pub gain_controller2: Option<GainController2>,
+    /// Enables and configures automatic gain control (v1 or v2).
+    pub gain_controller: Option<GainController>,
 }
 
 impl From<Config> for ffi::AudioProcessing_Config {
@@ -106,13 +103,19 @@ impl From<Config> for ffi::AudioProcessing_Config {
         let transient_suppression =
             ffi::AudioProcessing_Config_TransientSuppression { enabled: false };
 
-        let gain_controller1 = if let Some(config) = other.gain_controller1 {
+        let (gain_controller1, gain_controller2) = match other.gain_controller {
+            Some(GainController::GainController1(v1)) => (Some(v1), None),
+            Some(GainController::GainController2(v2)) => (None, Some(v2)),
+            None => (None, None),
+        };
+
+        let gain_controller1 = if let Some(config) = gain_controller1 {
             config.into()
         } else {
             ffi::AudioProcessing_Config_GainController1 { enabled: false, ..Default::default() }
         };
 
-        let gain_controller2 = if let Some(config) = other.gain_controller2 {
+        let gain_controller2 = if let Some(config) = gain_controller2 {
             config.into()
         } else {
             ffi::AudioProcessing_Config_GainController2 { enabled: false, ..Default::default() }
@@ -410,6 +413,16 @@ impl From<NoiseSuppressionLevel> for ffi::AudioProcessing_Config_NoiseSuppressio
             },
         }
     }
+}
+
+/// A choice of the gain controller implementation.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+pub enum GainController {
+    /// Legacy gain controller 1.
+    GainController1(GainController1),
+    /// New gain controller 2.
+    GainController2(GainController2),
 }
 
 /// Enables automatic gain control (AGC) functionality.
