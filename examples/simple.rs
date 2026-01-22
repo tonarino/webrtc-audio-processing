@@ -1,4 +1,5 @@
 use webrtc_audio_processing::*;
+use webrtc_audio_processing_config::{Config, EchoCanceller};
 
 fn main() {
     let config = InitializationConfig {

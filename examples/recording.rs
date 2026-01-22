@@ -37,7 +37,8 @@ use std::{
     time::Duration,
 };
 use structopt::StructOpt;
-use webrtc_audio_processing::*;
+use webrtc_audio_processing::{InitializationConfig, Processor};
+use webrtc_audio_processing_config::Config;
 
 const AUDIO_SAMPLE_RATE: u32 = 48_000;
 const AUDIO_INTERLEAVED: bool = true;

@@ -1,0 +1,20 @@
+[package]
+name = "webrtc-audio-processing-config"
+description = "Config structs for Rust wrapper for WebRTC's AudioProcessing module."
+documentation = "https://docs.rs/webrtc-audio-processing-config"
+version = "2.0.1"
+authors = ["Ryo Kawaguchi <ryo@kawagu.ch>"]
+repository = "https://github.com/tonarino/webrtc-audio-processing"
+edition = "2018"
+keywords = ["ffi"]
+categories = ["multimedia::audio"]
+license-file = "COPYING"
+
+[badges]
+maintenance = { status = "actively-developed" }
+
+[features]
+serde = ["dep:serde"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"], optional = true }
