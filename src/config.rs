@@ -25,6 +25,111 @@ impl Default for InitializationConfig {
     }
 }
 
+/// The parameters and behavior of the audio processing module are controlled
+/// by changing the default values in this `Config` struct.
+/// The config is applied by passing the struct to the [`set_config`] method.
+#[derive(Debug, Default, Clone, PartialEq)]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "derive_serde", serde(default))]
+pub struct Config {
+    /// Sets the properties of the audio processing pipeline.
+    #[cfg_attr(feature = "derive_serde", serde(default))]
+    pub pipeline: Pipeline,
+
+    /// Enables and configures level adjustment in the capture pipeline.
+    #[cfg_attr(feature = "derive_serde", serde(default))]
+    pub capture_level_adjustment: Option<CaptureLevelAdjustment>,
+
+    /// Enables and configures high pass filter.
+    #[cfg_attr(feature = "derive_serde", serde(default))]
+    pub high_pass_filter: Option<HighPassFilter>,
+
+    /// Enables and configures acoustic echo cancellation.
+    #[cfg_attr(feature = "derive_serde", serde(default))]
+    pub echo_canceller: Option<EchoCanceller>,
+
+    /// Enables and configures background noise suppression.
+    #[cfg_attr(feature = "derive_serde", serde(default))]
+    pub noise_suppression: Option<NoiseSuppression>,
+
+    /// Enables and configures automatic gain control.
+    #[cfg_attr(feature = "derive_serde", serde(default))]
+    pub gain_controller: Option<GainController>,
+
+    /// Enables and configures Gain Controller 2.
+    #[cfg_attr(feature = "derive_serde", serde(default))]
+    pub gain_controller2: Option<GainController2>,
+}
+
+impl From<Config> for ffi::AudioProcessing_Config {
+    fn from(other: Config) -> Self {
+        // PreAmplifier is being deprecated.
+        let pre_amplifier =
+            ffi::AudioProcessing_Config_PreAmplifier { enabled: false, ..Default::default() };
+
+        let capture_level_adjustment = if let Some(config) = other.capture_level_adjustment {
+            config.into()
+        } else {
+            ffi::AudioProcessing_Config_CaptureLevelAdjustment {
+                enabled: false,
+                ..Default::default()
+            }
+        };
+
+        let high_pass_filter = if let Some(config) = other.high_pass_filter {
+            config.into()
+        } else {
+            ffi::AudioProcessing_Config_HighPassFilter { enabled: false, ..Default::default() }
+        };
+
+        let echo_canceller = if let Some(config) = other.echo_canceller {
+            let mut echo_canceller = ffi::AudioProcessing_Config_EchoCanceller::from(config);
+            echo_canceller.export_linear_aec_output = if let Some(ns) = &other.noise_suppression {
+                ns.analyze_linear_aec_output
+            } else {
+                false
+            };
+            echo_canceller
+        } else {
+            ffi::AudioProcessing_Config_EchoCanceller { enabled: false, ..Default::default() }
+        };
+
+        let noise_suppression = if let Some(config) = other.noise_suppression {
+            config.into()
+        } else {
+            ffi::AudioProcessing_Config_NoiseSuppression { enabled: false, ..Default::default() }
+        };
+
+        // Transient suppressor is being deprecated.
+        let transient_suppression =
+            ffi::AudioProcessing_Config_TransientSuppression { enabled: false };
+
+        let gain_controller1 = if let Some(config) = other.gain_controller {
+            config.into()
+        } else {
+            ffi::AudioProcessing_Config_GainController1 { enabled: false, ..Default::default() }
+        };
+
+        let gain_controller2 = if let Some(config) = other.gain_controller2 {
+            config.into()
+        } else {
+            ffi::AudioProcessing_Config_GainController2 { enabled: false, ..Default::default() }
+        };
+
+        Self {
+            pipeline: other.pipeline.into(),
+            pre_amplifier,
+            capture_level_adjustment,
+            high_pass_filter,
+            echo_canceller,
+            noise_suppression,
+            transient_suppression,
+            gain_controller1,
+            gain_controller2,
+        }
+    }
+}
+
 /// Internal processing rate.
 #[derive(Debug, Copy, Clone, Default, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
@@ -670,111 +775,6 @@ impl From<CaptureLevelAdjustment> for ffi::AudioProcessing_Config_CaptureLevelAd
             pre_gain_factor: other.pre_gain_factor,
             post_gain_factor: other.post_gain_factor,
             analog_mic_gain_emulation: other.analog_mic_gain_emulation.into(),
-        }
-    }
-}
-
-/// The parameters and behavior of the audio processing module are controlled
-/// by changing the default values in this `Config` struct.
-/// The config is applied by passing the struct to the [`set_config`] method.
-#[derive(Debug, Default, Clone, PartialEq)]
-#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "derive_serde", serde(default))]
-pub struct Config {
-    /// Sets the properties of the audio processing pipeline.
-    #[cfg_attr(feature = "derive_serde", serde(default))]
-    pub pipeline: Pipeline,
-
-    /// Enables and configures level adjustment in the capture pipeline.
-    #[cfg_attr(feature = "derive_serde", serde(default))]
-    pub capture_level_adjustment: Option<CaptureLevelAdjustment>,
-
-    /// Enables and configures high pass filter.
-    #[cfg_attr(feature = "derive_serde", serde(default))]
-    pub high_pass_filter: Option<HighPassFilter>,
-
-    /// Enables and configures acoustic echo cancellation.
-    #[cfg_attr(feature = "derive_serde", serde(default))]
-    pub echo_canceller: Option<EchoCanceller>,
-
-    /// Enables and configures background noise suppression.
-    #[cfg_attr(feature = "derive_serde", serde(default))]
-    pub noise_suppression: Option<NoiseSuppression>,
-
-    /// Enables and configures automatic gain control.
-    #[cfg_attr(feature = "derive_serde", serde(default))]
-    pub gain_controller: Option<GainController>,
-
-    /// Enables and configures Gain Controller 2.
-    #[cfg_attr(feature = "derive_serde", serde(default))]
-    pub gain_controller2: Option<GainController2>,
-}
-
-impl From<Config> for ffi::AudioProcessing_Config {
-    fn from(other: Config) -> Self {
-        // PreAmplifier is being deprecated.
-        let pre_amplifier =
-            ffi::AudioProcessing_Config_PreAmplifier { enabled: false, ..Default::default() };
-
-        let capture_level_adjustment = if let Some(config) = other.capture_level_adjustment {
-            config.into()
-        } else {
-            ffi::AudioProcessing_Config_CaptureLevelAdjustment {
-                enabled: false,
-                ..Default::default()
-            }
-        };
-
-        let high_pass_filter = if let Some(config) = other.high_pass_filter {
-            config.into()
-        } else {
-            ffi::AudioProcessing_Config_HighPassFilter { enabled: false, ..Default::default() }
-        };
-
-        let echo_canceller = if let Some(config) = other.echo_canceller {
-            let mut echo_canceller = ffi::AudioProcessing_Config_EchoCanceller::from(config);
-            echo_canceller.export_linear_aec_output = if let Some(ns) = &other.noise_suppression {
-                ns.analyze_linear_aec_output
-            } else {
-                false
-            };
-            echo_canceller
-        } else {
-            ffi::AudioProcessing_Config_EchoCanceller { enabled: false, ..Default::default() }
-        };
-
-        let noise_suppression = if let Some(config) = other.noise_suppression {
-            config.into()
-        } else {
-            ffi::AudioProcessing_Config_NoiseSuppression { enabled: false, ..Default::default() }
-        };
-
-        // Transient suppressor is being deprecated.
-        let transient_suppression =
-            ffi::AudioProcessing_Config_TransientSuppression { enabled: false };
-
-        let gain_controller1 = if let Some(config) = other.gain_controller {
-            config.into()
-        } else {
-            ffi::AudioProcessing_Config_GainController1 { enabled: false, ..Default::default() }
-        };
-
-        let gain_controller2 = if let Some(config) = other.gain_controller2 {
-            config.into()
-        } else {
-            ffi::AudioProcessing_Config_GainController2 { enabled: false, ..Default::default() }
-        };
-
-        Self {
-            pipeline: other.pipeline.into(),
-            pre_amplifier,
-            capture_level_adjustment,
-            high_pass_filter,
-            echo_canceller,
-            noise_suppression,
-            transient_suppression,
-            gain_controller1,
-            gain_controller2,
         }
     }
 }
