@@ -539,7 +539,9 @@ pub struct GainController {
     /// Sets the maximum gain the digital compression stage may apply, in dB. A
     /// higher number corresponds to greater compression, while a value of 0
     /// will leave the signal uncompressed. Limited to [0, 90].
-    /// For updates after APM setup, use a RuntimeSetting instead.
+    ///
+    /// For updates after APM setup, the C++ upstream suggests using RuntimeSetting
+    /// instead (which is not yet exposed in the Rust wrapper).
     pub compression_gain_db: u8,
 
     /// When enabled, the compression stage will hard limit the signal to the
