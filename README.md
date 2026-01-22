@@ -16,8 +16,17 @@ See `examples/simple.rs` for an example of how to use this crate.
 
 ### Feature Flags
 
-* `bundled` - Build `webrtc-audio-procesing` from the included C++ code
+* `bundled` - Build `webrtc-audio-procesing` from the included C++ code;
+  also enables symbol mangling in the built WebRTC library so that multiple major versions of
+  `webrtc-audio-processing` can be linked together
 * `derive_serde` - Derive `serialize` and `deserialize` traits for Serde use
+* `experimental-aec3-config` - allow access to detailed `EchoCanceller3` config from the C++ code;
+  experimental, not subject to semver guarantees; activates the `bundled` flag (needs private WebRTC
+  headers)
+
+#### Development Feature Flags
+
+* `portaudio` - To build `recording` and `karaoke` examples. Does not affect the library build.
 
 ### Dynamic linking
 
