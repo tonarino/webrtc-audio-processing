@@ -20,17 +20,74 @@ pub use config::*;
 pub use stats::*;
 
 /// Represents an error inside webrtc::AudioProcessing.
-/// See the documentation of [`webrtc::AudioProcessing::Error`](https://cgit.freedesktop.org/pulseaudio/webrtc-audio-processing/tree/webrtc/modules/audio_processing/include/audio_processing.h?id=9def8cf10d3c97640d32f1328535e881288f700f)
-/// for further details.
-#[derive(Debug)]
-pub struct Error {
-    /// webrtc::AudioProcessing::Error
-    code: i32,
+/// Drawn from documentation of pulseaudio upstream `webrtc::AudioProcessing::Error`:
+/// https://cgit.freedesktop.org/pulseaudio/webrtc-audio-processing/tree/webrtc/modules/audio_processing/include/audio_processing.h?id=9def8cf10d3c97640d32f1328535e881288f700f
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Error {
+    /// An unspecified error from the underlying WebRTC library. `kUnspecifiedError`
+    Unspecified,
+    /// The initialization of the audio processor failed. `kCreationFailedError`
+    InitializationFailed,
+    /// An unsupported component was used. `kUnsupportedComponentError`
+    UnsupportedComponent,
+    /// An unsupported function was called. `kUnsupportedFunctionError`
+    UnsupportedFunction,
+    /// A null pointer was passed to the underlying WebRTC library. `kNullPointerError`
+    NullPointer,
+    /// An invalid parameter was passed. `kBadParameterError`
+    BadParameter,
+    /// An invalid sample rate was used. `kBadSampleRateError`
+    BadSampleRate,
+    /// An invalid frame length was used. `kBadDataLengthError`
+    BadDataLength,
+    /// An invalid number of channels was used. `kBadNumberChannelsError`
+    BadNumberChannels,
+    /// A file access error occurred. `kFileError`
+    File,
+    /// A stream parameter was not set. `kStreamParameterNotSetError`
+    StreamParameterNotSet,
+    /// A feature was used without being enabled. `kNotEnabledError`
+    NotEnabled,
+}
+
+impl From<i32> for Error {
+    fn from(code: i32) -> Self {
+        match code {
+            0 => panic!("Error should not be created from a success code"),
+            -1 => Self::Unspecified,
+            -2 => Self::InitializationFailed,
+            -3 => Self::UnsupportedComponent,
+            -4 => Self::UnsupportedFunction,
+            -5 => Self::NullPointer,
+            -6 => Self::BadParameter,
+            -7 => Self::BadSampleRate,
+            -8 => Self::BadDataLength,
+            -9 => Self::BadNumberChannels,
+            -10 => Self::File,
+            -11 => Self::StreamParameterNotSet,
+            -12 => Self::NotEnabled,
+            _ => Self::Unspecified,
+        }
+    }
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "ffi::AudioProcessing::Error code: {}", self.code)
+        let description = match self {
+            Self::Unspecified => "Unspecified error",
+            Self::InitializationFailed => "Initialization failed",
+            Self::UnsupportedComponent => "Unsupported component",
+            Self::UnsupportedFunction => "Unsupported function",
+            Self::NullPointer => "Null pointer",
+            Self::BadParameter => "Bad parameter",
+            Self::BadSampleRate => "Bad sample rate",
+            Self::BadDataLength => "Invalid data length",
+            Self::BadNumberChannels => "Invalid number of channels",
+            Self::File => "File error",
+            Self::StreamParameterNotSet => "Stream parameter not set",
+            Self::NotEnabled => "Feature not enabled",
+        };
+        write!(f, "WebRTC AudioProcessing error: {}", description)
     }
 }
 
@@ -232,7 +289,7 @@ impl AudioProcessing {
         aec3_config: *mut ffi::EchoCanceller3Config,
     ) -> Result<Self, Error> {
         if config.num_capture_channels == 0 || config.num_render_channels == 0 {
-            return Err(Error { code: -9 }); // kBadNumberChannelsError
+            return Err(Error::BadNumberChannels);
         }
 
         let mut code = 0;
@@ -245,8 +302,8 @@ impl AudioProcessing {
                 &mut code,
             )
         };
-        if inner.is_null() || code != 0 {
-            Err(Error { code })
+        if inner.is_null() || unsafe { !ffi::is_success(code) } {
+            Err(Error::from(code))
         } else {
             Ok(Self { inner })
         }
@@ -263,7 +320,7 @@ impl AudioProcessing {
             if ffi::is_success(code) {
                 Ok(())
             } else {
-                Err(Error { code })
+                Err(Error::from(code))
             }
         }
     }
@@ -278,7 +335,7 @@ impl AudioProcessing {
             if ffi::is_success(code) {
                 Ok(())
             } else {
-                Err(Error { code })
+                Err(Error::from(code))
             }
         }
     }
@@ -485,8 +542,9 @@ mod tests {
     /// Tests initialization failure with invalid configuration
     #[test]
     fn test_create_failure() {
-        let config = init_config(0);
-        assert!(Processor::new(&config).is_err());
+        let config = InitializationConfig { num_capture_channels: 0, ..init_config(1) };
+        let err = Processor::new(&config).unwrap_err();
+        assert_eq!(err, Error::BadNumberChannels);
     }
 
     /// Tests proper resource cleanup on drop
