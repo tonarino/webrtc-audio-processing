@@ -17,7 +17,7 @@ travis-ci = { repository = "tonarino/webrtc-audio-processing", branch = "master"
 maintenance = { status = "actively-developed" }
 
 [features]
-derive_serde = ["serde"]
+serde = ["dep:serde"]
 bundled = []
 experimental-aec3-config = ["bundled"]
 

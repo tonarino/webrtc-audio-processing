@@ -1,7 +1,7 @@
 use std::ops::{Deref, DerefMut};
 use webrtc_audio_processing_sys as ffi;
 
-#[cfg(feature = "derive_serde")]
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 /// [Highly experimental]
@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 /// assert!(aec3_config.validate());
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize), serde(default))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(default))]
 pub struct EchoCanceller3Config(pub ffi::EchoCanceller3Config);
 
 impl EchoCanceller3Config {
