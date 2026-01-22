@@ -55,14 +55,8 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --verbose --features "${{ matrix.features }}"
-
-      - name: Check if defaults match static dump
-        uses: actions-rs/cargo@v1
-        if: matrix.features == 'experimental-aec3-config,derive_serde'
-        with:
-          command: test
-          args: --verbose --example aec_config --features "${{ matrix.features }}"
+          # we have tests even in examples, --all-targets ensures they are run
+          args: --verbose --features "${{ matrix.features }}" --all-targets
 
   test-non-bundled:
     runs-on: ubuntu-latest
