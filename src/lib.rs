@@ -13,10 +13,12 @@ mod stats;
 #[cfg(feature = "experimental-aec3-config")]
 pub mod experimental;
 
+use crate::config::IntoFfi;
 use std::{error, fmt, ptr::null_mut, sync::Arc};
+use webrtc_audio_processing_config::Config;
 use webrtc_audio_processing_sys as ffi;
 
-pub use config::*;
+pub use config::InitializationConfig;
 pub use stats::*;
 
 /// Represents an error inside webrtc::AudioProcessing.
@@ -356,7 +358,7 @@ impl AudioProcessing {
     pub fn set_config(&self, config: Config) {
         let delay_ms = config.echo_canceller.as_ref().and_then(|ec| ec.stream_delay_ms);
         unsafe {
-            ffi::set_config(self.inner, &config.into());
+            ffi::set_config(self.inner, &config.into_ffi());
         }
         if let Some(delay) = delay_ms {
             self.set_stream_delay_ms(delay);
@@ -402,6 +404,7 @@ unsafe impl Send for AudioProcessing {}
 mod tests {
     use super::*;
     use std::{thread, time::Duration};
+    use webrtc_audio_processing_config::{EchoCanceller, EchoCancellerMode};
 
     fn init_config(num_channels: usize) -> InitializationConfig {
         InitializationConfig {

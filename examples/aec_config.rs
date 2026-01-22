@@ -2,7 +2,9 @@ use anyhow::{Error, Result};
 use serde::{Deserialize, Serialize};
 use std::{fs, path::PathBuf};
 use structopt::StructOpt;
-use webrtc_audio_processing::*;
+#[cfg(feature = "experimental-aec3-config")]
+use webrtc_audio_processing::experimental;
+use webrtc_audio_processing_config::Config;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
