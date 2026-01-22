@@ -49,7 +49,7 @@ pub struct Config {
     pub noise_suppression: Option<NoiseSuppression>,
 
     /// Enables and configures automatic gain control.
-    pub gain_controller: Option<GainController>,
+    pub gain_controller1: Option<GainController1>,
 
     /// Enables and configures Gain Controller 2.
     pub gain_controller2: Option<GainController2>,
@@ -101,7 +101,7 @@ impl From<Config> for ffi::AudioProcessing_Config {
         let transient_suppression =
             ffi::AudioProcessing_Config_TransientSuppression { enabled: false };
 
-        let gain_controller1 = if let Some(config) = other.gain_controller {
+        let gain_controller1 = if let Some(config) = other.gain_controller1 {
             config.into()
         } else {
             ffi::AudioProcessing_Config_GainController1 { enabled: false, ..Default::default() }
@@ -405,7 +405,7 @@ impl From<NoiseSuppressionLevel> for ffi::AudioProcessing_Config_NoiseSuppressio
 /// Recommended to be enabled on the client-side.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize), serde(default))]
-pub struct GainController {
+pub struct GainController1 {
     /// AGC mode.
     pub mode: GainControllerMode,
 
@@ -432,7 +432,7 @@ pub struct GainController {
     pub analog_gain_controller: AnalogGainController,
 }
 
-impl Default for GainController {
+impl Default for GainController1 {
     fn default() -> Self {
         Self {
             mode: GainControllerMode::AdaptiveAnalog,
@@ -444,8 +444,8 @@ impl Default for GainController {
     }
 }
 
-impl From<GainController> for ffi::AudioProcessing_Config_GainController1 {
-    fn from(other: GainController) -> Self {
+impl From<GainController1> for ffi::AudioProcessing_Config_GainController1 {
+    fn from(other: GainController1) -> Self {
         Self {
             enabled: true,
             mode: other.mode.into(),
