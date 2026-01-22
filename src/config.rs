@@ -1,5 +1,5 @@
 use webrtc_audio_processing_config as config;
-use webrtc_audio_processing_sys as ffi;
+use webrtc_audio_processing_sys::{self as ffi, AudioProcessing_Config_EchoCanceller};
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -54,44 +54,12 @@ impl FromConfig<config::Config> for ffi::AudioProcessing_Config {
             None => (None, None),
         };
 
-        // config::PreAmplifier is being deprecated.
-        let pre_amplifier = if let Some(config) = pre_amplifier {
-            config.into_ffi()
+        let mut echo_canceller =
+            AudioProcessing_Config_EchoCanceller::from_config(other.echo_canceller);
+        echo_canceller.export_linear_aec_output = if let Some(ns) = &other.noise_suppression {
+            ns.analyze_linear_aec_output
         } else {
-            ffi::AudioProcessing_Config_PreAmplifier { enabled: false, ..Default::default() }
-        };
-
-        let capture_level_adjustment = if let Some(config) = capture_level_adjustment {
-            config.into_ffi()
-        } else {
-            ffi::AudioProcessing_Config_CaptureLevelAdjustment {
-                enabled: false,
-                ..Default::default()
-            }
-        };
-
-        let high_pass_filter = if let Some(config) = other.high_pass_filter {
-            config.into_ffi()
-        } else {
-            ffi::AudioProcessing_Config_HighPassFilter { enabled: false, ..Default::default() }
-        };
-
-        let echo_canceller = if let Some(config) = other.echo_canceller {
-            let mut echo_canceller = ffi::AudioProcessing_Config_EchoCanceller::from_config(config);
-            echo_canceller.export_linear_aec_output = if let Some(ns) = &other.noise_suppression {
-                ns.analyze_linear_aec_output
-            } else {
-                false
-            };
-            echo_canceller
-        } else {
-            ffi::AudioProcessing_Config_EchoCanceller { enabled: false, ..Default::default() }
-        };
-
-        let noise_suppression = if let Some(config) = other.noise_suppression {
-            config.into_ffi()
-        } else {
-            ffi::AudioProcessing_Config_NoiseSuppression { enabled: false, ..Default::default() }
+            false
         };
 
         // Transient suppressor is being deprecated.
@@ -104,28 +72,16 @@ impl FromConfig<config::Config> for ffi::AudioProcessing_Config {
             None => (None, None),
         };
 
-        let gain_controller1 = if let Some(config) = gain_controller1 {
-            config.into_ffi()
-        } else {
-            ffi::AudioProcessing_Config_GainController1 { enabled: false, ..Default::default() }
-        };
-
-        let gain_controller2 = if let Some(config) = gain_controller2 {
-            config.into_ffi()
-        } else {
-            ffi::AudioProcessing_Config_GainController2 { enabled: false, ..Default::default() }
-        };
-
         Self {
             pipeline: other.pipeline.into_ffi(),
-            pre_amplifier,
-            capture_level_adjustment,
-            high_pass_filter,
+            pre_amplifier: pre_amplifier.into_ffi(),
+            capture_level_adjustment: capture_level_adjustment.into_ffi(),
+            high_pass_filter: other.high_pass_filter.into_ffi(),
             echo_canceller,
-            noise_suppression,
+            noise_suppression: other.noise_suppression.into_ffi(),
             transient_suppression,
-            gain_controller1,
-            gain_controller2,
+            gain_controller1: gain_controller1.into_ffi(),
+            gain_controller2: gain_controller2.into_ffi(),
         }
     }
 }
@@ -156,16 +112,18 @@ impl FromConfig<config::DownmixMethod> for ffi::AudioProcessing_Config_Pipeline_
     }
 }
 
-impl FromConfig<config::PreAmplifier> for ffi::AudioProcessing_Config_PreAmplifier {
-    fn from_config(other: config::PreAmplifier) -> Self {
+impl FromConfig<Option<config::PreAmplifier>> for ffi::AudioProcessing_Config_PreAmplifier {
+    fn from_config(other: Option<config::PreAmplifier>) -> Self {
+        let Some(other) = other else { return Self { enabled: false, ..Self::default() } };
         Self { enabled: true, fixed_gain_factor: other.fixed_gain_factor }
     }
 }
 
-impl FromConfig<config::CaptureLevelAdjustment>
+impl FromConfig<Option<config::CaptureLevelAdjustment>>
     for ffi::AudioProcessing_Config_CaptureLevelAdjustment
 {
-    fn from_config(other: config::CaptureLevelAdjustment) -> Self {
+    fn from_config(other: Option<config::CaptureLevelAdjustment>) -> Self {
+        let Some(other) = other else { return Self { enabled: false, ..Self::default() } };
         Self {
             enabled: true,
             pre_gain_factor: other.pre_gain_factor,
@@ -183,14 +141,16 @@ impl FromConfig<config::AnalogMicGainEmulation>
     }
 }
 
-impl FromConfig<config::HighPassFilter> for ffi::AudioProcessing_Config_HighPassFilter {
-    fn from_config(other: config::HighPassFilter) -> Self {
+impl FromConfig<Option<config::HighPassFilter>> for ffi::AudioProcessing_Config_HighPassFilter {
+    fn from_config(other: Option<config::HighPassFilter>) -> Self {
+        let Some(other) = other else { return Self { enabled: false, ..Self::default() } };
         Self { enabled: true, apply_in_full_band: other.apply_in_full_band }
     }
 }
 
-impl FromConfig<config::EchoCanceller> for ffi::AudioProcessing_Config_EchoCanceller {
-    fn from_config(other: config::EchoCanceller) -> Self {
+impl FromConfig<Option<config::EchoCanceller>> for ffi::AudioProcessing_Config_EchoCanceller {
+    fn from_config(other: Option<config::EchoCanceller>) -> Self {
+        let Some(other) = other else { return Self { enabled: false, ..Self::default() } };
         match other.mode {
             config::EchoCancellerMode::Mobile => Self {
                 enabled: true,
@@ -208,8 +168,9 @@ impl FromConfig<config::EchoCanceller> for ffi::AudioProcessing_Config_EchoCance
     }
 }
 
-impl FromConfig<config::NoiseSuppression> for ffi::AudioProcessing_Config_NoiseSuppression {
-    fn from_config(other: config::NoiseSuppression) -> Self {
+impl FromConfig<Option<config::NoiseSuppression>> for ffi::AudioProcessing_Config_NoiseSuppression {
+    fn from_config(other: Option<config::NoiseSuppression>) -> Self {
+        let Some(other) = other else { return Self { enabled: false, ..Self::default() } };
         Self {
             enabled: true,
             level: other.level.into_ffi(),
@@ -239,8 +200,9 @@ impl FromConfig<config::NoiseSuppressionLevel>
     }
 }
 
-impl FromConfig<config::GainController1> for ffi::AudioProcessing_Config_GainController1 {
-    fn from_config(other: config::GainController1) -> Self {
+impl FromConfig<Option<config::GainController1>> for ffi::AudioProcessing_Config_GainController1 {
+    fn from_config(other: Option<config::GainController1>) -> Self {
+        let Some(other) = other else { return Self { enabled: false, ..Self::default() } };
         Self {
             enabled: true,
             mode: other.mode.into_ffi(),
@@ -314,10 +276,11 @@ impl FromConfig<config::ClippingPredictorMode>
     }
 }
 
-impl FromConfig<config::GainController2> for ffi::AudioProcessing_Config_GainController2 {
-    fn from_config(other: config::GainController2) -> Self {
+impl FromConfig<Option<config::GainController2>> for ffi::AudioProcessing_Config_GainController2 {
+    fn from_config(other: Option<config::GainController2>) -> Self {
+        let Some(other) = other else { return Self { enabled: false, ..Self::default() } };
         Self {
-            enabled: other.enabled,
+            enabled: true,
             input_volume_controller: other.input_volume_controller.into_ffi(),
             adaptive_digital: other.adaptive_digital.into_ffi(),
             fixed_digital: other.fixed_digital.into_ffi(),

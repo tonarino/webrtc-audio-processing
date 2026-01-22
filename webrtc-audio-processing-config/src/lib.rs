@@ -398,8 +398,6 @@ pub enum ClippingPredictorMode {
 #[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(default))]
 pub struct GainController2 {
-    /// AGC2 must be created if and only if `enabled` is true.
-    pub enabled: bool,
     /// Parameters for the input volume controller, which adjusts the input
     /// volume applied when the audio is captured (e.g., microphone volume on
     /// a soundcard, input volume on HAL).
