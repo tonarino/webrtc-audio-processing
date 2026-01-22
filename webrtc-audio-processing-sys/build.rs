@@ -8,7 +8,12 @@ use std::{
     process::Command,
 };
 
-const DEPLOYMENT_TARGET_VAR: &str = "MACOSX_DEPLOYMENT_TARGET";
+/// Name and minimum version of the library that we are binding to.
+const LIB_NAME: &str = "webrtc-audio-processing-2";
+#[cfg(not(feature = "bundled"))]
+const LIB_MIN_VERSION: &str = "2.1";
+
+const MACOSX_DEPLOYMENT_TARGET_VAR: &str = "MACOSX_DEPLOYMENT_TARGET";
 
 /// Symbol prefix for the webrtc-audio-processing library to allow multiple versions to coexist.
 const SYMBOL_PREFIX: &str = "v2_";
@@ -70,9 +75,6 @@ fn prefix_archive_symbols(
 mod webrtc {
     use super::*;
     use anyhow::{bail, Result};
-
-    const LIB_NAME: &str = "webrtc-audio-processing-2";
-    const LIB_MIN_VERSION: &str = "2.1";
 
     pub(super) fn get_build_paths() -> Result<(Vec<PathBuf>, Vec<PathBuf>)> {
         let (pkgconfig_include_path, pkgconfig_lib_path) = find_pkgconfig_paths()?;
@@ -143,7 +145,7 @@ mod webrtc {
     pub(super) fn get_build_paths() -> Result<(Vec<PathBuf>, Vec<PathBuf>)> {
         let mut include_paths = vec![
             out_dir().join("include"),
-            out_dir().join("include").join("webrtc-audio-processing-2"),
+            out_dir().join("include").join(LIB_NAME),
             src_dir().join("webrtc-audio-processing"),
             src_dir().join("webrtc-audio-processing").join("webrtc"),
         ];
@@ -243,10 +245,10 @@ mod webrtc {
         lib_dirs: &[PathBuf],
         prefix: &str,
     ) -> Result<Vec<String>> {
-        let static_lib_filename = "libwebrtc-audio-processing-2.a";
+        let static_lib_filename = format!("lib{LIB_NAME}.a");
 
         for lib_dir in lib_dirs {
-            let lib_path = lib_dir.join(static_lib_filename);
+            let lib_path = lib_dir.join(&static_lib_filename);
             if lib_path.exists() {
                 let symbols = get_defined_symbols(&lib_path)?;
                 prefix_archive_symbols(&lib_path, &symbols, prefix)?;
@@ -335,7 +337,7 @@ fn main() -> Result<()> {
 
     // Set macos minimum version
     if cfg!(target_os = "macos") {
-        let min_version = match env::var(DEPLOYMENT_TARGET_VAR) {
+        let min_version = match env::var(MACOSX_DEPLOYMENT_TARGET_VAR) {
             Ok(ver) => ver,
             Err(_) => {
                 String::from(match std::env::var("CARGO_CFG_TARGET_ARCH").unwrap().as_str() {
@@ -379,10 +381,10 @@ fn main() -> Result<()> {
     }
 
     if cfg!(feature = "bundled") {
-        println!("cargo:rustc-link-lib=static=webrtc-audio-processing-2");
+        println!("cargo:rustc-link-lib=static={LIB_NAME}");
         println!("cargo:rustc-link-lib=absl_strings");
     } else {
-        println!("cargo:rustc-link-lib=dylib=webrtc-audio-processing-2");
+        println!("cargo:rustc-link-lib=dylib={LIB_NAME}");
     }
 
     let binding_file = out_dir().join("bindings.rs");
@@ -398,6 +400,8 @@ fn main() -> Result<()> {
         .opaque_type("std::.*")
         .parse_callbacks(Box::new(CustomDeriveCallbacks))
         .derive_debug(true)
+        // The default implementation ignores C++11's brace-or-equal-initializers,
+        // and thus misleading to enable. See also CustomDeriveCallbacks.
         .derive_default(false)
         .derive_partialeq(true);
     for dir in &include_dirs {
