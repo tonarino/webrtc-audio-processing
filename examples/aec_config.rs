@@ -77,7 +77,7 @@ mod tests {
         let default_json = serde_json::to_string_pretty(&default_config).unwrap();
 
         assert_eq!(
-            file_contents, default_json,
+            file_contents.trim(), default_json.trim(),
             "The library's default config does not match examples/aec-configs/defaults.json5.\n\
              Update the file by running: cargo run --example aec_config --features \"derive_serde experimental-aec3-config\" > examples/aec-configs/defaults.json5"
         );
