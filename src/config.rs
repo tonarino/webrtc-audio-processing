@@ -33,6 +33,9 @@ pub struct Config {
     /// Sets the properties of the audio processing pipeline.
     pub pipeline: Pipeline,
 
+    /// Enables and configures pre-amplifier.
+    pub pre_amplifier: Option<PreAmplifier>,
+
     /// Enables and configures level adjustment in the capture pipeline.
     pub capture_level_adjustment: Option<CaptureLevelAdjustment>,
 
@@ -55,8 +58,11 @@ pub struct Config {
 impl From<Config> for ffi::AudioProcessing_Config {
     fn from(other: Config) -> Self {
         // PreAmplifier is being deprecated.
-        let pre_amplifier =
-            ffi::AudioProcessing_Config_PreAmplifier { enabled: false, ..Default::default() };
+        let pre_amplifier = if let Some(config) = other.pre_amplifier {
+            config.into()
+        } else {
+            ffi::AudioProcessing_Config_PreAmplifier { enabled: false, ..Default::default() }
+        };
 
         let capture_level_adjustment = if let Some(config) = other.capture_level_adjustment {
             config.into()
