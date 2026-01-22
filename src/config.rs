@@ -127,6 +127,37 @@ impl From<Config> for ffi::AudioProcessing_Config {
     }
 }
 
+/// Sets the properties of the audio processing pipeline.
+#[derive(Debug, Default, Clone, PartialEq)]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize), serde(default))]
+pub struct Pipeline {
+    /// Maximum allowed processing rate used internally. May only be set to
+    /// 32000 or 48000 and any differing values will be treated as 48000.
+    pub maximum_internal_processing_rate: PipelineProcessingRate,
+
+    /// Allow multi-channel processing of render audio.
+    pub multi_channel_render: bool,
+
+    /// Allow multi-channel processing of capture audio when AEC3 is active
+    /// or a custom AEC is injected.
+    pub multi_channel_capture: bool,
+
+    /// Indicates how to downmix multi-channel capture audio to mono (when
+    /// needed).
+    pub capture_downmix_method: DownmixMethod,
+}
+
+impl From<Pipeline> for ffi::AudioProcessing_Config_Pipeline {
+    fn from(pipeline: Pipeline) -> Self {
+        Self {
+            maximum_internal_processing_rate: pipeline.maximum_internal_processing_rate as i32,
+            multi_channel_render: pipeline.multi_channel_render,
+            multi_channel_capture: pipeline.multi_channel_capture,
+            capture_downmix_method: pipeline.capture_downmix_method.into(),
+        }
+    }
+}
+
 /// Internal processing rate.
 #[derive(Debug, Copy, Clone, Default, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
@@ -163,37 +194,6 @@ impl From<DownmixMethod> for ffi::AudioProcessing_Config_Pipeline_DownmixMethod 
     }
 }
 
-/// Sets the properties of the audio processing pipeline.
-#[derive(Debug, Default, Clone, PartialEq)]
-#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize), serde(default))]
-pub struct Pipeline {
-    /// Maximum allowed processing rate used internally. May only be set to
-    /// 32000 or 48000 and any differing values will be treated as 48000.
-    pub maximum_internal_processing_rate: PipelineProcessingRate,
-
-    /// Allow multi-channel processing of render audio.
-    pub multi_channel_render: bool,
-
-    /// Allow multi-channel processing of capture audio when AEC3 is active
-    /// or a custom AEC is injected.
-    pub multi_channel_capture: bool,
-
-    /// Indicates how to downmix multi-channel capture audio to mono (when
-    /// needed).
-    pub capture_downmix_method: DownmixMethod,
-}
-
-impl From<Pipeline> for ffi::AudioProcessing_Config_Pipeline {
-    fn from(pipeline: Pipeline) -> Self {
-        Self {
-            maximum_internal_processing_rate: pipeline.maximum_internal_processing_rate as i32,
-            multi_channel_render: pipeline.multi_channel_render,
-            multi_channel_capture: pipeline.multi_channel_capture,
-            capture_downmix_method: pipeline.capture_downmix_method.into(),
-        }
-    }
-}
-
 /// The `PreAmplifier` amplifies the capture signal before any other processing is done.
 /// TODO(webrtc:5298): Will be deprecated to use the pre-gain functionality
 /// in capture_level_adjustment instead.
@@ -216,6 +216,67 @@ impl From<PreAmplifier> for ffi::AudioProcessing_Config_PreAmplifier {
     }
 }
 
+/// Functionality for general level adjustment in the capture pipeline. This
+/// should not be used together with the legacy PreAmplifier functionality.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize), serde(default))]
+pub struct CaptureLevelAdjustment {
+    /// The `pre_gain_factor` scales the signal before any processing is done.
+    pub pre_gain_factor: f32,
+
+    /// The `post_gain_factor` scales the signal after all processing is done.
+    pub post_gain_factor: f32,
+
+    /// Analog mic gain emulation.
+    pub analog_mic_gain_emulation: AnalogMicGainEmulation,
+}
+
+impl Default for CaptureLevelAdjustment {
+    fn default() -> Self {
+        Self {
+            pre_gain_factor: 1.0,
+            post_gain_factor: 1.0,
+            analog_mic_gain_emulation: AnalogMicGainEmulation::default(),
+        }
+    }
+}
+
+impl From<CaptureLevelAdjustment> for ffi::AudioProcessing_Config_CaptureLevelAdjustment {
+    fn from(other: CaptureLevelAdjustment) -> Self {
+        Self {
+            enabled: true,
+            pre_gain_factor: other.pre_gain_factor,
+            post_gain_factor: other.post_gain_factor,
+            analog_mic_gain_emulation: other.analog_mic_gain_emulation.into(),
+        }
+    }
+}
+
+/// Analog mic gain emulation for capture level adjustment.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize), serde(default))]
+pub struct AnalogMicGainEmulation {
+    /// Enabled.
+    pub enabled: bool,
+    /// Initial analog gain level to use for the emulated analog gain. Must
+    /// be in the range [0...255].
+    pub initial_level: u8,
+}
+
+impl Default for AnalogMicGainEmulation {
+    fn default() -> Self {
+        Self { enabled: false, initial_level: 255 }
+    }
+}
+
+impl From<AnalogMicGainEmulation>
+    for ffi::AudioProcessing_Config_CaptureLevelAdjustment_AnalogMicGainEmulation
+{
+    fn from(other: AnalogMicGainEmulation) -> Self {
+        Self { enabled: other.enabled, initial_level: other.initial_level as i32 }
+    }
+}
+
 /// HPF (high-pass filter) configuration.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize), serde(default))]
@@ -234,18 +295,6 @@ impl From<HighPassFilter> for ffi::AudioProcessing_Config_HighPassFilter {
     fn from(other: HighPassFilter) -> Self {
         Self { enabled: true, apply_in_full_band: other.apply_in_full_band }
     }
-}
-
-/// AEC (acoustic echo cancellation) mode.
-#[derive(Debug, Clone, PartialEq, Default)]
-#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
-pub enum EchoCancellerMode {
-    /// Uses low-complexity AEC implementation that is optimized for mobile.
-    Mobile,
-
-    /// Uses the full AEC3 implementation.
-    #[default]
-    Full,
 }
 
 /// AEC (acoustic echo cancellation) configuration.
@@ -274,6 +323,47 @@ impl From<EchoCanceller> for ffi::AudioProcessing_Config_EchoCanceller {
                 enforce_high_pass_filtering: true,
                 export_linear_aec_output: false,
             },
+        }
+    }
+}
+
+/// AEC (acoustic echo cancellation) mode.
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+pub enum EchoCancellerMode {
+    /// Uses low-complexity AEC implementation that is optimized for mobile.
+    Mobile,
+
+    /// Uses the full AEC3 implementation.
+    #[default]
+    Full,
+}
+
+/// Enables background noise suppression.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize), serde(default))]
+pub struct NoiseSuppression {
+    /// Determines the aggressiveness of the suppression. Increasing the level will reduce the
+    /// noise level at the expense of a higher speech distortion.
+    pub level: NoiseSuppressionLevel,
+
+    /// Analyze the output of the linear AEC instead of the capture frame. Has no effect if echo
+    /// cancellation is not enabled.
+    pub analyze_linear_aec_output: bool,
+}
+
+impl Default for NoiseSuppression {
+    fn default() -> Self {
+        Self { level: NoiseSuppressionLevel::Moderate, analyze_linear_aec_output: false }
+    }
+}
+
+impl From<NoiseSuppression> for ffi::AudioProcessing_Config_NoiseSuppression {
+    fn from(other: NoiseSuppression) -> Self {
+        Self {
+            enabled: true,
+            level: other.level.into(),
+            analyze_linear_aec_output_when_available: other.analyze_linear_aec_output,
         }
     }
 }
@@ -307,31 +397,62 @@ impl From<NoiseSuppressionLevel> for ffi::AudioProcessing_Config_NoiseSuppressio
     }
 }
 
-/// Enables background noise suppression.
+/// Enables automatic gain control (AGC) functionality.
+/// The automatic gain control (AGC) component brings the signal to an
+/// appropriate range. This is done by applying a digital gain directly and,
+/// in the analog mode, prescribing an analog gain to be applied at the audio
+/// HAL.
+/// Recommended to be enabled on the client-side.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize), serde(default))]
-pub struct NoiseSuppression {
-    /// Determines the aggressiveness of the suppression. Increasing the level will reduce the
-    /// noise level at the expense of a higher speech distortion.
-    pub level: NoiseSuppressionLevel,
+pub struct GainController {
+    /// AGC mode.
+    pub mode: GainControllerMode,
 
-    /// Analyze the output of the linear AEC instead of the capture frame. Has no effect if echo
-    /// cancellation is not enabled.
-    pub analyze_linear_aec_output: bool,
+    /// Sets the target peak level (or envelope) of the AGC in dBFs (decibels
+    /// from digital full-scale). The convention is to use positive values. For
+    /// instance, passing in a value of 3 corresponds to -3 dBFs, or a target
+    /// level 3 dB below full-scale. Limited to [0, 31].
+    pub target_level_dbfs: u8,
+
+    /// Sets the maximum gain the digital compression stage may apply, in dB. A
+    /// higher number corresponds to greater compression, while a value of 0
+    /// will leave the signal uncompressed. Limited to [0, 90].
+    ///
+    /// For updates after APM setup, the C++ upstream suggests using RuntimeSetting
+    /// instead (which is not yet exposed in the Rust wrapper).
+    pub compression_gain_db: u8,
+
+    /// When enabled, the compression stage will hard limit the signal to the
+    /// target level. Otherwise, the signal will be compressed but not limited
+    /// above the target level.
+    pub enable_limiter: bool,
+
+    /// Analog gain controller configuration.
+    pub analog_gain_controller: AnalogGainController,
 }
 
-impl Default for NoiseSuppression {
+impl Default for GainController {
     fn default() -> Self {
-        Self { level: NoiseSuppressionLevel::Moderate, analyze_linear_aec_output: false }
+        Self {
+            mode: GainControllerMode::AdaptiveAnalog,
+            target_level_dbfs: 3,
+            compression_gain_db: 9,
+            enable_limiter: true,
+            analog_gain_controller: AnalogGainController::default(),
+        }
     }
 }
 
-impl From<NoiseSuppression> for ffi::AudioProcessing_Config_NoiseSuppression {
-    fn from(other: NoiseSuppression) -> Self {
+impl From<GainController> for ffi::AudioProcessing_Config_GainController1 {
+    fn from(other: GainController) -> Self {
         Self {
             enabled: true,
-            level: other.level.into(),
-            analyze_linear_aec_output_when_available: other.analyze_linear_aec_output,
+            mode: other.mode.into(),
+            target_level_dbfs: other.target_level_dbfs as i32,
+            compression_gain_db: other.compression_gain_db as i32,
+            enable_limiter: other.enable_limiter,
+            analog_gain_controller: other.analog_gain_controller.into(),
         }
     }
 }
@@ -376,86 +497,6 @@ impl From<GainControllerMode> for ffi::AudioProcessing_Config_GainController1_Mo
             GainControllerMode::FixedDigital => {
                 ffi::AudioProcessing_Config_GainController1_Mode_kFixedDigital
             },
-        }
-    }
-}
-
-/// Clipping predictor mode.
-#[derive(Debug, Copy, Clone, PartialEq)]
-#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
-pub enum ClippingPredictorMode {
-    /// Clipping event prediction mode with fixed step estimation.
-    ClippingEventPrediction,
-    /// Clipped peak estimation mode with adaptive step estimation.
-    AdaptiveStepClippingPeakPrediction,
-    /// Clipped peak estimation mode with fixed step estimation.
-    FixedStepClippingPeakPrediction,
-}
-
-impl From<ClippingPredictorMode>
-    for ffi::AudioProcessing_Config_GainController1_AnalogGainController_ClippingPredictor_Mode
-{
-    fn from(other: ClippingPredictorMode) -> Self {
-        match other {
-            ClippingPredictorMode::ClippingEventPrediction => ffi::AudioProcessing_Config_GainController1_AnalogGainController_ClippingPredictor_Mode_kClippingEventPrediction,
-            ClippingPredictorMode::AdaptiveStepClippingPeakPrediction => ffi::AudioProcessing_Config_GainController1_AnalogGainController_ClippingPredictor_Mode_kAdaptiveStepClippingPeakPrediction,
-            ClippingPredictorMode::FixedStepClippingPeakPrediction => ffi::AudioProcessing_Config_GainController1_AnalogGainController_ClippingPredictor_Mode_kFixedStepClippingPeakPrediction,
-        }
-    }
-}
-
-/// Enables clipping prediction functionality.
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize), serde(default))]
-pub struct ClippingPredictor {
-    /// Enabled.
-    pub enabled: bool,
-    /// Mode.
-    pub mode: ClippingPredictorMode,
-    /// Number of frames in the sliding analysis window.
-    pub window_length: i32,
-    /// Number of frames in the sliding reference window.
-    pub reference_window_length: i32,
-    /// Reference window delay (unit: number of frames).
-    pub reference_window_delay: i32,
-    /// Clipping prediction threshold (dBFS).
-    pub clipping_threshold: f32,
-    /// Crest factor drop threshold (dB).
-    pub crest_factor_margin: f32,
-    /// If true, the recommended clipped level step is used to modify the
-    /// analog gain. Otherwise, the predictor runs without affecting the
-    /// analog gain.
-    pub use_predicted_step: bool,
-}
-
-impl Default for ClippingPredictor {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            mode: ClippingPredictorMode::ClippingEventPrediction,
-            window_length: 5,
-            reference_window_length: 5,
-            reference_window_delay: 5,
-            clipping_threshold: -1.0,
-            crest_factor_margin: 3.0,
-            use_predicted_step: true,
-        }
-    }
-}
-
-impl From<ClippingPredictor>
-    for ffi::AudioProcessing_Config_GainController1_AnalogGainController_ClippingPredictor
-{
-    fn from(other: ClippingPredictor) -> Self {
-        Self {
-            enabled: other.enabled,
-            mode: other.mode.into(),
-            window_length: other.window_length,
-            reference_window_length: other.reference_window_length,
-            reference_window_delay: other.reference_window_delay,
-            clipping_threshold: other.clipping_threshold,
-            crest_factor_margin: other.crest_factor_margin,
-            use_predicted_step: other.use_predicted_step,
         }
     }
 }
@@ -518,62 +559,117 @@ impl From<AnalogGainController>
     }
 }
 
-/// Enables automatic gain control (AGC) functionality.
-/// The automatic gain control (AGC) component brings the signal to an
-/// appropriate range. This is done by applying a digital gain directly and,
-/// in the analog mode, prescribing an analog gain to be applied at the audio
-/// HAL.
-/// Recommended to be enabled on the client-side.
+/// Enables clipping prediction functionality.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize), serde(default))]
-pub struct GainController {
-    /// AGC mode.
-    pub mode: GainControllerMode,
-
-    /// Sets the target peak level (or envelope) of the AGC in dBFs (decibels
-    /// from digital full-scale). The convention is to use positive values. For
-    /// instance, passing in a value of 3 corresponds to -3 dBFs, or a target
-    /// level 3 dB below full-scale. Limited to [0, 31].
-    pub target_level_dbfs: u8,
-
-    /// Sets the maximum gain the digital compression stage may apply, in dB. A
-    /// higher number corresponds to greater compression, while a value of 0
-    /// will leave the signal uncompressed. Limited to [0, 90].
-    ///
-    /// For updates after APM setup, the C++ upstream suggests using RuntimeSetting
-    /// instead (which is not yet exposed in the Rust wrapper).
-    pub compression_gain_db: u8,
-
-    /// When enabled, the compression stage will hard limit the signal to the
-    /// target level. Otherwise, the signal will be compressed but not limited
-    /// above the target level.
-    pub enable_limiter: bool,
-
-    /// Analog gain controller configuration.
-    pub analog_gain_controller: AnalogGainController,
+pub struct ClippingPredictor {
+    /// Enabled.
+    pub enabled: bool,
+    /// Mode.
+    pub mode: ClippingPredictorMode,
+    /// Number of frames in the sliding analysis window.
+    pub window_length: i32,
+    /// Number of frames in the sliding reference window.
+    pub reference_window_length: i32,
+    /// Reference window delay (unit: number of frames).
+    pub reference_window_delay: i32,
+    /// Clipping prediction threshold (dBFS).
+    pub clipping_threshold: f32,
+    /// Crest factor drop threshold (dB).
+    pub crest_factor_margin: f32,
+    /// If true, the recommended clipped level step is used to modify the
+    /// analog gain. Otherwise, the predictor runs without affecting the
+    /// analog gain.
+    pub use_predicted_step: bool,
 }
 
-impl Default for GainController {
+impl Default for ClippingPredictor {
     fn default() -> Self {
         Self {
-            mode: GainControllerMode::AdaptiveAnalog,
-            target_level_dbfs: 3,
-            compression_gain_db: 9,
-            enable_limiter: true,
-            analog_gain_controller: AnalogGainController::default(),
+            enabled: false,
+            mode: ClippingPredictorMode::ClippingEventPrediction,
+            window_length: 5,
+            reference_window_length: 5,
+            reference_window_delay: 5,
+            clipping_threshold: -1.0,
+            crest_factor_margin: 3.0,
+            use_predicted_step: true,
         }
     }
 }
 
-impl From<GainController> for ffi::AudioProcessing_Config_GainController1 {
-    fn from(other: GainController) -> Self {
+impl From<ClippingPredictor>
+    for ffi::AudioProcessing_Config_GainController1_AnalogGainController_ClippingPredictor
+{
+    fn from(other: ClippingPredictor) -> Self {
         Self {
-            enabled: true,
+            enabled: other.enabled,
             mode: other.mode.into(),
-            target_level_dbfs: other.target_level_dbfs as i32,
-            compression_gain_db: other.compression_gain_db as i32,
-            enable_limiter: other.enable_limiter,
-            analog_gain_controller: other.analog_gain_controller.into(),
+            window_length: other.window_length,
+            reference_window_length: other.reference_window_length,
+            reference_window_delay: other.reference_window_delay,
+            clipping_threshold: other.clipping_threshold,
+            crest_factor_margin: other.crest_factor_margin,
+            use_predicted_step: other.use_predicted_step,
+        }
+    }
+}
+
+/// Clipping predictor mode.
+#[derive(Debug, Copy, Clone, PartialEq)]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+pub enum ClippingPredictorMode {
+    /// Clipping event prediction mode with fixed step estimation.
+    ClippingEventPrediction,
+    /// Clipped peak estimation mode with adaptive step estimation.
+    AdaptiveStepClippingPeakPrediction,
+    /// Clipped peak estimation mode with fixed step estimation.
+    FixedStepClippingPeakPrediction,
+}
+
+impl From<ClippingPredictorMode>
+    for ffi::AudioProcessing_Config_GainController1_AnalogGainController_ClippingPredictor_Mode
+{
+    fn from(other: ClippingPredictorMode) -> Self {
+        match other {
+            ClippingPredictorMode::ClippingEventPrediction => ffi::AudioProcessing_Config_GainController1_AnalogGainController_ClippingPredictor_Mode_kClippingEventPrediction,
+            ClippingPredictorMode::AdaptiveStepClippingPeakPrediction => ffi::AudioProcessing_Config_GainController1_AnalogGainController_ClippingPredictor_Mode_kAdaptiveStepClippingPeakPrediction,
+            ClippingPredictorMode::FixedStepClippingPeakPrediction => ffi::AudioProcessing_Config_GainController1_AnalogGainController_ClippingPredictor_Mode_kFixedStepClippingPeakPrediction,
+        }
+    }
+}
+
+/// Parameters for AGC2, an Automatic Gain Control (AGC) sub-module which
+/// replaces the AGC sub-module parameterized by `gain_controller1`.
+/// AGC2 brings the captured audio signal to the desired level by combining
+/// three different controllers (namely, input volume controller, adaptive
+/// digital controller and fixed digital controller) and a limiter.
+#[derive(Debug, Default, Clone, PartialEq)]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize), serde(default))]
+pub struct GainController2 {
+    /// AGC2 must be created if and only if `enabled` is true.
+    pub enabled: bool,
+    /// Parameters for the input volume controller, which adjusts the input
+    /// volume applied when the audio is captured (e.g., microphone volume on
+    /// a soundcard, input volume on HAL).
+    pub input_volume_controller: InputVolumeController,
+    /// Parameters for the adaptive digital controller, which adjusts and
+    /// applies a digital gain after echo cancellation and after noise
+    /// suppression.
+    pub adaptive_digital: AdaptiveDigital,
+    /// Parameters for the fixed digital controller, which applies a fixed
+    /// digital gain after the adaptive digital controller and before the
+    /// limiter.
+    pub fixed_digital: FixedDigital,
+}
+
+impl From<GainController2> for ffi::AudioProcessing_Config_GainController2 {
+    fn from(other: GainController2) -> Self {
+        Self {
+            enabled: other.enabled,
+            input_volume_controller: other.input_volume_controller.into(),
+            adaptive_digital: other.adaptive_digital.into(),
+            fixed_digital: other.fixed_digital.into(),
         }
     }
 }
@@ -662,101 +758,5 @@ impl Default for FixedDigital {
 impl From<FixedDigital> for ffi::AudioProcessing_Config_GainController2_FixedDigital {
     fn from(other: FixedDigital) -> Self {
         Self { gain_db: other.gain_db }
-    }
-}
-
-/// Parameters for AGC2, an Automatic Gain Control (AGC) sub-module which
-/// replaces the AGC sub-module parameterized by `gain_controller1`.
-/// AGC2 brings the captured audio signal to the desired level by combining
-/// three different controllers (namely, input volume controller, adaptive
-/// digital controller and fixed digital controller) and a limiter.
-#[derive(Debug, Default, Clone, PartialEq)]
-#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize), serde(default))]
-pub struct GainController2 {
-    /// AGC2 must be created if and only if `enabled` is true.
-    pub enabled: bool,
-    /// Parameters for the input volume controller, which adjusts the input
-    /// volume applied when the audio is captured (e.g., microphone volume on
-    /// a soundcard, input volume on HAL).
-    pub input_volume_controller: InputVolumeController,
-    /// Parameters for the adaptive digital controller, which adjusts and
-    /// applies a digital gain after echo cancellation and after noise
-    /// suppression.
-    pub adaptive_digital: AdaptiveDigital,
-    /// Parameters for the fixed digital controller, which applies a fixed
-    /// digital gain after the adaptive digital controller and before the
-    /// limiter.
-    pub fixed_digital: FixedDigital,
-}
-
-impl From<GainController2> for ffi::AudioProcessing_Config_GainController2 {
-    fn from(other: GainController2) -> Self {
-        Self {
-            enabled: other.enabled,
-            input_volume_controller: other.input_volume_controller.into(),
-            adaptive_digital: other.adaptive_digital.into(),
-            fixed_digital: other.fixed_digital.into(),
-        }
-    }
-}
-
-/// Analog mic gain emulation for capture level adjustment.
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize), serde(default))]
-pub struct AnalogMicGainEmulation {
-    /// Enabled.
-    pub enabled: bool,
-    /// Initial analog gain level to use for the emulated analog gain. Must
-    /// be in the range [0...255].
-    pub initial_level: u8,
-}
-
-impl Default for AnalogMicGainEmulation {
-    fn default() -> Self {
-        Self { enabled: false, initial_level: 255 }
-    }
-}
-
-impl From<AnalogMicGainEmulation>
-    for ffi::AudioProcessing_Config_CaptureLevelAdjustment_AnalogMicGainEmulation
-{
-    fn from(other: AnalogMicGainEmulation) -> Self {
-        Self { enabled: other.enabled, initial_level: other.initial_level as i32 }
-    }
-}
-
-/// Functionality for general level adjustment in the capture pipeline. This
-/// should not be used together with the legacy PreAmplifier functionality.
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize), serde(default))]
-pub struct CaptureLevelAdjustment {
-    /// The `pre_gain_factor` scales the signal before any processing is done.
-    pub pre_gain_factor: f32,
-
-    /// The `post_gain_factor` scales the signal after all processing is done.
-    pub post_gain_factor: f32,
-
-    /// Analog mic gain emulation.
-    pub analog_mic_gain_emulation: AnalogMicGainEmulation,
-}
-
-impl Default for CaptureLevelAdjustment {
-    fn default() -> Self {
-        Self {
-            pre_gain_factor: 1.0,
-            post_gain_factor: 1.0,
-            analog_mic_gain_emulation: AnalogMicGainEmulation::default(),
-        }
-    }
-}
-
-impl From<CaptureLevelAdjustment> for ffi::AudioProcessing_Config_CaptureLevelAdjustment {
-    fn from(other: CaptureLevelAdjustment) -> Self {
-        Self {
-            enabled: true,
-            pre_gain_factor: other.pre_gain_factor,
-            post_gain_factor: other.post_gain_factor,
-            analog_mic_gain_emulation: other.analog_mic_gain_emulation.into(),
-        }
     }
 }
