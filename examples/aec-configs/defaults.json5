@@ -8,8 +8,7 @@
       "multi_channel_capture": false,
       "capture_downmix_method": "Average"
     },
-    "pre_amplifier": null,
-    "capture_level_adjustment": null,
+    "capture_amplifier": null,
     "high_pass_filter": null,
     "echo_canceller": null,
     "noise_suppression": null,

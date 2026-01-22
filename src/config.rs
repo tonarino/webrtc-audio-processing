@@ -33,11 +33,8 @@ pub struct Config {
     /// Sets the properties of the audio processing pipeline.
     pub pipeline: Pipeline,
 
-    /// Enables and configures pre-amplifier.
-    pub pre_amplifier: Option<PreAmplifier>,
-
-    /// Enables and configures level adjustment in the capture pipeline.
-    pub capture_level_adjustment: Option<CaptureLevelAdjustment>,
+    /// Enables and configures capture-side pre-amplifier/capture-level adjustment.
+    pub capture_amplifier: Option<CaptureAmplifier>,
 
     /// Enables and configures high pass filter.
     pub high_pass_filter: Option<HighPassFilter>,
@@ -57,14 +54,22 @@ pub struct Config {
 
 impl From<Config> for ffi::AudioProcessing_Config {
     fn from(other: Config) -> Self {
+        let (pre_amplifier, capture_level_adjustment) = match other.capture_amplifier {
+            Some(CaptureAmplifier::PreAmplifier(pre_amplifier)) => (Some(pre_amplifier), None),
+            Some(CaptureAmplifier::CaptureLevelAdjustment(capture_level_adjustment)) => {
+                (None, Some(capture_level_adjustment))
+            },
+            None => (None, None),
+        };
+
         // PreAmplifier is being deprecated.
-        let pre_amplifier = if let Some(config) = other.pre_amplifier {
+        let pre_amplifier = if let Some(config) = pre_amplifier {
             config.into()
         } else {
             ffi::AudioProcessing_Config_PreAmplifier { enabled: false, ..Default::default() }
         };
 
-        let capture_level_adjustment = if let Some(config) = other.capture_level_adjustment {
+        let capture_level_adjustment = if let Some(config) = capture_level_adjustment {
             config.into()
         } else {
             ffi::AudioProcessing_Config_CaptureLevelAdjustment {
@@ -192,6 +197,16 @@ impl From<DownmixMethod> for ffi::AudioProcessing_Config_Pipeline_DownmixMethod 
             },
         }
     }
+}
+
+/// A choice of capture-side pre-amplification/volume adjustment.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "derive_serde", derive(Serialize, Deserialize))]
+pub enum CaptureAmplifier {
+    /// Use the legacy PreAmplifier.
+    PreAmplifier(PreAmplifier),
+    /// Use the new CaptureLevelAdjustment.
+    CaptureLevelAdjustment(CaptureLevelAdjustment),
 }
 
 /// The `PreAmplifier` amplifies the capture signal before any other processing is done.
