@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use bindgen::callbacks::{DeriveInfo, ParseCallbacks};
 use std::{
     env,
@@ -36,19 +36,7 @@ fn prefix_archive_symbols(
 
     let temp_path = archive_path.with_extension("prefixed.a");
 
-    // Use rust bundled objcopy
-    let rustc = env::var("RUSTC").unwrap_or_default();
-    let sysroot = PathBuf::from(rustc)
-        .parent()
-        .and_then(|p| p.parent())
-        .map(|p| p.to_path_buf())
-        .unwrap_or_default();
-    let objcopy = sysroot
-        .join("lib")
-        .join("rustlib")
-        .join(env::var("HOST").unwrap_or_default())
-        .join("bin")
-        .join("rust-objcopy");
+    let objcopy = determine_objcopy_path()?;
 
     // Write arguments to a temp file to avoid "Argument list too long" errors.
     let args_path = archive_path.with_extension("args");
@@ -422,4 +410,38 @@ fn main() -> Result<()> {
         .expect("Couldn't write bindings!");
 
     Ok(())
+}
+
+/// Reliably determine a path to objcopy binary bundled with the active Rust toolchain (rust-objcopy)
+fn determine_objcopy_path() -> Result<PathBuf> {
+    // 1. Get the rustc command (this might be a path or just "rustc")
+    let rustc = env::var("RUSTC").unwrap_or_else(|_| "rustc".to_string());
+
+    // 2. Ask rustc for the sysroot. This works even if RUSTC="rustc"
+    let output = Command::new(&rustc)
+        .arg("--print")
+        .arg("sysroot")
+        .output()
+        .context("Failed to execute rustc to find sysroot")?;
+
+    if !output.status.success() {
+        bail!("Failed to get sysroot from rustc: {:?}", output);
+    }
+
+    let sysroot_str = String::from_utf8(output.stdout).context("Invalid UTF-8 in sysroot")?;
+    let sysroot = PathBuf::from(sysroot_str.trim());
+
+    // 3. Construct the path: <sysroot>/lib/rustlib/<HOST_TRIPLE>/bin/rust-objcopy
+    // We use HOST because that is where the compiler (and tools) are running.
+    let host = env::var("HOST").context("HOST env var not found")?;
+
+    let objcopy = sysroot.join("lib").join("rustlib").join(host).join("bin").join("rust-objcopy");
+
+    // Optional: verification
+    if !objcopy.exists() {
+        println!("cargo:warning=rust-objcopy not found at {:?}", objcopy);
+        println!("cargo:warning=Ensure the 'llvm-tools' component is installed: 'rustup component add llvm-tools'");
+    }
+
+    Ok(objcopy)
 }
