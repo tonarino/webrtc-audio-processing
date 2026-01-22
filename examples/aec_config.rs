@@ -64,22 +64,20 @@ fn main() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "experimental-aec3-config"))]
 mod tests {
     use super::*;
 
     #[test]
-    #[cfg(feature = "experimental-aec3-config")]
     fn test_default_config_matches_file() {
         let file_path = PathBuf::from("examples/aec-configs/defaults.json5");
-        let file_config = AppConfig::load(Some(file_path)).expect("Failed to load defaults.json5");
-        let default_config = AppConfig::default();
+        let file_contents = fs::read_to_string(file_path).expect("Failed to load defaults.json5");
 
-        let file_json = serde_json::to_string_pretty(&file_config).unwrap();
+        let default_config = AppConfig::default();
         let default_json = serde_json::to_string_pretty(&default_config).unwrap();
 
         assert_eq!(
-            file_json, default_json,
+            file_contents, default_json,
             "The library's default config does not match examples/aec-configs/defaults.json5.\n\
              Update the file by running: cargo run --example aec_config --features \"derive_serde experimental-aec3-config\" > examples/aec-configs/defaults.json5"
         );
