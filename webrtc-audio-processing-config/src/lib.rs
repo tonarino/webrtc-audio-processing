@@ -113,16 +113,12 @@ pub struct CaptureLevelAdjustment {
     pub post_gain_factor: f32,
 
     /// Analog mic gain emulation.
-    pub analog_mic_gain_emulation: AnalogMicGainEmulation,
+    pub analog_mic_gain_emulation: Option<AnalogMicGainEmulation>,
 }
 
 impl Default for CaptureLevelAdjustment {
     fn default() -> Self {
-        Self {
-            pre_gain_factor: 1.0,
-            post_gain_factor: 1.0,
-            analog_mic_gain_emulation: AnalogMicGainEmulation::default(),
-        }
+        Self { pre_gain_factor: 1.0, post_gain_factor: 1.0, analog_mic_gain_emulation: None }
     }
 }
 
@@ -130,8 +126,6 @@ impl Default for CaptureLevelAdjustment {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(default))]
 pub struct AnalogMicGainEmulation {
-    /// Enabled.
-    pub enabled: bool,
     /// Initial analog gain level to use for the emulated analog gain. Must
     /// be in the range [0...255].
     pub initial_level: u8,
@@ -139,7 +133,7 @@ pub struct AnalogMicGainEmulation {
 
 impl Default for AnalogMicGainEmulation {
     fn default() -> Self {
-        Self { enabled: false, initial_level: 255 }
+        Self { initial_level: 255 }
     }
 }
 
@@ -255,7 +249,7 @@ pub struct GainController1 {
     pub enable_limiter: bool,
 
     /// Analog gain controller configuration.
-    pub analog_gain_controller: AnalogGainController,
+    pub analog_gain_controller: Option<AnalogGainController>,
 }
 
 impl Default for GainController1 {
@@ -265,7 +259,7 @@ impl Default for GainController1 {
             target_level_dbfs: 3,
             compression_gain_db: 9,
             enable_limiter: true,
-            analog_gain_controller: AnalogGainController::default(),
+            analog_gain_controller: None,
         }
     }
 }
@@ -302,8 +296,6 @@ pub enum GainControllerMode {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(default))]
 pub struct AnalogGainController {
-    /// Enabled.
-    pub enabled: bool,
     /// TODO(bugs.webrtc.org/7494): Will be deprecated.
     pub startup_min_volume: i32,
     /// Lowest analog microphone level that will be applied in response to
@@ -321,20 +313,19 @@ pub struct AnalogGainController {
     /// Limited to values higher than 0.
     pub clipped_wait_frames: i32,
     /// Clipping predictor.
-    pub clipping_predictor: ClippingPredictor,
+    pub clipping_predictor: Option<ClippingPredictor>,
 }
 
 impl Default for AnalogGainController {
     fn default() -> Self {
         Self {
-            enabled: true,
             startup_min_volume: 0,
             clipped_level_min: 70,
             enable_digital_adaptive: true,
             clipped_level_step: 15,
             clipped_ratio_threshold: 0.1,
             clipped_wait_frames: 300,
-            clipping_predictor: ClippingPredictor::default(),
+            clipping_predictor: None,
         }
     }
 }
@@ -343,8 +334,6 @@ impl Default for AnalogGainController {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(default))]
 pub struct ClippingPredictor {
-    /// Enabled.
-    pub enabled: bool,
     /// Mode.
     pub mode: ClippingPredictorMode,
     /// Number of frames in the sliding analysis window.
@@ -366,7 +355,6 @@ pub struct ClippingPredictor {
 impl Default for ClippingPredictor {
     fn default() -> Self {
         Self {
-            enabled: false,
             mode: ClippingPredictorMode::ClippingEventPrediction,
             window_length: 5,
             reference_window_length: 5,
@@ -401,11 +389,11 @@ pub struct GainController2 {
     /// Parameters for the input volume controller, which adjusts the input
     /// volume applied when the audio is captured (e.g., microphone volume on
     /// a soundcard, input volume on HAL).
-    pub input_volume_controller: InputVolumeController,
+    pub input_volume_controller: Option<InputVolumeController>,
     /// Parameters for the adaptive digital controller, which adjusts and
     /// applies a digital gain after echo cancellation and after noise
     /// suppression.
-    pub adaptive_digital: AdaptiveDigital,
+    pub adaptive_digital: Option<AdaptiveDigital>,
     /// Parameters for the fixed digital controller, which applies a fixed
     /// digital gain after the adaptive digital controller and before the
     /// limiter.
@@ -417,10 +405,7 @@ pub struct GainController2 {
 /// a soundcard, input volume on HAL).
 #[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(default))]
-pub struct InputVolumeController {
-    /// Enabled.
-    pub enabled: bool,
-}
+pub struct InputVolumeController {}
 
 /// Parameters for the adaptive digital controller, which adjusts and
 /// applies a digital gain after echo cancellation and after noise
@@ -428,8 +413,6 @@ pub struct InputVolumeController {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(default))]
 pub struct AdaptiveDigital {
-    /// Enabled.
-    pub enabled: bool,
     /// Headroom (dB).
     pub headroom_db: f32,
     /// Max gain (dB).
@@ -445,7 +428,6 @@ pub struct AdaptiveDigital {
 impl Default for AdaptiveDigital {
     fn default() -> Self {
         Self {
-            enabled: false,
             headroom_db: 5.0,
             max_gain_db: 50.0,
             initial_gain_db: 15.0,
