@@ -133,11 +133,12 @@ impl FromConfig<Option<config::CaptureLevelAdjustment>>
     }
 }
 
-impl FromConfig<config::AnalogMicGainEmulation>
+impl FromConfig<Option<config::AnalogMicGainEmulation>>
     for ffi::AudioProcessing_Config_CaptureLevelAdjustment_AnalogMicGainEmulation
 {
-    fn from_config(other: config::AnalogMicGainEmulation) -> Self {
-        Self { enabled: other.enabled, initial_level: other.initial_level as i32 }
+    fn from_config(other: Option<config::AnalogMicGainEmulation>) -> Self {
+        let Some(other) = other else { return Self { enabled: false, ..Self::default() } };
+        Self { enabled: true, initial_level: other.initial_level as i32 }
     }
 }
 
@@ -230,12 +231,13 @@ impl FromConfig<config::GainControllerMode> for ffi::AudioProcessing_Config_Gain
     }
 }
 
-impl FromConfig<config::AnalogGainController>
+impl FromConfig<Option<config::AnalogGainController>>
     for ffi::AudioProcessing_Config_GainController1_AnalogGainController
 {
-    fn from_config(other: config::AnalogGainController) -> Self {
+    fn from_config(other: Option<config::AnalogGainController>) -> Self {
+        let Some(other) = other else { return Self { enabled: false, ..Self::default() } };
         Self {
-            enabled: other.enabled,
+            enabled: true,
             startup_min_volume: other.startup_min_volume,
             clipped_level_min: other.clipped_level_min,
             enable_digital_adaptive: other.enable_digital_adaptive,
@@ -247,12 +249,13 @@ impl FromConfig<config::AnalogGainController>
     }
 }
 
-impl FromConfig<config::ClippingPredictor>
+impl FromConfig<Option<config::ClippingPredictor>>
     for ffi::AudioProcessing_Config_GainController1_AnalogGainController_ClippingPredictor
 {
-    fn from_config(other: config::ClippingPredictor) -> Self {
+    fn from_config(other: Option<config::ClippingPredictor>) -> Self {
+        let Some(other) = other else { return Self { enabled: false, ..Self::default() } };
         Self {
-            enabled: other.enabled,
+            enabled: true,
             mode: other.mode.into_ffi(),
             window_length: other.window_length,
             reference_window_length: other.reference_window_length,
@@ -288,20 +291,22 @@ impl FromConfig<Option<config::GainController2>> for ffi::AudioProcessing_Config
     }
 }
 
-impl FromConfig<config::InputVolumeController>
+impl FromConfig<Option<config::InputVolumeController>>
     for ffi::AudioProcessing_Config_GainController2_InputVolumeController
 {
-    fn from_config(other: config::InputVolumeController) -> Self {
-        Self { enabled: other.enabled }
+    fn from_config(other: Option<config::InputVolumeController>) -> Self {
+        let Some(_) = other else { return Self { enabled: false } };
+        Self { enabled: true }
     }
 }
 
-impl FromConfig<config::AdaptiveDigital>
+impl FromConfig<Option<config::AdaptiveDigital>>
     for ffi::AudioProcessing_Config_GainController2_AdaptiveDigital
 {
-    fn from_config(other: config::AdaptiveDigital) -> Self {
+    fn from_config(other: Option<config::AdaptiveDigital>) -> Self {
+        let Some(other) = other else { return Self { enabled: false, ..Self::default() } };
         Self {
-            enabled: other.enabled,
+            enabled: true,
             headroom_db: other.headroom_db,
             max_gain_db: other.max_gain_db,
             initial_gain_db: other.initial_gain_db,
