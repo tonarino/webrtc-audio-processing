@@ -1,6 +1,6 @@
 [package]
 name = "webrtc-audio-processing-config"
-description = "Config structs for Rust wrapper for WebRTC's AudioProcessing module."
+description = "WebRTC's AudioProcessing config wrapper structs for webrtc-audio-processing."
 documentation = "https://docs.rs/webrtc-audio-processing-config"
 version = "2.0.1"
 authors = ["Ryo Kawaguchi <ryo@kawagu.ch>"]
