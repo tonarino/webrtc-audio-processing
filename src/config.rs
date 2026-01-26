@@ -1,5 +1,5 @@
 use webrtc_audio_processing_config as config;
-use webrtc_audio_processing_sys::{self as ffi, AudioProcessing_Config_EchoCanceller};
+use webrtc_audio_processing_sys as ffi;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -55,7 +55,7 @@ impl FromConfig<config::Config> for ffi::AudioProcessing_Config {
         };
 
         let mut echo_canceller =
-            AudioProcessing_Config_EchoCanceller::from_config(other.echo_canceller);
+            ffi::AudioProcessing_Config_EchoCanceller::from_config(other.echo_canceller);
         echo_canceller.export_linear_aec_output = if let Some(ns) = &other.noise_suppression {
             ns.analyze_linear_aec_output
         } else {
