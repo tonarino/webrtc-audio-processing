@@ -284,19 +284,13 @@ impl FromConfig<Option<config::GainController2>> for ffi::AudioProcessing_Config
         let Some(other) = other else { return Self { enabled: false, ..Self::default() } };
         Self {
             enabled: true,
-            input_volume_controller: other.input_volume_controller.into_ffi(),
+            input_volume_controller:
+                ffi::AudioProcessing_Config_GainController2_InputVolumeController {
+                    enabled: other.input_volume_controller_enabled,
+                },
             adaptive_digital: other.adaptive_digital.into_ffi(),
             fixed_digital: other.fixed_digital.into_ffi(),
         }
-    }
-}
-
-impl FromConfig<Option<config::InputVolumeController>>
-    for ffi::AudioProcessing_Config_GainController2_InputVolumeController
-{
-    fn from_config(other: Option<config::InputVolumeController>) -> Self {
-        let Some(_) = other else { return Self { enabled: false } };
-        Self { enabled: true }
     }
 }
 
