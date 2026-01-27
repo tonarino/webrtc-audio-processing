@@ -11,7 +11,7 @@ tag-prefix = ""
 
 [package]
 name = "webrtc-audio-processing"
-version = "2.0.1"
+version = "2.0.0"
 authors = ["Ryo Kawaguchi <ryo@kawagu.ch>"]
 repository = "https://github.com/tonarino/webrtc-audio-processing"
 edition = "2018"
@@ -32,8 +32,8 @@ experimental-aec3-config = ["webrtc-audio-processing-sys/experimental-aec3-confi
 
 [dependencies]
 serde = { version = "1", features = ["derive"], optional = true }
-webrtc-audio-processing-config = { path = "webrtc-audio-processing-config", version = "2.0.1" }
-webrtc-audio-processing-sys = { path = "webrtc-audio-processing-sys", version = "2.0.1" }
+webrtc-audio-processing-config = { path = "webrtc-audio-processing-config", version = "2.0.0" }
+webrtc-audio-processing-sys = { path = "webrtc-audio-processing-sys", version = "2.0.0" }
 # Only needed for examples
 portaudio = { version = "0.8", optional = true }
 
