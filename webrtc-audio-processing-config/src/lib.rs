@@ -386,10 +386,10 @@ pub enum ClippingPredictorMode {
 #[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(default))]
 pub struct GainController2 {
-    /// Parameters for the input volume controller, which adjusts the input
+    /// Enables the input volume controller, which adjusts the input
     /// volume applied when the audio is captured (e.g., microphone volume on
     /// a soundcard, input volume on HAL).
-    pub input_volume_controller: Option<InputVolumeController>,
+    pub input_volume_controller_enabled: bool,
     /// Parameters for the adaptive digital controller, which adjusts and
     /// applies a digital gain after echo cancellation and after noise
     /// suppression.
@@ -399,13 +399,6 @@ pub struct GainController2 {
     /// limiter.
     pub fixed_digital: FixedDigital,
 }
-
-/// Parameters for the input volume controller, which adjusts the input
-/// volume applied when the audio is captured (e.g., microphone volume on
-/// a soundcard, input volume on HAL).
-#[derive(Debug, Default, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(default))]
-pub struct InputVolumeController {}
 
 /// Parameters for the adaptive digital controller, which adjusts and
 /// applies a digital gain after echo cancellation and after noise
