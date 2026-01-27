@@ -1,7 +1,6 @@
 # webrtc-audio-processing
 [![Crates.io](https://img.shields.io/crates/v/webrtc-audio-processing.svg)](https://crates.io/crates/webrtc-audio-processing)
 [![Docs.rs](https://docs.rs/webrtc-audio-processing/badge.svg)](https://docs.rs/webrtc-audio-processing)
-[![Build Status](https://travis-ci.org/tonarino/webrtc-audio-processing.svg?branch=master)](https://travis-ci.org/tonarino/webrtc-audio-processing)
 [![dependency status](https://deps.rs/repo/github/tonarino/webrtc-audio-processing/status.svg)](https://deps.rs/repo/github/tonarino/webrtc-audio-processing)
 
 A wrapper around [PulseAudio's repackaging of WebRTC's AudioProcessing module](https://www.freedesktop.org/software/pulseaudio/webrtc-audio-processing/).
@@ -11,6 +10,17 @@ A wrapper around [PulseAudio's repackaging of WebRTC's AudioProcessing module](h
 ## Example Usage
 
 See `examples/simple.rs` for an example of how to use this crate.
+
+## Versioning
+
+Major version of this Rust wrapper tracks the major version of the PulseAudio WebRTC AudioProcessing upstream; minor and patch versions are independent.
+
+As a result, Rust `webrtc-audio-processing` doesn't fully conform to semantic versioning: for example version `2.3` can introduce an API-breaking change over `2.2`. Patch versions are backwards compatible.
+
+It is therefore suggested that you use [tilde requirements](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#tilde-requirements) when pulling this crate:
+```toml
+webrtc-audio-processing = "~2.0"
+```
 
 ## Building
 
@@ -54,12 +64,5 @@ Building from source and static linking can be enabled with the `bundled` featur
 
 ## Publishing
 
-```bash
-cargo release --verbose <new-version>
-```
-
-## Contributing
-
-### Version increment
-
-We are using semantic versioning. When incrementing a version, please do so in a separate commit, and also mark it with a Github tag.
+1. `cargo release --verbose <new-version>`, double-check and follow instructions
+2. Create a GitHub release out of the pushed, highlight important/breaking changes
