@@ -66,7 +66,8 @@ class EchoCanceller3Factory : public webrtc::EchoControlFactory {
 
 }  // namespace
 
-webrtc::StreamConfig create_stream_config(int sample_rate_hz, size_t num_channels) {
+webrtc::StreamConfig create_stream_config(int sample_rate_hz,
+                                          size_t num_channels) {
   return webrtc::StreamConfig(sample_rate_hz, num_channels);
 }
 
@@ -138,7 +139,8 @@ void initialize(AudioProcessing* ap) {
 int process_capture_frame(AudioProcessing* ap,
                           const webrtc::StreamConfig& capture_stream_config,
                           float** channels) {
-  // We don't transform the stream format, hence the same in & out stream configs.
+  // We don't transform the stream format, hence the same in & out stream
+  // configs.
   return ap->processor->ProcessStream(channels, capture_stream_config,
                                       capture_stream_config, channels);
 }
@@ -146,7 +148,8 @@ int process_capture_frame(AudioProcessing* ap,
 int process_render_frame(AudioProcessing* ap,
                          const webrtc::StreamConfig& render_stream_config,
                          float** channels) {
-  // We don't transform the stream format, hence the same in & out stream configs.
+  // We don't transform the stream format, hence the same in & out stream
+  // configs.
   return ap->processor->ProcessReverseStream(channels, render_stream_config,
                                              render_stream_config, channels);
 }
@@ -154,7 +157,7 @@ int process_render_frame(AudioProcessing* ap,
 Stats get_stats(AudioProcessing* ap) {
   const webrtc::AudioProcessingStats& stats = ap->processor->GetStatistics();
 
-  return Stats {
+  return Stats{
       from_absl_optional(stats.voice_detected),
       from_absl_optional(stats.echo_return_loss),
       from_absl_optional(stats.echo_return_loss_enhancement),

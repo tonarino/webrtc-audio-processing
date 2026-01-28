@@ -44,7 +44,8 @@ struct Stats {
 
 // Creates the `StreamConfig` struct by calling the C++ constructor
 // (which bindgen fails to generate bindings for, likely because it is inline).
-webrtc::StreamConfig create_stream_config(int sample_rate_hz, size_t num_channels);
+webrtc::StreamConfig create_stream_config(int sample_rate_hz,
+                                          size_t num_channels);
 
 // Creates a new instance of AudioProcessing.
 // Takes a mutable pointer to the AEC3 config, as it internally calls
