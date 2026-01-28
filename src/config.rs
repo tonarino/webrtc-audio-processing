@@ -25,6 +25,16 @@ impl Default for InitializationConfig {
     }
 }
 
+impl InitializationConfig {
+    pub(crate) fn capture_stream_config(&self) -> ffi::StreamConfig {
+        ffi::StreamConfig::new(self.sample_rate_hz, self.num_capture_channels)
+    }
+
+    pub(crate) fn render_stream_config(&self) -> ffi::StreamConfig {
+        ffi::StreamConfig::new(self.sample_rate_hz, self.num_render_channels)
+    }
+}
+
 /// This is the same as the standard [`From`] trait, which we cannot use because of the orphan rule.
 pub(crate) trait FromConfig<T>: Sized {
     fn from_config(value: T) -> Self;

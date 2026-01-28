@@ -36,16 +36,16 @@ fn main() {
 
 /// Generate example stereo frames that simulates a situation where the
 /// microphone (capture) would be picking up the speaker (render) output.
-fn sample_stereo_frames(processor: &Processor) -> (Vec<f32>, Vec<f32>) {
+fn sample_stereo_frames(processor: &Processor) -> (Vec<Vec<f32>>, Vec<Vec<f32>>) {
     let num_samples_per_frame = processor.num_samples_per_frame();
 
-    let mut render_frame = Vec::with_capacity(num_samples_per_frame * 2);
-    let mut capture_frame = Vec::with_capacity(num_samples_per_frame * 2);
+    let mut render_frame = vec![vec![]; 2];
+    let mut capture_frame = vec![vec![]; 2];
     for i in 0..num_samples_per_frame {
-        render_frame.push((i as f32 / 40.0).cos() * 0.4);
-        render_frame.push((i as f32 / 40.0).cos() * 0.2);
-        capture_frame.push((i as f32 / 20.0).sin() * 0.4 + render_frame[i * 2] * 0.2);
-        capture_frame.push((i as f32 / 20.0).sin() * 0.2 + render_frame[i * 2 + 1] * 0.2);
+        render_frame[0].push((i as f32 / 40.0).cos() * 0.4);
+        render_frame[1].push((i as f32 / 40.0).cos() * 0.2);
+        capture_frame[0].push((i as f32 / 20.0).sin() * 0.4 + render_frame[0][i] * 0.2);
+        capture_frame[1].push((i as f32 / 20.0).sin() * 0.2 + render_frame[1][i] * 0.2);
     }
 
     (render_frame, capture_frame)

@@ -42,13 +42,16 @@ struct Stats {
   OptionalInt delay_ms;
 };
 
+// Creates the `StreamConfig` struct by calling the C++ constructor
+// (which bindgen fails to generate bindings for, likely because it is inline).
+webrtc::StreamConfig create_stream_config(int sample_rate_hz, size_t num_channels);
+
 // Creates a new instance of AudioProcessing.
 // Takes a mutable pointer to the AEC3 config, as it internally calls
 // validate_aec3_config.
-AudioProcessing* audio_processing_create(
-    int num_capture_channels,
-    int num_render_channels,
-    int sample_rate_hz,
+AudioProcessing* create_audio_processing(
+    const webrtc::StreamConfig& capture_stream_config,
+    const webrtc::StreamConfig& render_stream_config,
     webrtc::EchoCanceller3Config* aec3_config,
     int* error);
 
@@ -63,21 +66,20 @@ bool validate_aec3_config(webrtc::EchoCanceller3Config* config);
 // Each element in |channels| is an array of float representing a single-channel
 // frame of 10 ms length (i.e. deinterleaved). Returns an error code or
 // |kNoError|.
-int process_capture_frame(AudioProcessing* ap, float** channels);
+int process_capture_frame(AudioProcessing* ap,
+                          const webrtc::StreamConfig& capture_stream_config,
+                          float** channels);
 
 // Processes and optionally modifies the audio frame from a playback device.
 // Each element in |channels| is an array of float representing a single-channel
 // frame of 10 ms length (i.e. deinterleaved). Returns an error code or
 // |kNoError|.
-int process_render_frame(AudioProcessing* ap, float** channel3);
+int process_render_frame(AudioProcessing* ap,
+                         const webrtc::StreamConfig& render_stream_config,
+                         float** channel3);
 
 // Returns statistics from the last |process_capture_frame()| call.
 Stats get_stats(AudioProcessing* ap);
-
-// Returns the number of samples per frame based on the current configuration of
-// sample rate and the frame chunk size. As of 2025/04/09, the chunk size is
-// fixed to 10ms.
-int get_num_samples_per_frame(AudioProcessing* ap);
 
 // Immediately updates the configurations of the signal processor.
 // This config is intended to be used during setup, and to enable/disable
@@ -86,10 +88,6 @@ int get_num_samples_per_frame(AudioProcessing* ap);
 // construct for runtime configuration.
 void set_config(AudioProcessing* ap,
                 const webrtc::AudioProcessing::Config& config);
-
-// Enqueues a runtime setting.
-void set_runtime_setting(AudioProcessing* ap,
-                         webrtc::AudioProcessing::RuntimeSetting setting);
 
 // Sets the |delay| in ms between process_render_frame() receiving a far-end
 // frame and process_capture_frame() receiving a near-end frame containing the
@@ -102,7 +100,7 @@ void set_stream_delay_ms(AudioProcessing* ap, int delay);
 // components may change behavior based on this information.
 void set_output_will_be_muted(AudioProcessing* ap, bool muted);
 
-/// Signals the AEC and AGC that the next frame will contain key press sound
+// Signals the AEC and AGC that the next frame will contain key press sound
 void set_stream_key_pressed(AudioProcessing* ap, bool pressed);
 
 // Initializes internal states, while retaining all user settings. This should
@@ -112,9 +110,6 @@ void initialize(AudioProcessing* ap);
 
 // Every AudioProcessing created by |audio_processing_create()| needs to
 // destroyed by this function.
-void audio_processing_delete(AudioProcessing* ap);
-
-// Returns true iff the code indicates a successful operation.
-bool is_success(int code);
+void delete_audio_processing(AudioProcessing* ap);
 
 }  // namespace webrtc_audio_processing_wrapper
