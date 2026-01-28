@@ -40,6 +40,9 @@ use structopt::StructOpt;
 use webrtc_audio_processing::{InitializationConfig, Processor};
 use webrtc_audio_processing_config::Config;
 
+mod common;
+use common::{deinterleave, interleave};
+
 const AUDIO_SAMPLE_RATE: u32 = 48_000;
 const AUDIO_INTERLEAVED: bool = true;
 
@@ -209,6 +212,11 @@ fn main() -> Result<(), Error> {
         // Allocate buffers outside the performance-sensitive audio loop.
         let mut input_mut =
             vec![0f32; processor.num_samples_per_frame() * opt.capture.num_channels as usize];
+        let mut input_deinterleaved =
+            vec![vec![0f32; processor.num_samples_per_frame()]; opt.capture.num_channels as usize];
+
+        let mut output_deinterleaved =
+            vec![vec![0f32; processor.num_samples_per_frame()]; opt.render.num_channels as usize];
 
         let running = running.clone();
         let mute = opt.render.mute;
@@ -232,7 +240,9 @@ fn main() -> Result<(), Error> {
                 }
             }
 
-            processor.process_capture_frame(&mut input_mut).unwrap();
+            deinterleave(&input_mut, &mut input_deinterleaved);
+            processor.process_capture_frame(&mut input_deinterleaved).unwrap();
+            interleave(&input_deinterleaved, &mut input_mut);
 
             if let Some(sink) = &mut capture_postprocess_sink {
                 for sample in &input_mut {
@@ -248,7 +258,9 @@ fn main() -> Result<(), Error> {
                 out_buffer.iter_mut().for_each(|m| *m = 0.0)
             }
 
-            processor.process_render_frame(out_buffer).unwrap();
+            deinterleave(out_buffer, &mut output_deinterleaved);
+            processor.process_render_frame(&mut output_deinterleaved).unwrap();
+            interleave(&output_deinterleaved, out_buffer);
 
             if mute {
                 out_buffer.iter_mut().for_each(|m| *m = 0.0)

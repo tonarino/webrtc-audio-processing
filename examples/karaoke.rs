@@ -23,7 +23,11 @@ const FRAMES_PER_BUFFER: u32 = 480;
 
 #[allow(dead_code)]
 mod aec_config;
+#[allow(dead_code)]
+mod common;
+
 use aec_config::AppConfig;
+use common::deinterleave;
 
 #[derive(Debug, StructOpt)]
 struct Args {
@@ -84,7 +88,7 @@ fn main() -> Result<(), Error> {
     )?;
 
     // Memory allocation should not happen inside the audio loop
-    let mut processed = vec![0f32; FRAMES_PER_BUFFER as usize * config.num_capture_channels];
+    let mut processed = vec![vec![0f32; FRAMES_PER_BUFFER as usize]; config.num_capture_channels];
     let mut interleave_buffer = vec![0f32; FRAMES_PER_BUFFER as usize * config.num_render_channels];
     let output_channels = config.num_render_channels;
 
@@ -93,19 +97,18 @@ fn main() -> Result<(), Error> {
         move |portaudio::DuplexStreamCallbackArgs { in_buffer, out_buffer, frames, .. }| {
             assert_eq!(frames as u32, FRAMES_PER_BUFFER);
 
-            processed.copy_from_slice(in_buffer);
+            deinterleave(in_buffer, &mut processed);
             processor.process_capture_frame(&mut processed).unwrap();
 
             // Play back the processed audio capture.
-            out_buffer.copy_from_slice(&processed);
-            processor.process_render_frame(out_buffer).unwrap();
+            processor.process_render_frame(&mut processed).unwrap();
             // Handle mono to mono/stereo conversion (assuming stereo output)
             if output_channels == 1 {
-                out_buffer.copy_from_slice(&processed);
+                out_buffer.copy_from_slice(&processed[0]);
             } else {
                 for i in 0..frames {
-                    interleave_buffer[i * 2] = processed[i];
-                    interleave_buffer[i * 2 + 1] = processed[i];
+                    interleave_buffer[i * 2] = processed[0][i];
+                    interleave_buffer[i * 2 + 1] = processed[0][i];
                 }
                 out_buffer.copy_from_slice(&interleave_buffer);
             }
