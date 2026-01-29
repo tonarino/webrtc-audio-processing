@@ -183,11 +183,8 @@ impl Processor {
         F: IntoIterator<Item = Ch>,
         Ch: AsMut<[f32]>,
     {
-        let frame_ptr = as_mut_ptrs(
-            frame,
-            self.capture_stream_config.num_channels_,
-            self.num_samples_per_frame(),
-        );
+        let frame_ptr =
+            as_mut_ptrs(frame, self.num_capture_channels(), self.num_samples_per_frame());
 
         // The C++ wants stream_delay set before every process_capture_frame() call (in case echo
         // canceller is enabled, but we do it every time as AEC is our main role anyway).
@@ -213,11 +210,8 @@ impl Processor {
         F: IntoIterator<Item = Ch>,
         Ch: AsMut<[f32]>,
     {
-        let frame_ptr = as_mut_ptrs(
-            frame,
-            self.render_stream_config.num_channels_,
-            self.num_samples_per_frame(),
-        );
+        let frame_ptr =
+            as_mut_ptrs(frame, self.num_render_channels(), self.num_samples_per_frame());
         let code = unsafe {
             ffi::process_render_frame(self.inner, &self.render_stream_config, frame_ptr.as_ptr())
         };
@@ -252,6 +246,16 @@ impl Processor {
     /// Returns statistics from the last `process_capture_frame()` call.
     pub fn get_stats(&self) -> Stats {
         unsafe { ffi::get_stats(self.inner).into() }
+    }
+
+    /// Returns the number of configured capture channels.
+    pub fn num_capture_channels(&self) -> usize {
+        self.capture_stream_config.num_channels_
+    }
+
+    /// Returns the number of configured render (playback) channels.
+    pub fn num_render_channels(&self) -> usize {
+        self.render_stream_config.num_channels_
     }
 
     /// Returns the number of (possibly multichannel) samples per frame based on the sample rate
