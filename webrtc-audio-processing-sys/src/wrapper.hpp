@@ -69,15 +69,24 @@ bool validate_aec3_config(webrtc::EchoCanceller3Config* config);
 // |kNoError|.
 int process_capture_frame(AudioProcessing* ap,
                           const webrtc::StreamConfig& capture_stream_config,
-                          float** channels);
+                          float* const* channels);
 
-// Processes and optionally modifies the audio frame from a playback device.
+// Processes and optionally modifies the audio frame destined to a playback
+// device.
 // Each element in |channels| is an array of float representing a single-channel
 // frame of 10 ms length (i.e. deinterleaved). Returns an error code or
 // |kNoError|.
 int process_render_frame(AudioProcessing* ap,
                          const webrtc::StreamConfig& render_stream_config,
-                         float** channel3);
+                         float* const* channels);
+
+// Analyzes the audio frame destined to a playback device without modifying it.
+// Each element in |channels| is an array of float representing a single-channel
+// frame of 10 ms length (i.e. deinterleaved). Returns an error code or
+// |kNoError|.
+int analyze_render_frame(AudioProcessing* ap,
+                         const webrtc::StreamConfig& render_stream_config,
+                         const float* const* channels);
 
 // Returns statistics from the last |process_capture_frame()| call.
 Stats get_stats(AudioProcessing* ap);

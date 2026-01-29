@@ -139,7 +139,7 @@ void initialize(AudioProcessing* ap) {
 
 int process_capture_frame(AudioProcessing* ap,
                           const webrtc::StreamConfig& capture_stream_config,
-                          float** channels) {
+                          float* const* channels) {
   // We don't transform the stream format, hence the same in & out stream
   // configs.
   return ap->processor->ProcessStream(channels, capture_stream_config,
@@ -148,11 +148,19 @@ int process_capture_frame(AudioProcessing* ap,
 
 int process_render_frame(AudioProcessing* ap,
                          const webrtc::StreamConfig& render_stream_config,
-                         float** channels) {
+                         float* const* channels) {
   // We don't transform the stream format, hence the same in & out stream
   // configs.
   return ap->processor->ProcessReverseStream(channels, render_stream_config,
                                              render_stream_config, channels);
+}
+
+int analyze_render_frame(AudioProcessing* ap,
+                         const webrtc::StreamConfig& render_stream_config,
+                         const float* const* channels) {
+  // We don't transform the stream format, hence the same in & out stream
+  // configs.
+  return ap->processor->AnalyzeReverseStream(channels, render_stream_config);
 }
 
 Stats get_stats(AudioProcessing* ap) {
