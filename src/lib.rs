@@ -115,7 +115,7 @@ fn result_from_code<T>(on_success: T, error_code: i32) -> Result<T, Error> {
 /// [`Arc`](std::sync::Arc) for multithreaded use.
 #[derive(Debug)]
 pub struct Processor {
-    inner: *mut ffi::AudioProcessing,
+    inner: AudioProcessingPtr,
     capture_stream_config: ffi::StreamConfig,
     render_stream_config: ffi::StreamConfig,
     /// The stream_delay extracted from config. Underlying C++ library wants us to set this before
@@ -163,7 +163,7 @@ impl Processor {
             )
         };
         Ok(Self {
-            inner: result_from_code(inner, code)?,
+            inner: AudioProcessingPtr(result_from_code(inner, code)?),
             capture_stream_config,
             render_stream_config,
             stream_delay_ms: AtomicU16::new(0),
@@ -190,9 +190,9 @@ impl Processor {
         // canceller is enabled, but we do it every time as AEC is our main role anyway).
         let stream_delay_ms = i32::from(self.stream_delay_ms.load(Ordering::Relaxed));
         let code = unsafe {
-            ffi::set_stream_delay_ms(self.inner, stream_delay_ms);
+            ffi::set_stream_delay_ms(*self.inner, stream_delay_ms);
 
-            ffi::process_capture_frame(self.inner, &self.capture_stream_config, frame_ptr.as_ptr())
+            ffi::process_capture_frame(*self.inner, &self.capture_stream_config, frame_ptr.as_ptr())
         };
         result_from_code((), code)
     }
@@ -213,7 +213,7 @@ impl Processor {
         let frame_ptr =
             as_mut_ptrs(frame, self.num_render_channels(), self.num_samples_per_frame());
         let code = unsafe {
-            ffi::process_render_frame(self.inner, &self.render_stream_config, frame_ptr.as_ptr())
+            ffi::process_render_frame(*self.inner, &self.render_stream_config, frame_ptr.as_ptr())
         };
         result_from_code((), code)
     }
@@ -238,14 +238,14 @@ impl Processor {
             self.num_samples_per_frame(),
         );
         let code = unsafe {
-            ffi::analyze_render_frame(self.inner, &self.render_stream_config, frame_ptr.as_ptr())
+            ffi::analyze_render_frame(*self.inner, &self.render_stream_config, frame_ptr.as_ptr())
         };
         result_from_code((), code)
     }
 
     /// Returns statistics from the last `process_capture_frame()` call.
     pub fn get_stats(&self) -> Stats {
-        unsafe { ffi::get_stats(self.inner).into() }
+        unsafe { ffi::get_stats(*self.inner).into() }
     }
 
     /// Returns the number of configured capture channels.
@@ -283,7 +283,7 @@ impl Processor {
         self.stream_delay_ms.store(stream_delay_ms, Ordering::Relaxed);
 
         unsafe {
-            ffi::set_config(self.inner, &config.into_ffi());
+            ffi::set_config(*self.inner, &config.into_ffi());
         }
     }
 
@@ -291,14 +291,14 @@ impl Processor {
     /// They may use the hint to improve their parameter adaptation.
     pub fn set_output_will_be_muted(&self, muted: bool) {
         unsafe {
-            ffi::set_output_will_be_muted(self.inner, muted);
+            ffi::set_output_will_be_muted(*self.inner, muted);
         }
     }
 
     /// Signals the AEC and AGC that the next frame will contain key press sound
     pub fn set_stream_key_pressed(&self, pressed: bool) {
         unsafe {
-            ffi::set_stream_key_pressed(self.inner, pressed);
+            ffi::set_stream_key_pressed(*self.inner, pressed);
         }
     }
 }
@@ -306,10 +306,28 @@ impl Processor {
 impl Drop for Processor {
     fn drop(&mut self) {
         unsafe {
-            ffi::delete_audio_processing(self.inner);
+            ffi::delete_audio_processing(*self.inner);
         }
     }
 }
+
+/// Wrap the raw FFI pointer so that we can unsafe impl Send, Sync only for it and not for the whole
+/// [`Processor`] struct. That way Rust type-checks the other [`Processor`] fields.
+#[derive(Debug)]
+struct AudioProcessingPtr(*mut ffi::AudioProcessing);
+
+impl std::ops::Deref for AudioProcessingPtr {
+    type Target = *mut ffi::AudioProcessing;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+// ffi::AudioProcessing provides thread safety with a few exceptions around the concurrent usage of
+// its corresponding getters and setters.
+unsafe impl Sync for AudioProcessingPtr {}
+unsafe impl Send for AudioProcessingPtr {}
 
 /// Collect a non-interleaved mutable frame (iterator/vec/array/slice of vecs/arrays/slices) into
 /// a Vec of mut channel pointers suitable for passing to FFI.
@@ -356,12 +374,6 @@ where
     assert_eq!(pointers.len(), num_channels, "number of channels doesn't match expectation");
     pointers
 }
-
-// ffi::AudioProcessing provides thread safety with a few exceptions around the concurrent usage of
-// its corresponding getters and setters.
-// TODO(strohel): wrap the ffi pointer and do this only for it
-unsafe impl Sync for Processor {}
-unsafe impl Send for Processor {}
 
 // This block is checked at compile time, but stripped from the final binary.
 const _: () = {
