@@ -131,7 +131,8 @@ impl Processor {
     }
 
     /// [Highly experimental]
-    /// Creates a new `Processor` with custom AEC3 configuration.
+    /// Creates a new `Processor` with custom AEC3 configuration. The AEC3 configuration needs to be
+    /// valid, otherwise this returns [`Error::BadParameter`].
     #[cfg(feature = "experimental-aec3-config")]
     pub fn with_aec3_config(
         config: &InitializationConfig,
