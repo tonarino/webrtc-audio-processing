@@ -8,7 +8,7 @@ fn main() {
         sample_rate_hz: 48_000,  // The maximum processing rate
     };
 
-    let mut ap = Processor::new(&config).unwrap();
+    let ap = Processor::new(&config).unwrap();
 
     let config = Config { echo_canceller: Some(EchoCanceller::default()), ..Default::default() };
     ap.set_config(config);
