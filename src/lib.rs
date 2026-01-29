@@ -173,12 +173,19 @@ impl Processor {
     /// signal processing as specified in the config. `frame` should be a Vec of
     /// length 'num_capture_channels', with each inner Vec representing a channel
     /// with NUM_SAMPLES_PER_FRAME samples.
+    ///
+    /// # Panics
+    /// Panics if the number of channels or samples doesn't match passed [`InitializationConfig`].
     pub fn process_capture_frame(&self, frame: &mut [Vec<f32>]) -> Result<(), Error> {
+        let mut frame_ptr = as_mut_ptrs(
+            frame,
+            self.capture_stream_config.num_channels_,
+            self.num_samples_per_frame(),
+        );
+
         // The C++ wants stream_delay set before every process_capture_frame() call (in case echo
         // canceller is enabled, but we do it every time as AEC is our main role anyway).
         let stream_delay_ms = i32::from(self.stream_delay_ms.load(Ordering::Relaxed));
-
-        let mut frame_ptr = frame.iter_mut().map(|v| v.as_mut_ptr()).collect::<Vec<*mut f32>>();
         let code = unsafe {
             ffi::set_stream_delay_ms(self.inner, stream_delay_ms);
 
@@ -194,8 +201,15 @@ impl Processor {
     /// Processes and optionally modifies the audio frame from a playback device.
     /// `frame` should be a Vec of length 'num_render_channels', with each inner Vec
     /// representing a channel with NUM_SAMPLES_PER_FRAME samples.
+    ///
+    /// # Panics
+    /// Panics if the number of channels or samples doesn't match passed [`InitializationConfig`].
     pub fn process_render_frame(&self, frame: &mut [Vec<f32>]) -> Result<(), Error> {
-        let mut frame_ptr = frame.iter_mut().map(|v| v.as_mut_ptr()).collect::<Vec<*mut f32>>();
+        let mut frame_ptr = as_mut_ptrs(
+            frame,
+            self.render_stream_config.num_channels_,
+            self.num_samples_per_frame(),
+        );
         let code = unsafe {
             ffi::process_render_frame(
                 self.inner,
@@ -262,6 +276,29 @@ impl Drop for Processor {
             ffi::delete_audio_processing(self.inner);
         }
     }
+}
+
+/// Collect a non-interleaved frame (iterator/vec/array/slice of vecs/arrays/slices) into a Vec of
+/// mut channel pointers suitable for passing to FFI.
+///
+/// # Panics
+/// Panics if the number of channels or samples doesn't match expectation.
+fn as_mut_ptrs<F, Ch>(frame: F, num_channels: usize, num_samples: usize) -> Vec<*mut f32>
+where
+    F: IntoIterator<Item = Ch>,
+    Ch: AsMut<[f32]>,
+{
+    let pointers = frame
+        .into_iter()
+        .map(|mut channel| {
+            let slice = channel.as_mut();
+            assert_eq!(slice.len(), num_samples, "number of samples doesn't match expectation");
+            slice.as_mut_ptr()
+        })
+        .collect::<Vec<*mut f32>>();
+
+    assert_eq!(pointers.len(), num_channels, "number of channels doesn't match expectation");
+    pointers
 }
 
 // ffi::AudioProcessing provides thread safety with a few exceptions around the concurrent usage of
@@ -594,7 +631,7 @@ mod tests {
 
             let num_samples = context.num_samples;
             // Make a fake path delay of 200ms (20 frames of 10ms)
-            let mut history = vec![vec![vec![0.0; num_samples]; 20]];
+            let mut history = vec![vec![vec![0.0; num_samples]]; 20];
             let (mut total_in_p, mut total_out_p) = (0.0, 0.0);
 
             for i in 0..100 {
@@ -608,11 +645,10 @@ mod tests {
                 // Add the render frame to history and pop the delayed frame as the "echo"
                 history.push(render.clone());
                 // Capture is the staggered echo signal
-                let mut capture: Vec<_> = history
-                    .remove(0)
-                    .iter()
-                    .map(|channel| channel.iter().map(|x| x * 0.8).collect())
-                    .collect();
+                let mut capture: Vec<_> = history.remove(0);
+                for sample in capture.iter_mut().flatten() {
+                    *sample *= 0.8;
+                }
 
                 // Get the energy before and after processing across the entire run
                 total_in_p += capture.iter().flatten().map(|x| x * x).sum::<f32>();
