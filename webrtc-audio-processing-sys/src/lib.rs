@@ -169,9 +169,9 @@ mod tests {
 
             let num_samples = stream_config.num_frames_; // frames in WebRTC == our samples
             let mut frame = vec![vec![0f32; num_samples as usize]; 1];
-            let mut frame_ptr = frame.iter_mut().map(|v| v.as_mut_ptr()).collect::<Vec<*mut f32>>();
-            assert_success(process_render_frame(ap, &stream_config, frame_ptr.as_mut_ptr()));
-            assert_success(process_capture_frame(ap, &stream_config, frame_ptr.as_mut_ptr()));
+            let frame_ptr = frame.iter_mut().map(|v| v.as_mut_ptr()).collect::<Vec<*mut f32>>();
+            assert_success(process_render_frame(ap, &stream_config, frame_ptr.as_ptr()));
+            assert_success(process_capture_frame(ap, &stream_config, frame_ptr.as_ptr()));
 
             delete_audio_processing(ap);
         }
@@ -218,9 +218,9 @@ mod tests {
 
             let num_samples = stream_config.num_frames_; // frames in WebRTC == our samples
             let mut frame = vec![vec![0f32; num_samples as usize]; 1];
-            let mut frame_ptr = frame.iter_mut().map(|v| v.as_mut_ptr()).collect::<Vec<*mut f32>>();
-            assert_success(process_render_frame(ap, &stream_config, frame_ptr.as_mut_ptr()));
-            assert_success(process_capture_frame(ap, &stream_config, frame_ptr.as_mut_ptr()));
+            let frame_ptr = frame.iter_mut().map(|v| v.as_mut_ptr()).collect::<Vec<*mut f32>>();
+            assert_success(process_render_frame(ap, &stream_config, frame_ptr.as_ptr()));
+            assert_success(process_capture_frame(ap, &stream_config, frame_ptr.as_ptr()));
 
             let stats = get_stats(ap);
             println!("Stats:\n{:#?}", stats);
