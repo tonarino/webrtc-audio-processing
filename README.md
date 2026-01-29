@@ -26,7 +26,7 @@ webrtc-audio-processing = "~2.0"
 
 ### Feature Flags
 
-* `bundled` - Build `webrtc-audio-procesing` from the included C++ code;
+* `bundled` - Build `webrtc-audio-processing` from the included C++ code;
   also enables symbol mangling in the built WebRTC library so that multiple major versions of
   `webrtc-audio-processing` can be linked together
 * `serde` - Derive `serialize` and `deserialize` traits for Serde use
@@ -65,4 +65,4 @@ Building from source and static linking can be enabled with the `bundled` featur
 ## Publishing
 
 1. `cargo release --verbose <new-version>`, double-check and follow instructions
-2. Create a GitHub release out of the pushed, highlight important/breaking changes
+2. Create a GitHub release from the pushed tag and highlight any important or breaking changes.
