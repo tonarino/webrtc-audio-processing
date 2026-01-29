@@ -86,6 +86,7 @@ AudioProcessing* create_audio_processing(
   if (aec3_config != nullptr) {
     // Validate the configuration
     if (!validate_aec3_config(aec3_config)) {
+      *error = webrtc::AudioProcessing::kBadParameterError;
       return nullptr;
     }
 
