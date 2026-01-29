@@ -183,7 +183,7 @@ impl Processor {
         F: IntoIterator<Item = Ch>,
         Ch: AsMut<[f32]>,
     {
-        let mut frame_ptr = as_mut_ptrs(
+        let frame_ptr = as_mut_ptrs(
             frame,
             self.capture_stream_config.num_channels_,
             self.num_samples_per_frame(),
@@ -195,16 +195,13 @@ impl Processor {
         let code = unsafe {
             ffi::set_stream_delay_ms(self.inner, stream_delay_ms);
 
-            ffi::process_capture_frame(
-                self.inner,
-                &self.capture_stream_config,
-                frame_ptr.as_mut_ptr(),
-            )
+            ffi::process_capture_frame(self.inner, &self.capture_stream_config, frame_ptr.as_ptr())
         };
         result_from_code((), code)
     }
 
-    /// Processes and optionally modifies the audio frame for a playback device.
+    /// Processes and optionally modifies the audio frame destined to a playback device.
+    /// See [`Self::analyze_render_frame()`] if modification of the stream is not needed/desired.
     ///
     /// `frame` is a non-interleaved audio frame data: mutable iterator/Vec/array/slice of
     /// channels, which are Vecs/arrays/slices of [`f32`] samples.
@@ -216,17 +213,38 @@ impl Processor {
         F: IntoIterator<Item = Ch>,
         Ch: AsMut<[f32]>,
     {
-        let mut frame_ptr = as_mut_ptrs(
+        let frame_ptr = as_mut_ptrs(
             frame,
             self.render_stream_config.num_channels_,
             self.num_samples_per_frame(),
         );
         let code = unsafe {
-            ffi::process_render_frame(
-                self.inner,
-                &self.render_stream_config,
-                frame_ptr.as_mut_ptr(),
-            )
+            ffi::process_render_frame(self.inner, &self.render_stream_config, frame_ptr.as_ptr())
+        };
+        result_from_code((), code)
+    }
+
+    /// Analyzes the audio frame destined to playback device without modifying it.
+    /// Similar to [`Self::process_render_frame()`], but doesn't modify the frame and takes an
+    /// immutable reference to it.
+    ///
+    /// `frame` is a non-interleaved audio frame data: mutable iterator/Vec/array/slice of
+    /// channels, which are Vecs/arrays/slices of [`f32`] samples.
+    ///
+    /// # Panics
+    /// Panics if the number of channels or samples doesn't match passed [`InitializationConfig`].
+    pub fn analyze_render_frame<F, Ch>(&self, frame: F) -> Result<(), Error>
+    where
+        F: IntoIterator<Item = Ch>,
+        Ch: AsRef<[f32]>,
+    {
+        let frame_ptr = as_const_ptrs(
+            frame,
+            self.render_stream_config.num_channels_,
+            self.num_samples_per_frame(),
+        );
+        let code = unsafe {
+            ffi::analyze_render_frame(self.inner, &self.render_stream_config, frame_ptr.as_ptr())
         };
         result_from_code((), code)
     }
@@ -289,8 +307,8 @@ impl Drop for Processor {
     }
 }
 
-/// Collect a non-interleaved frame (iterator/vec/array/slice of vecs/arrays/slices) into a Vec of
-/// mut channel pointers suitable for passing to FFI.
+/// Collect a non-interleaved mutable frame (iterator/vec/array/slice of vecs/arrays/slices) into
+/// a Vec of mut channel pointers suitable for passing to FFI.
 ///
 /// # Panics
 /// Panics if the number of channels or samples doesn't match expectation.
@@ -299,14 +317,37 @@ where
     F: IntoIterator<Item = Ch>,
     Ch: AsMut<[f32]>,
 {
-    let pointers = frame
+    let pointers: Vec<*mut f32> = frame
         .into_iter()
         .map(|mut channel| {
             let slice = channel.as_mut();
             assert_eq!(slice.len(), num_samples, "number of samples doesn't match expectation");
             slice.as_mut_ptr()
         })
-        .collect::<Vec<*mut f32>>();
+        .collect();
+
+    assert_eq!(pointers.len(), num_channels, "number of channels doesn't match expectation");
+    pointers
+}
+
+/// Collect a non-interleaved immutable frame (iterator/vec/array/slice of vecs/arrays/slices) into
+/// a Vec of const channel pointers suitable for passing to FFI.
+///
+/// # Panics
+/// Panics if the number of channels or samples doesn't match expectation.
+fn as_const_ptrs<F, Ch>(frame: F, num_channels: usize, num_samples: usize) -> Vec<*const f32>
+where
+    F: IntoIterator<Item = Ch>,
+    Ch: AsRef<[f32]>,
+{
+    let pointers: Vec<*const f32> = frame
+        .into_iter()
+        .map(|channel| {
+            let slice = channel.as_ref();
+            assert_eq!(slice.len(), num_samples, "number of samples doesn't match expectation");
+            slice.as_ptr()
+        })
+        .collect();
 
     assert_eq!(pointers.len(), num_channels, "number of channels doesn't match expectation");
     pointers
@@ -519,6 +560,13 @@ mod tests {
         // Echo cancellation should have modified the capture frame.
         // We don't validate how it's modified. Out of scope for this unit test.
         assert_ne!(capture_frame, capture_frame_output);
+
+        let render_frame_immutable = render_frame.clone();
+        ap.analyze_render_frame(&render_frame_immutable).unwrap();
+
+        // Immutable render frame really shouldn't be modified. In safe Rust that wouldn't be
+        // possible, but we use FFI and unsafe {}, so better test that.
+        assert_eq!(render_frame, render_frame_immutable);
 
         let stats = ap.get_stats();
         assert!(stats.echo_return_loss.is_some());
