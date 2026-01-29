@@ -14,7 +14,11 @@ mod stats;
 pub mod experimental;
 
 use crate::config::IntoFfi;
-use std::{error, fmt, ptr::null_mut};
+use std::{
+    error, fmt,
+    ptr::null_mut,
+    sync::atomic::{AtomicU16, Ordering},
+};
 use webrtc_audio_processing_config::Config;
 use webrtc_audio_processing_sys as ffi;
 
@@ -109,11 +113,14 @@ fn result_from_code<T>(on_success: T, error_code: i32) -> Result<T, Error> {
 /// It is [`Send`] + [`Sync`] and its methods take `&self` shared reference (as we expose
 /// thread-safe APIs of the underlying C++ library), so it can be easily wrapped in an
 /// [`Arc`](std::sync::Arc) for multithreaded use.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Processor {
     inner: *mut ffi::AudioProcessing,
     capture_stream_config: ffi::StreamConfig,
     render_stream_config: ffi::StreamConfig,
+    /// The stream_delay extracted from config. Underlying C++ library wants us to set this before
+    /// every process_capture_frame(), so we cache it for the user.
+    stream_delay_ms: AtomicU16,
 }
 
 impl Processor {
@@ -158,6 +165,7 @@ impl Processor {
             inner: result_from_code(inner, code)?,
             capture_stream_config,
             render_stream_config,
+            stream_delay_ms: AtomicU16::new(0),
         })
     }
 
@@ -165,9 +173,15 @@ impl Processor {
     /// signal processing as specified in the config. `frame` should be a Vec of
     /// length 'num_capture_channels', with each inner Vec representing a channel
     /// with NUM_SAMPLES_PER_FRAME samples.
-    pub fn process_capture_frame(&mut self, frame: &mut [Vec<f32>]) -> Result<(), Error> {
+    pub fn process_capture_frame(&self, frame: &mut [Vec<f32>]) -> Result<(), Error> {
+        // The C++ wants stream_delay set before every process_capture_frame() call (in case echo
+        // canceller is enabled, but we do it every time as AEC is our main role anyway).
+        let stream_delay_ms = i32::from(self.stream_delay_ms.load(Ordering::Relaxed));
+
         let mut frame_ptr = frame.iter_mut().map(|v| v.as_mut_ptr()).collect::<Vec<*mut f32>>();
         let code = unsafe {
+            ffi::set_stream_delay_ms(self.inner, stream_delay_ms);
+
             ffi::process_capture_frame(
                 self.inner,
                 &self.capture_stream_config,
@@ -180,7 +194,7 @@ impl Processor {
     /// Processes and optionally modifies the audio frame from a playback device.
     /// `frame` should be a Vec of length 'num_render_channels', with each inner Vec
     /// representing a channel with NUM_SAMPLES_PER_FRAME samples.
-    pub fn process_render_frame(&mut self, frame: &mut [Vec<f32>]) -> Result<(), Error> {
+    pub fn process_render_frame(&self, frame: &mut [Vec<f32>]) -> Result<(), Error> {
         let mut frame_ptr = frame.iter_mut().map(|v| v.as_mut_ptr()).collect::<Vec<*mut f32>>();
         let code = unsafe {
             ffi::process_render_frame(
@@ -201,11 +215,13 @@ impl Processor {
     /// and frame size (fixed in WebRTC to 10ms).
     pub fn num_samples_per_frame(&self) -> usize {
         // We have a confusing terminology clash here. For us, a frame is "10ms worth of audio data
-        // at given sample rate". For WebRTC, frame is a (possibly multichannel) sample.
-        // The value we get is computed by the followind C++ snippet>
+        // at given sample rate". For WebRTC, frame is a (possibly) multichannel sample.
+        // The value we get is computed by the following C++ snippet:
+        // ```cpp
         //   static int GetFrameSize(int sample_rate_hz) { return sample_rate_hz / 100; }
+        // ```
         //
-        // It doesn't matter whether we use capture or render stream config - we use the same frame
+        // It doesn't matter whether we use capture or render stream config - we use the same sample
         // rate for both.
         self.capture_stream_config.num_frames_
     }
@@ -213,13 +229,14 @@ impl Processor {
     /// Immediately updates the configurations of the internal signal processor.
     /// May be called multiple times after the initialization and during
     /// processing.
-    pub fn set_config(&mut self, config: Config) {
-        let delay_ms = config.echo_canceller.as_ref().and_then(|ec| ec.stream_delay_ms);
+    pub fn set_config(&self, config: Config) {
+        // Extract the stream delay to our cache (it is a runtime concept for AEC, not a config).
+        let stream_delay_ms =
+            config.echo_canceller.as_ref().and_then(|ec| ec.stream_delay_ms).unwrap_or_default();
+        self.stream_delay_ms.store(stream_delay_ms, Ordering::Relaxed);
+
         unsafe {
             ffi::set_config(self.inner, &config.into_ffi());
-            if let Some(delay) = delay_ms {
-                ffi::set_stream_delay_ms(self.inner, delay);
-            }
         }
     }
 
@@ -228,17 +245,6 @@ impl Processor {
     pub fn set_output_will_be_muted(&self, muted: bool) {
         unsafe {
             ffi::set_output_will_be_muted(self.inner, muted);
-        }
-    }
-
-    /// Sets the delay in milliseconds between `process_render_frame()` receiving a far-end frame
-    /// and `process_capture_frame()` receiving a near-end frame containing the corresponding echo.
-    ///
-    /// This should only be used when the delay is known to be stable and constant. For adaptive
-    /// delay estimation, leave this unset and rely on the internal estimator.
-    pub fn set_stream_delay_ms(&self, delay: i32) {
-        unsafe {
-            ffi::set_stream_delay_ms(self.inner, delay);
         }
     }
 
@@ -279,7 +285,7 @@ const _: () = {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::{thread, time::Duration};
+    use std::{sync::Arc, thread, time::Duration};
     use webrtc_audio_processing_config::{EchoCanceller, EchoCancellerMode};
 
     fn init_config(num_channels: usize) -> InitializationConfig {
@@ -445,7 +451,7 @@ mod tests {
     #[test]
     fn test_nominal() {
         let config = init_config(2);
-        let mut ap = Processor::new(&config).unwrap();
+        let ap = Processor::new(&config).unwrap();
 
         let config =
             Config { echo_canceller: Some(EchoCanceller::default()), ..Default::default() };
@@ -472,14 +478,13 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_nominal_threaded() {
         let config = init_config(2);
-        let ap = Processor::new(&config).unwrap();
+        let ap = Arc::new(Processor::new(&config).unwrap());
 
         let (render_frame, capture_frame) = sample_stereo_frames(&ap);
 
-        let mut config_ap = ap.clone();
+        let config_ap = Arc::clone(&ap);
         let config_thread = thread::spawn(move || {
             thread::sleep(Duration::from_millis(100));
 
@@ -488,7 +493,7 @@ mod tests {
             config_ap.set_config(config);
         });
 
-        let mut render_ap = ap.clone();
+        let render_ap = Arc::clone(&ap);
         let render_thread = thread::spawn(move || {
             for _ in 0..100 {
                 let mut render_frame_output = render_frame.clone();
@@ -498,7 +503,7 @@ mod tests {
             }
         });
 
-        let mut capture_ap = ap.clone();
+        let capture_ap = Arc::clone(&ap);
         let capture_thread = thread::spawn(move || {
             for i in 0..100 {
                 let mut capture_frame_output = capture_frame.clone();
@@ -529,12 +534,21 @@ mod tests {
             num_render_channels: 2,
             ..InitializationConfig::default()
         };
-        let mut ap = Processor::new(&config).unwrap();
+        let ap = Processor::new(&config).unwrap();
 
-        // tweak params outside of config
+        // Add some runtime events.
         ap.set_output_will_be_muted(true);
         ap.set_stream_key_pressed(true);
-        ap.set_stream_delay_ms(10);
+
+        // Set non-default stream_delay
+        let config = Config {
+            echo_canceller: Some(EchoCanceller {
+                stream_delay_ms: Some(10),
+                ..EchoCanceller::default()
+            }),
+            ..Config::default()
+        };
+        ap.set_config(config);
 
         // test one process call
         let (render_frame, capture_frame) = sample_stereo_frames(&ap);
@@ -558,7 +572,7 @@ mod tests {
         };
 
         // Verify via stats & warm up
-        let mut context = TestContext::new(1, None);
+        let context = TestContext::new(1, None);
         context.processor.set_config(make_config(200));
 
         let mut frame = vec![vec![0.1f32; context.num_samples]];
@@ -574,7 +588,7 @@ mod tests {
 
         // Verify matched delay should handle a signal pulse better
         let measure_pulse_reduction = |applied_delay_ms| {
-            let mut context = TestContext::new(1, None);
+            let context = TestContext::new(1, None);
             // Apply either a correct hint (200ms) or an incorrect one (0ms)
             context.processor.set_config(make_config(applied_delay_ms));
 

@@ -36,7 +36,7 @@ struct Args {
 }
 
 fn create_processor(config: &AppConfig) -> Result<Processor, Error> {
-    let mut processor = Processor::with_aec3_config(
+    let processor = Processor::with_aec3_config(
         &InitializationConfig {
             num_capture_channels: config.num_capture_channels,
             num_render_channels: config.num_render_channels,
@@ -76,7 +76,7 @@ fn main() -> Result<(), Error> {
         "Render channels must be 1 or 2"
     );
 
-    let mut processor = create_processor(&config)?;
+    let processor = create_processor(&config)?;
 
     let pa = portaudio::PortAudio::new()?;
 

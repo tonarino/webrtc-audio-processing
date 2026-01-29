@@ -183,11 +183,11 @@ fn main() -> Result<(), Error> {
 
     let pa = portaudio::PortAudio::new()?;
 
-    let mut processor = Processor::new(&InitializationConfig {
+    let processor = Arc::new(Processor::new(&InitializationConfig {
         num_capture_channels: opt.capture.num_channels as usize,
         num_render_channels: opt.render.num_channels as usize,
         sample_rate_hz: AUDIO_SAMPLE_RATE,
-    })?;
+    })?);
 
     processor.set_config(opt.config.clone());
 
@@ -220,7 +220,7 @@ fn main() -> Result<(), Error> {
 
         let running = running.clone();
         let mute = opt.render.mute;
-        let mut processor = processor.clone();
+        let processor = Arc::clone(&processor);
         move |portaudio::DuplexStreamCallbackArgs { in_buffer, out_buffer, frames, .. }| {
             assert_eq!(frames, processor.num_samples_per_frame());
 

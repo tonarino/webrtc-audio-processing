@@ -159,7 +159,8 @@ pub struct EchoCanceller {
     pub mode: EchoCancellerMode,
 
     /// Sets the delay in ms between process_render_frame() and process_capture_frame().
-    pub stream_delay_ms: Option<i32>,
+    /// If None (or zero), we let the AEC processor try to determine it.
+    pub stream_delay_ms: Option<u16>,
 }
 
 /// AEC (acoustic echo cancellation) mode.
