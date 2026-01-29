@@ -170,13 +170,18 @@ impl Processor {
     }
 
     /// Processes and modifies the audio frame from a capture device by applying
-    /// signal processing as specified in the config. `frame` should be a Vec of
-    /// length 'num_capture_channels', with each inner Vec representing a channel
-    /// with NUM_SAMPLES_PER_FRAME samples.
+    /// signal processing as specified in the config.
+    ///
+    /// `frame` is a non-interleaved audio frame data: mutable iterator/Vec/array/slice of
+    /// channels, which are Vecs/arrays/slices of [`f32`] samples.
     ///
     /// # Panics
     /// Panics if the number of channels or samples doesn't match passed [`InitializationConfig`].
-    pub fn process_capture_frame(&self, frame: &mut [Vec<f32>]) -> Result<(), Error> {
+    pub fn process_capture_frame<F, Ch>(&self, frame: F) -> Result<(), Error>
+    where
+        F: IntoIterator<Item = Ch>,
+        Ch: AsMut<[f32]>,
+    {
         let mut frame_ptr = as_mut_ptrs(
             frame,
             self.capture_stream_config.num_channels_,
@@ -198,13 +203,18 @@ impl Processor {
         result_from_code((), code)
     }
 
-    /// Processes and optionally modifies the audio frame from a playback device.
-    /// `frame` should be a Vec of length 'num_render_channels', with each inner Vec
-    /// representing a channel with NUM_SAMPLES_PER_FRAME samples.
+    /// Processes and optionally modifies the audio frame for a playback device.
+    ///
+    /// `frame` is a non-interleaved audio frame data: mutable iterator/Vec/array/slice of
+    /// channels, which are Vecs/arrays/slices of [`f32`] samples.
     ///
     /// # Panics
     /// Panics if the number of channels or samples doesn't match passed [`InitializationConfig`].
-    pub fn process_render_frame(&self, frame: &mut [Vec<f32>]) -> Result<(), Error> {
+    pub fn process_render_frame<F, Ch>(&self, frame: F) -> Result<(), Error>
+    where
+        F: IntoIterator<Item = Ch>,
+        Ch: AsMut<[f32]>,
+    {
         let mut frame_ptr = as_mut_ptrs(
             frame,
             self.render_stream_config.num_channels_,
@@ -422,8 +432,8 @@ mod tests {
             iterations: usize,
         ) {
             for _ in 0..iterations {
-                self.processor.process_render_frame(render).unwrap();
-                self.processor.process_capture_frame(capture).unwrap();
+                self.processor.process_render_frame(&mut *render).unwrap();
+                self.processor.process_capture_frame(&mut *capture).unwrap();
             }
         }
 
@@ -512,6 +522,34 @@ mod tests {
         let stats = ap.get_stats();
         assert!(stats.echo_return_loss.is_some());
         println!("{stats:#?}");
+    }
+
+    #[test]
+    fn test_process_signatures() {
+        const NUM_SAMPLES: usize = 480;
+
+        let config = init_config(1);
+        let ap = Processor::new(&config).unwrap();
+        assert_eq!(ap.num_samples_per_frame(), NUM_SAMPLES);
+
+        // Iterator of Vecs
+        #[expect(clippy::useless_vec)]
+        let mut vector = vec![vec![0.0; NUM_SAMPLES]];
+        ap.process_capture_frame(vector.iter_mut()).unwrap();
+
+        // Vec of arrays
+        let mut vector = vec![[0.0; NUM_SAMPLES]];
+        ap.process_render_frame(&mut vector).unwrap();
+
+        // array of slices
+        let mut channel = vec![0.0; NUM_SAMPLES];
+        let mut array = [&mut channel[..]];
+        ap.process_capture_frame(&mut array).unwrap();
+
+        // slice of Vecs
+        let channel = vec![0.0; NUM_SAMPLES];
+        let slice = &mut [channel][..];
+        ap.process_render_frame(slice).unwrap();
     }
 
     #[test]
