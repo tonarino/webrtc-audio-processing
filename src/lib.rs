@@ -23,9 +23,9 @@ use std::{
     ptr::null_mut,
     sync::atomic::{AtomicU32, Ordering},
 };
-use webrtc_audio_processing_sys as ffi;
+use webrtc_audio_processing_sys::{self as ffi, StreamConfig};
 
-pub use config::{Config, InitializationConfig};
+pub use config::Config;
 pub use stats::*;
 
 /// Represents an error inside webrtc::AudioProcessing.
@@ -127,8 +127,7 @@ fn result_from_code<T>(on_success: T, error_code: i32) -> Result<T, Error> {
 #[derive(Debug)]
 pub struct Processor {
     inner: AudioProcessingPtr,
-    capture_stream_config: ffi::StreamConfig,
-    render_stream_config: ffi::StreamConfig,
+    sample_rate_hz: u32,
     /// The stream_delay extracted from config. Underlying C++ library wants us to set this before
     /// every process_capture_frame() call in many cases (Full AEC3 with custom delay, Mobile AECM).
     ///
@@ -137,10 +136,10 @@ pub struct Processor {
 }
 
 impl Processor {
-    /// Creates a new [`Self`]. [`InitializationConfig`] is only used on instantiation, however new
-    /// configs can be be passed to [`Self::set_config()`] at any time during processing.
-    pub fn new(config: &InitializationConfig) -> Result<Self, Error> {
-        Self::new_with_ptr(config, null_mut())
+    /// Creates a new [`Self`]. Detailed configuration can be be passed to [`Self::set_config()`] at
+    /// any time during processing.
+    pub fn new(sample_rate_hz: u32) -> Result<Self, Error> {
+        Self::new_with_ptr(sample_rate_hz, null_mut())
     }
 
     /// [Highly experimental]
@@ -148,37 +147,22 @@ impl Processor {
     /// valid, otherwise this returns [`Error::BadParameter`].
     #[cfg(feature = "experimental-aec3-config")]
     pub fn with_aec3_config(
-        config: &InitializationConfig,
+        sample_rate_hz: u32,
         mut aec3_config: experimental::EchoCanceller3Config,
     ) -> Result<Self, Error> {
-        Self::new_with_ptr(config, &raw mut *aec3_config)
+        Self::new_with_ptr(sample_rate_hz, &raw mut *aec3_config)
     }
 
     /// Pass null ptr in `aec3_config` to use its default config.
     fn new_with_ptr(
-        config: &InitializationConfig,
+        sample_rate_hz: u32,
         aec3_config: *mut ffi::EchoCanceller3Config,
     ) -> Result<Self, Error> {
-        if config.num_capture_channels == 0 || config.num_render_channels == 0 {
-            return Err(Error::BadNumberChannels);
-        }
-
-        let capture_stream_config = config.capture_stream_config();
-        let render_stream_config = config.render_stream_config();
-
         let mut code = 0;
-        let inner = unsafe {
-            ffi::create_audio_processing(
-                &capture_stream_config,
-                &render_stream_config,
-                aec3_config,
-                &mut code,
-            )
-        };
+        let inner = unsafe { ffi::create_audio_processing(aec3_config, &mut code) };
         Ok(Self {
             inner: AudioProcessingPtr(result_from_code(inner, code)?),
-            capture_stream_config,
-            render_stream_config,
+            sample_rate_hz,
             // u32::MAX to denote not (yet) set.
             stream_delay_ms: AtomicU32::new(u32::MAX),
         })
@@ -190,15 +174,18 @@ impl Processor {
     /// `frame` is a non-interleaved audio frame data: mutable iterator/Vec/array/slice of
     /// channels, which are Vecs/arrays/slices of [`f32`] samples.
     ///
+    /// Processor dynamically adapts to the number of channels in `frame` (at the const of partial
+    /// reinitialization).
+    ///
     /// # Panics
-    /// Panics if the number of channels or samples doesn't match passed [`InitializationConfig`].
+    /// Panics if the number of samples doesn't match 10ms @ `sample_rate_hz` passed to constructor.
     pub fn process_capture_frame<F, Ch>(&self, frame: F) -> Result<(), Error>
     where
         F: IntoIterator<Item = Ch>,
         Ch: AsMut<[f32]>,
     {
-        let frame_ptr =
-            as_mut_ptrs(frame, self.num_capture_channels(), self.num_samples_per_frame());
+        let frame_ptr = as_mut_ptrs(frame, self.num_samples_per_frame());
+        let capture_stream_config = StreamConfig::new(self.sample_rate_hz, frame_ptr.len());
 
         // If we want a custom stream_delay with Full AEC3, we need to set it before every
         // process_capture_frame() call, otherwise the delay estimator kicks in.
@@ -213,7 +200,7 @@ impl Processor {
                 ffi::set_stream_delay_ms(*self.inner, stream_delay_ms);
             }
 
-            ffi::process_capture_frame(*self.inner, &self.capture_stream_config, frame_ptr.as_ptr())
+            ffi::process_capture_frame(*self.inner, &capture_stream_config, frame_ptr.as_ptr())
         };
         result_from_code((), code)
     }
@@ -224,6 +211,9 @@ impl Processor {
     /// `frame` is a non-interleaved audio frame data: mutable iterator/Vec/array/slice of
     /// channels, which are Vecs/arrays/slices of [`f32`] samples.
     ///
+    /// Processor dynamically adapts to the number of channels in `frame` (at the const of partial
+    /// reinitialization).
+    ///
     /// # Panics
     /// Panics if the number of channels or samples doesn't match passed [`InitializationConfig`].
     pub fn process_render_frame<F, Ch>(&self, frame: F) -> Result<(), Error>
@@ -231,10 +221,10 @@ impl Processor {
         F: IntoIterator<Item = Ch>,
         Ch: AsMut<[f32]>,
     {
-        let frame_ptr =
-            as_mut_ptrs(frame, self.num_render_channels(), self.num_samples_per_frame());
+        let frame_ptr = as_mut_ptrs(frame, self.num_samples_per_frame());
+        let render_stream_config = StreamConfig::new(self.sample_rate_hz, frame_ptr.len());
         let code = unsafe {
-            ffi::process_render_frame(*self.inner, &self.render_stream_config, frame_ptr.as_ptr())
+            ffi::process_render_frame(*self.inner, &render_stream_config, frame_ptr.as_ptr())
         };
         result_from_code((), code)
     }
@@ -246,6 +236,9 @@ impl Processor {
     /// `frame` is a non-interleaved audio frame data: mutable iterator/Vec/array/slice of
     /// channels, which are Vecs/arrays/slices of [`f32`] samples.
     ///
+    /// Processor dynamically adapts to the number of channels in `frame` (at the const of partial
+    /// reinitialization).
+    ///
     /// # Panics
     /// Panics if the number of channels or samples doesn't match passed [`InitializationConfig`].
     pub fn analyze_render_frame<F, Ch>(&self, frame: F) -> Result<(), Error>
@@ -253,13 +246,10 @@ impl Processor {
         F: IntoIterator<Item = Ch>,
         Ch: AsRef<[f32]>,
     {
-        let frame_ptr = as_const_ptrs(
-            frame,
-            self.render_stream_config.num_channels_,
-            self.num_samples_per_frame(),
-        );
+        let frame_ptr = as_const_ptrs(frame, self.num_samples_per_frame());
+        let render_stream_config = StreamConfig::new(self.sample_rate_hz, frame_ptr.len());
         let code = unsafe {
-            ffi::analyze_render_frame(*self.inner, &self.render_stream_config, frame_ptr.as_ptr())
+            ffi::analyze_render_frame(*self.inner, &render_stream_config, frame_ptr.as_ptr())
         };
         result_from_code((), code)
     }
@@ -269,29 +259,14 @@ impl Processor {
         unsafe { ffi::get_stats(*self.inner).into() }
     }
 
-    /// Returns the number of configured capture channels.
-    pub fn num_capture_channels(&self) -> usize {
-        self.capture_stream_config.num_channels_
-    }
-
-    /// Returns the number of configured render (playback) channels.
-    pub fn num_render_channels(&self) -> usize {
-        self.render_stream_config.num_channels_
-    }
-
     /// Returns the number of (possibly multichannel) samples per frame based on the sample rate
     /// and frame size (fixed in WebRTC to 10ms).
     pub fn num_samples_per_frame(&self) -> usize {
-        // We have a confusing terminology clash here. For us, a frame is "10ms worth of audio data
-        // at given sample rate". For WebRTC, frame is a (possibly) multichannel sample.
-        // The value we get is computed by the following C++ snippet:
+        // We mimic the C++ code here (bindgen doesn't support inline methods anyway)
         // ```cpp
         //   static int GetFrameSize(int sample_rate_hz) { return sample_rate_hz / 100; }
         // ```
-        //
-        // It doesn't matter whether we use capture or render stream config - we use the same sample
-        // rate for both.
-        self.capture_stream_config.num_frames_
+        self.sample_rate_hz as usize / 100
     }
 
     /// Immediately updates the configurations of the internal signal processor.
@@ -361,46 +336,40 @@ unsafe impl Send for AudioProcessingPtr {}
 /// a Vec of mut channel pointers suitable for passing to FFI.
 ///
 /// # Panics
-/// Panics if the number of channels or samples doesn't match expectation.
-fn as_mut_ptrs<F, Ch>(frame: F, num_channels: usize, num_samples: usize) -> Vec<*mut f32>
+/// Panics if the number of samples doesn't match expectation.
+fn as_mut_ptrs<F, Ch>(frame: F, num_samples: usize) -> Vec<*mut f32>
 where
     F: IntoIterator<Item = Ch>,
     Ch: AsMut<[f32]>,
 {
-    let pointers: Vec<*mut f32> = frame
+    frame
         .into_iter()
         .map(|mut channel| {
             let slice = channel.as_mut();
             assert_eq!(slice.len(), num_samples, "number of samples doesn't match expectation");
             slice.as_mut_ptr()
         })
-        .collect();
-
-    assert_eq!(pointers.len(), num_channels, "number of channels doesn't match expectation");
-    pointers
+        .collect()
 }
 
 /// Collect a non-interleaved immutable frame (iterator/vec/array/slice of vecs/arrays/slices) into
 /// a Vec of const channel pointers suitable for passing to FFI.
 ///
 /// # Panics
-/// Panics if the number of channels or samples doesn't match expectation.
-fn as_const_ptrs<F, Ch>(frame: F, num_channels: usize, num_samples: usize) -> Vec<*const f32>
+/// Panics if the number of samples doesn't match expectation.
+fn as_const_ptrs<F, Ch>(frame: F, num_samples: usize) -> Vec<*const f32>
 where
     F: IntoIterator<Item = Ch>,
     Ch: AsRef<[f32]>,
 {
-    let pointers: Vec<*const f32> = frame
+    frame
         .into_iter()
         .map(|channel| {
             let slice = channel.as_ref();
             assert_eq!(slice.len(), num_samples, "number of samples doesn't match expectation");
             slice.as_ptr()
         })
-        .collect();
-
-    assert_eq!(pointers.len(), num_channels, "number of channels doesn't match expectation");
-    pointers
+        .collect()
 }
 
 // This block is checked at compile time, but stripped from the final binary.
@@ -420,13 +389,7 @@ mod tests {
     use super::{config::EchoCanceller, *};
     use std::{sync::Arc, thread, time::Duration};
 
-    fn init_config(num_channels: usize) -> InitializationConfig {
-        InitializationConfig {
-            num_capture_channels: num_channels,
-            num_render_channels: num_channels,
-            sample_rate_hz: 48_000,
-        }
-    }
+    const SAMPLE_RATE_HZ: u32 = 48_000;
 
     fn sample_stereo_frames(ap: &Processor) -> (Vec<Vec<f32>>, Vec<Vec<f32>>) {
         let num_samples_per_frame = ap.num_samples_per_frame();
@@ -482,10 +445,11 @@ mod tests {
             num_channels: usize,
             aec3_config: Option<experimental::EchoCanceller3Config>,
         ) -> Self {
-            let config = init_config(num_channels);
             let processor = match aec3_config {
-                Some(aec3_config) => Processor::with_aec3_config(&config, aec3_config).unwrap(),
-                None => Processor::new(&config).unwrap(),
+                Some(aec3_config) => {
+                    Processor::with_aec3_config(SAMPLE_RATE_HZ, aec3_config).unwrap()
+                },
+                None => Processor::new(SAMPLE_RATE_HZ).unwrap(),
             };
             let num_samples = processor.num_samples_per_frame();
             Self { processor, num_samples, num_channels }
@@ -493,8 +457,7 @@ mod tests {
 
         #[cfg(not(feature = "experimental-aec3-config"))]
         fn new(num_channels: usize, _: Option<()>) -> Self {
-            let config = init_config(num_channels);
-            let processor = Processor::new(&config).unwrap();
+            let processor = Processor::new(SAMPLE_RATE_HZ).unwrap();
             let num_samples = processor.num_samples_per_frame();
             Self { processor, num_samples, num_channels }
         }
@@ -564,26 +527,16 @@ mod tests {
         }
     }
 
-    /// Tests initialization failure with invalid configuration
-    #[test]
-    fn test_create_failure() {
-        let config = InitializationConfig { num_capture_channels: 0, ..init_config(1) };
-        let err = Processor::new(&config).unwrap_err();
-        assert_eq!(err, Error::BadNumberChannels);
-    }
-
     /// Tests proper resource cleanup on drop
     #[test]
     fn test_create_drop() {
-        let config = init_config(1);
-        let _p = Processor::new(&config).unwrap();
+        let _p = Processor::new(SAMPLE_RATE_HZ).unwrap();
     }
 
     /// Tests nominal operation of the audio processing library.
     #[test]
     fn test_nominal() {
-        let config = init_config(2);
-        let ap = Processor::new(&config).unwrap();
+        let ap = Processor::new(SAMPLE_RATE_HZ).unwrap();
 
         let config =
             Config { echo_canceller: Some(EchoCanceller::default()), ..Default::default() };
@@ -620,8 +573,7 @@ mod tests {
     fn test_process_signatures() {
         const NUM_SAMPLES: usize = 480;
 
-        let config = init_config(1);
-        let ap = Processor::new(&config).unwrap();
+        let ap = Processor::new(SAMPLE_RATE_HZ).unwrap();
         assert_eq!(ap.num_samples_per_frame(), NUM_SAMPLES);
 
         // Iterator of Vecs
@@ -649,8 +601,7 @@ mod tests {
     // thead::sleep() which is notoriously imprecise on macs.
     #[cfg_attr(target_os = "macos", ignore)]
     fn test_nominal_threaded() {
-        let config = init_config(2);
-        let ap = Arc::new(Processor::new(&config).unwrap());
+        let ap = Arc::new(Processor::new(SAMPLE_RATE_HZ).unwrap());
 
         let (render_frame, capture_frame) = sample_stereo_frames(&ap);
 
@@ -699,12 +650,7 @@ mod tests {
 
     #[test]
     fn test_tweak_processor_params() {
-        let config = InitializationConfig {
-            num_capture_channels: 2,
-            num_render_channels: 2,
-            ..InitializationConfig::default()
-        };
-        let ap = Processor::new(&config).unwrap();
+        let ap = Processor::new(SAMPLE_RATE_HZ).unwrap();
 
         // Add some runtime events.
         ap.set_output_will_be_muted(true);
@@ -724,6 +670,12 @@ mod tests {
         ap.process_render_frame(&mut render_frame_output).unwrap();
         let mut capture_frame_output = capture_frame.clone();
         ap.process_capture_frame(&mut capture_frame_output).unwrap();
+
+        // Change the number of channels from 2 to 4, processor should adapt.
+        let mut four_channel_frame = vec![vec![0.0; ap.num_samples_per_frame()]; 4];
+        ap.process_render_frame(&mut four_channel_frame).unwrap();
+        ap.process_capture_frame(&mut four_channel_frame).unwrap();
+        ap.analyze_render_frame(&four_channel_frame).unwrap();
 
         // it shouldn't crash
     }

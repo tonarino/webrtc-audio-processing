@@ -3,40 +3,6 @@
 pub use webrtc_audio_processing_config::*;
 use webrtc_audio_processing_sys as ffi;
 
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
-
-/// A configuration for initializing a Processor instance.
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(default))]
-pub struct InitializationConfig {
-    /// Number of input channels for the capture frame.
-    pub num_capture_channels: usize,
-
-    /// Number of output channels for the render frame.
-    pub num_render_channels: usize,
-
-    /// Sampling rate of the capture and render frames. Accepts an arbitrary value, but the maximum
-    /// internal processing rate is 48000, so the audio quality is capped as such.
-    pub sample_rate_hz: u32,
-}
-
-impl Default for InitializationConfig {
-    fn default() -> Self {
-        Self { num_capture_channels: 1, num_render_channels: 1, sample_rate_hz: 48_000 }
-    }
-}
-
-impl InitializationConfig {
-    pub(crate) fn capture_stream_config(&self) -> ffi::StreamConfig {
-        ffi::StreamConfig::new(self.sample_rate_hz, self.num_capture_channels)
-    }
-
-    pub(crate) fn render_stream_config(&self) -> ffi::StreamConfig {
-        ffi::StreamConfig::new(self.sample_rate_hz, self.num_render_channels)
-    }
-}
-
 /// This is the same as the standard [`From`] trait, which we cannot use because of the orphan rule.
 pub(crate) trait FromConfig<T>: Sized {
     fn from_config(value: T) -> Self;
