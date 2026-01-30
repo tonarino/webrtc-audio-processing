@@ -112,8 +112,9 @@ fn result_from_code<T>(on_success: T, error_code: i32) -> Result<T, Error> {
 /// gain control.
 ///
 /// It is [`Send`] + [`Sync`] and its methods take `&self` shared reference (as we expose
-/// thread-safe APIs of the underlying C++ library), so it can be easily wrapped in an
-/// [`Arc`](std::sync::Arc) for multithreaded use.
+/// thread-safe APIs of the underlying C++ library).
+/// As a practical example, one can wrap this type in an [`Arc`](std::sync::Arc) to share ownership
+/// between capture and render threads.
 #[derive(Debug)]
 pub struct Processor {
     inner: AudioProcessingPtr,
@@ -340,8 +341,10 @@ impl std::ops::Deref for AudioProcessingPtr {
     }
 }
 
-// ffi::AudioProcessing provides thread safety with a few exceptions around the concurrent usage of
-// its corresponding getters and setters.
+// ffi::AudioProcessing provides thread safety, at least for the subset of its public API that we
+// expose. Relevant pointers in its source code:
+// https://gitlab.freedesktop.org/pulseaudio/webrtc-audio-processing/-/blob/v2.1/webrtc/api/audio/audio_processing.h?ref_type=tags#L74-80
+// https://gitlab.freedesktop.org/pulseaudio/webrtc-audio-processing/-/blob/v2.1/webrtc/modules/audio_processing/audio_processing_impl.h?ref_type=tags#L352-354
 unsafe impl Sync for AudioProcessingPtr {}
 unsafe impl Send for AudioProcessingPtr {}
 
