@@ -115,6 +115,13 @@ fn result_from_code<T>(on_success: T, error_code: i32) -> Result<T, Error> {
 /// thread-safe APIs of the underlying C++ library).
 /// As a practical example, one can wrap this type in an [`Arc`](std::sync::Arc) to share ownership
 /// between capture and render threads.
+///
+/// Functionality in the C++ library that we don't yet expose:
+/// - ability to (re)initialize the processor (keep config, but but drop any state)
+///   - with optional support to change the capture/render stream config (number of channels)
+/// - changing the number of channels on-the-fly in process_capture/render_frame()
+/// - getting the current config (can only return the FFI, but we can compare against user-supplied
+///   one)
 #[derive(Debug)]
 pub struct Processor {
     inner: AudioProcessingPtr,
