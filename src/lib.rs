@@ -720,13 +720,13 @@ mod tests {
     #[test]
     fn test_stream_delay() {
         let make_config = |delay_ms| Config {
-            echo_canceller: Some(EchoCanceller::Full { stream_delay_ms: Some(delay_ms) }),
+            echo_canceller: Some(EchoCanceller::Full { stream_delay_ms: delay_ms }),
             ..Default::default()
         };
 
         // Verify via stats & warm up
         let context = TestContext::new(1, None);
-        context.processor.set_config(make_config(200));
+        context.processor.set_config(make_config(Some(200)));
 
         let mut frame = vec![vec![0.1f32; context.num_samples]];
         for _ in 0..20 {
@@ -777,15 +777,20 @@ mod tests {
         };
 
         // Measure reduction with a 0ms hint
-        let reduction_mismatched = measure_pulse_reduction(0);
+        let reduction_mismatched = measure_pulse_reduction(Some(0));
+        let reduction_adaptive = measure_pulse_reduction(None);
         // Measure reduction with a 200ms hint
-        let reduction_matched = measure_pulse_reduction(200);
+        let reduction_matched = measure_pulse_reduction(Some(200));
 
         // Correct alignment should result in much better cancellation
         assert!(
             reduction_matched > reduction_mismatched * 1000.0,
             "Matched delay should have better echo cancellation"
         );
+        // Adaptive should be better than outright wrong (in practice it is only slightly)
+        assert!(reduction_adaptive > reduction_mismatched);
+        // And correctly matched should be better than adaptive
+        assert!(reduction_matched > reduction_adaptive);
     }
 
     /// Measures baseline echo cancellation performance.
