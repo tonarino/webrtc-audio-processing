@@ -162,14 +162,15 @@ impl FromConfig<Option<config::HighPassFilter>> for ffi::AudioProcessing_Config_
 impl FromConfig<Option<config::EchoCanceller>> for ffi::AudioProcessing_Config_EchoCanceller {
     fn from_config(other: Option<config::EchoCanceller>) -> Self {
         let Some(other) = other else { return Self { enabled: false, ..Self::default() } };
-        match other.mode {
-            config::EchoCancellerMode::Mobile => Self {
+        // stream_delay_ms is extracted into a runtime variable in Processor::set_config().
+        match other {
+            config::EchoCanceller::Mobile { stream_delay_ms: _ } => Self {
                 enabled: true,
                 mobile_mode: true,
                 enforce_high_pass_filtering: false,
                 export_linear_aec_output: false,
             },
-            config::EchoCancellerMode::Full => Self {
+            config::EchoCanceller::Full { stream_delay_ms: _ } => Self {
                 enabled: true,
                 mobile_mode: false,
                 enforce_high_pass_filtering: true,

@@ -15,11 +15,12 @@ pub mod experimental;
 
 use crate::config::IntoFfi;
 use std::{
+    convert::TryFrom,
     error, fmt,
     ptr::null_mut,
-    sync::atomic::{AtomicU16, Ordering},
+    sync::atomic::{AtomicU32, Ordering},
 };
-use webrtc_audio_processing_config::Config;
+use webrtc_audio_processing_config::{Config, EchoCanceller};
 use webrtc_audio_processing_sys as ffi;
 
 pub use config::InitializationConfig;
@@ -119,8 +120,10 @@ pub struct Processor {
     capture_stream_config: ffi::StreamConfig,
     render_stream_config: ffi::StreamConfig,
     /// The stream_delay extracted from config. Underlying C++ library wants us to set this before
-    /// every process_capture_frame(), so we cache it for the user.
-    stream_delay_ms: AtomicU16,
+    /// every process_capture_frame() call in many cases (Full AEC3 with custom delay, Mobile AECM).
+    ///
+    /// If the value cannot be exactly represented as i32 (e.g. u32::MAX), it denotes _not set_.
+    stream_delay_ms: AtomicU32,
 }
 
 impl Processor {
@@ -166,7 +169,8 @@ impl Processor {
             inner: AudioProcessingPtr(result_from_code(inner, code)?),
             capture_stream_config,
             render_stream_config,
-            stream_delay_ms: AtomicU16::new(0),
+            // u32::MAX to denote not (yet) set.
+            stream_delay_ms: AtomicU32::new(u32::MAX),
         })
     }
 
@@ -186,11 +190,18 @@ impl Processor {
         let frame_ptr =
             as_mut_ptrs(frame, self.num_capture_channels(), self.num_samples_per_frame());
 
-        // The C++ wants stream_delay set before every process_capture_frame() call (in case echo
-        // canceller is enabled, but we do it every time as AEC is our main role anyway).
-        let stream_delay_ms = i32::from(self.stream_delay_ms.load(Ordering::Relaxed));
+        // If we want a custom stream_delay with Full AEC3, we need to set it before every
+        // process_capture_frame() call, otherwise the delay estimator kicks in.
+        //
+        // The mobile AECM requires stream_delay to be set before every single
+        // process_capture_frame() call: we guarantee it on type level in `config::EchoCanceller`.
+        //
+        // If the value in `self.stream_delay_ms` cannot be represented as i32, it denotes not set.
+        let stream_delay_ms = i32::try_from(self.stream_delay_ms.load(Ordering::Relaxed)).ok();
         let code = unsafe {
-            ffi::set_stream_delay_ms(*self.inner, stream_delay_ms);
+            if let Some(stream_delay_ms) = stream_delay_ms {
+                ffi::set_stream_delay_ms(*self.inner, stream_delay_ms);
+            }
 
             ffi::process_capture_frame(*self.inner, &self.capture_stream_config, frame_ptr.as_ptr())
         };
@@ -278,8 +289,13 @@ impl Processor {
     /// processing.
     pub fn set_config(&self, config: Config) {
         // Extract the stream delay to our cache (it is a runtime concept for AEC, not a config).
-        let stream_delay_ms =
-            config.echo_canceller.as_ref().and_then(|ec| ec.stream_delay_ms).unwrap_or_default();
+        let stream_delay_ms_opt = match config.echo_canceller {
+            Some(EchoCanceller::Full { stream_delay_ms }) => stream_delay_ms,
+            Some(EchoCanceller::Mobile { stream_delay_ms }) => Some(stream_delay_ms),
+            None => None,
+        };
+        // Convert optional u16 value into u32, mapping None to u32::MAX (meaning not set).
+        let stream_delay_ms = stream_delay_ms_opt.map_or(u32::MAX, u32::from);
         self.stream_delay_ms.store(stream_delay_ms, Ordering::Relaxed);
 
         unsafe {
@@ -391,7 +407,7 @@ const _: () = {
 mod tests {
     use super::*;
     use std::{sync::Arc, thread, time::Duration};
-    use webrtc_audio_processing_config::{EchoCanceller, EchoCancellerMode};
+    use webrtc_audio_processing_config::EchoCanceller;
 
     fn init_config(num_channels: usize) -> InitializationConfig {
         InitializationConfig {
@@ -685,10 +701,7 @@ mod tests {
 
         // Set non-default stream_delay
         let config = Config {
-            echo_canceller: Some(EchoCanceller {
-                stream_delay_ms: Some(10),
-                ..EchoCanceller::default()
-            }),
+            echo_canceller: Some(EchoCanceller::Full { stream_delay_ms: Some(10) }),
             ..Config::default()
         };
         ap.set_config(config);
@@ -707,10 +720,7 @@ mod tests {
     #[test]
     fn test_stream_delay() {
         let make_config = |delay_ms| Config {
-            echo_canceller: Some(EchoCanceller {
-                mode: EchoCancellerMode::Full,
-                stream_delay_ms: Some(delay_ms),
-            }),
+            echo_canceller: Some(EchoCanceller::Full { stream_delay_ms: Some(delay_ms) }),
             ..Default::default()
         };
 
@@ -812,22 +822,16 @@ mod tests {
         let mut context = TestContext::new(2, None); // Use stereo
         let render_frame = context.generate_sine_frame(440.0);
 
-        // Measure for Full mode
+        // Measure for Full mode (the default)
         context.processor.set_config(Config {
-            echo_canceller: Some(EchoCanceller {
-                mode: EchoCancellerMode::Full,
-                ..Default::default()
-            }),
+            echo_canceller: Some(EchoCanceller::default()),
             ..Default::default()
         });
         let full_reduction = context.measure_steady_state_performance(&render_frame, 50, 10);
 
         // Measure for Mobile mode
         context.processor.set_config(Config {
-            echo_canceller: Some(EchoCanceller {
-                mode: EchoCancellerMode::Mobile,
-                ..Default::default()
-            }),
+            echo_canceller: Some(EchoCanceller::Mobile { stream_delay_ms: 0 }),
             ..Default::default()
         });
         let mobile_reduction = context.measure_steady_state_performance(&render_frame, 50, 10);
@@ -895,12 +899,9 @@ mod tests {
         let render_frame = context.generate_sine_frame(440.0);
         let mut capture_frame = render_frame.clone();
 
-        // Configure initial Full mode
+        // Configure initial Full mode (default)
         context.processor.set_config(Config {
-            echo_canceller: Some(EchoCanceller {
-                mode: EchoCancellerMode::Full,
-                ..Default::default()
-            }),
+            echo_canceller: Some(EchoCanceller::default()),
             ..Default::default()
         });
 
@@ -922,10 +923,7 @@ mod tests {
 
         // Switch to Mobile mode and verify persistence
         context.processor.set_config(Config {
-            echo_canceller: Some(EchoCanceller {
-                mode: EchoCancellerMode::Mobile,
-                ..Default::default()
-            }),
+            echo_canceller: Some(EchoCanceller::Mobile { stream_delay_ms: 0 }),
             ..Default::default()
         });
 

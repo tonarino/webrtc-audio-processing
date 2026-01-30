@@ -152,27 +152,29 @@ impl Default for HighPassFilter {
 }
 
 /// AEC (acoustic echo cancellation) configuration.
-#[derive(Debug, Clone, PartialEq, Default)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(default))]
-pub struct EchoCanceller {
-    /// AEC mode.
-    pub mode: EchoCancellerMode,
-
-    /// Sets the delay in ms between process_render_frame() and process_capture_frame().
-    /// If None (or zero), we let the AEC processor try to determine it.
-    pub stream_delay_ms: Option<u16>,
-}
-
-/// AEC (acoustic echo cancellation) mode.
-#[derive(Debug, Clone, PartialEq, Default)]
+/// Defaults to Full (AEC3) mode with delay estimation (stream_delay unset).
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub enum EchoCancellerMode {
-    /// Uses low-complexity AEC implementation that is optimized for mobile.
-    Mobile,
+pub enum EchoCanceller {
+    /// Use low-complexity AEC implementation that is optimized for mobile.
+    Mobile {
+        /// Set the delay in ms between process_render_frame() and process_capture_frame().
+        /// Mandatory for the Mobile echo canceller variant.
+        stream_delay_ms: u16,
+    },
 
     /// Uses the full AEC3 implementation.
-    #[default]
-    Full,
+    Full {
+        /// Set the delay in ms between process_render_frame() and process_capture_frame().
+        /// If None, we let the AEC processor try determining it.
+        stream_delay_ms: Option<u16>,
+    },
+}
+
+impl Default for EchoCanceller {
+    fn default() -> Self {
+        Self::Full { stream_delay_ms: None }
+    }
 }
 
 /// Enables background noise suppression.
