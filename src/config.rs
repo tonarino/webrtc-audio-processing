@@ -174,6 +174,7 @@ impl FromConfig<Option<config::EchoCanceller>> for ffi::AudioProcessing_Config_E
                 enabled: true,
                 mobile_mode: false,
                 enforce_high_pass_filtering: true,
+                // This may be still enabled by FromConfig<Config> for ffi::AudioProcessing_Config
                 export_linear_aec_output: false,
             },
         }

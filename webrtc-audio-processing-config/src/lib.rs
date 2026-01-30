@@ -153,6 +153,9 @@ impl Default for HighPassFilter {
 
 /// AEC (acoustic echo cancellation) configuration.
 /// Defaults to Full (AEC3) mode with delay estimation (stream_delay unset).
+///
+/// Functionality in the C++ library that we don't yet expose:
+/// - EchoCanceller::enforce_high_pass_filtering: hard-coded to true on Full, false on Mobile
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum EchoCanceller {
@@ -185,8 +188,9 @@ pub struct NoiseSuppression {
     /// noise level at the expense of a higher speech distortion.
     pub level: NoiseSuppressionLevel,
 
-    /// Analyze the output of the linear AEC instead of the capture frame. Has no effect if echo
-    /// cancellation is not enabled.
+    /// Analyze the output of the linear AEC instead of the capture frame.
+    /// Activates the `export_linear_aec_output` flag of the echo canceller.
+    /// Has no effect if echo cancellation is not enabled or is of the Mobile AECM type.
     pub analyze_linear_aec_output: bool,
 }
 
