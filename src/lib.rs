@@ -783,7 +783,7 @@ mod tests {
 
         // Correct alignment should result in much better cancellation
         assert!(
-            reduction_matched * 1000.0 > reduction_mismatched,
+            reduction_matched > reduction_mismatched * 1000.0,
             "Matched delay should have better echo cancellation"
         );
     }
