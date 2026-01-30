@@ -36,8 +36,7 @@ pub struct Config {
 #[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(default))]
 pub struct Pipeline {
-    /// Maximum allowed processing rate used internally. May only be set to
-    /// 32000 or 48000 and any differing values will be treated as 48000.
+    /// Maximum allowed processing rate used internally.
     pub maximum_internal_processing_rate: PipelineProcessingRate,
 
     /// Allow multi-channel processing of render audio.
