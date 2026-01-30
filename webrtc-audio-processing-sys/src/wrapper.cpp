@@ -158,8 +158,6 @@ int process_render_frame(AudioProcessing* ap,
 int analyze_render_frame(AudioProcessing* ap,
                          const webrtc::StreamConfig& render_stream_config,
                          const float* const* channels) {
-  // We don't transform the stream format, hence the same in & out stream
-  // configs.
   return ap->processor->AnalyzeReverseStream(channels, render_stream_config);
 }
 
