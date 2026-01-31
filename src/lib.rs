@@ -270,8 +270,12 @@ impl Processor {
     }
 
     /// Immediately updates the configurations of the internal signal processor.
-    /// May be called multiple times after the initialization and during
-    /// processing.
+    /// May be called multiple times after the initialization and during processing.
+    /// Internally acquires both capture and render locks (is fully serialized w.r.t.
+    /// process_{render,capture}_frame()).
+    ///
+    /// Only submodules whose config has changed are reinitialized. If the passed config is the same
+    /// as current config, the overhead is only the locking and doing some comparisons.
     pub fn set_config(&self, config: Config) {
         // Extract the stream delay to our cache (it is a runtime concept for AEC, not a config).
         let stream_delay_ms_opt = match config.echo_canceller {
