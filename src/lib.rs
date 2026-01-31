@@ -292,6 +292,14 @@ impl Processor {
         }
     }
 
+    /// Reinitialize the processor: drop all state (like the estimated echo parameters), but retain
+    /// the configuration. Acquires internally both capture and render locks.
+    pub fn reinitialize(&self) {
+        unsafe {
+            ffi::initialize(*self.inner);
+        }
+    }
+
     /// Signals the AEC and AGC that the audio output will be / is muted.
     /// They may use the hint to improve their parameter adaptation.
     pub fn set_output_will_be_muted(&self, muted: bool) {
@@ -679,6 +687,9 @@ mod tests {
         let mut four_channel_frame = vec![vec![0.0; ap.num_samples_per_frame()]; 4];
         ap.process_render_frame(&mut four_channel_frame).unwrap();
         ap.process_capture_frame(&mut four_channel_frame).unwrap();
+
+        // Reinitialize the processor.
+        ap.reinitialize();
         ap.analyze_render_frame(&four_channel_frame).unwrap();
 
         // it shouldn't crash
