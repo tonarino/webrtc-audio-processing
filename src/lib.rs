@@ -5,7 +5,10 @@
 #![warn(clippy::all)]
 #![warn(missing_docs)]
 
-mod config;
+/// Configuration structs for [`Processor`]. The top-level structs [`InitializationConfig`] and
+/// [`Config`] are also reexported from the root of this crate, but the nested structs are only
+/// accessible through [`config`].
+pub mod config;
 mod stats;
 
 /// [Highly experimental]
@@ -13,17 +16,16 @@ mod stats;
 #[cfg(feature = "experimental-aec3-config")]
 pub mod experimental;
 
-use crate::config::IntoFfi;
+use crate::config::{EchoCanceller, IntoFfi};
 use std::{
     convert::TryFrom,
     error, fmt,
     ptr::null_mut,
     sync::atomic::{AtomicU32, Ordering},
 };
-use webrtc_audio_processing_config::{Config, EchoCanceller};
 use webrtc_audio_processing_sys as ffi;
 
-pub use config::InitializationConfig;
+pub use config::{Config, InitializationConfig};
 pub use stats::*;
 
 /// Represents an error inside webrtc::AudioProcessing.
@@ -415,9 +417,8 @@ const _: () = {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{config::EchoCanceller, *};
     use std::{sync::Arc, thread, time::Duration};
-    use webrtc_audio_processing_config::EchoCanceller;
 
     fn init_config(num_channels: usize) -> InitializationConfig {
         InitializationConfig {
