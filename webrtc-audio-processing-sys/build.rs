@@ -303,9 +303,11 @@ impl ParseCallbacks for CustomDeriveCallbacks {
             vec!["serde::Deserialize".into(), "serde::Serialize".into()]
         // Matches AudioProcessing_Config, AudioProcessing_Config_EchoCanceller etc
         } else if info.name.starts_with("AudioProcessing_Config") {
-            // Only derive Default for AudioProcessing_Config and its inner structs.
-            // bindgen Default implementation ignores C/C++ struct default values
-            // and thus misleading to enable globally.
+            // Only derive Default for AudioProcessing_Config and its inner structs. bindgen Default
+            // implementation ignores C/C++ struct default values and thus misleading to enable
+            // globally. Note that we don't expose these defaults on `webrtc-audio-processing`
+            // level: they are needed only by the code that converts from prettified Rust config
+            // structs into their FFI variants to construct disabled/dummy values.
             vec!["Default".into()]
         } else {
             vec![]
