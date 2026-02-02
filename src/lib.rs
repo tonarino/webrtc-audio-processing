@@ -1,13 +1,13 @@
 //! This crate is a wrapper around [PulseAudio's repackaging of WebRTC's AudioProcessing module](https://www.freedesktop.org/software/pulseaudio/webrtc-audio-processing/).
 //!
 //! See `examples/simple.rs` for an example of how to use the library.
+//! The [`Processor`] struct is the entrypoint to the functionality it provides.
 
 #![warn(clippy::all)]
 #![warn(missing_docs)]
 
-/// Configuration structs for [`Processor`]. The top-level structs [`InitializationConfig`] and
-/// [`Config`] are also reexported from the root of this crate, but the nested structs are only
-/// accessible through [`config`].
+/// Configuration structs for [`Processor`]. The top-level struct [`Config`] is also reexported from
+/// the root of this crate, but the nested structs are only accessible through [`config`].
 pub mod config;
 mod stats;
 
@@ -30,7 +30,7 @@ pub use stats::*;
 
 /// Represents an error inside webrtc::AudioProcessing.
 /// Drawn from documentation of pulseaudio upstream `webrtc::AudioProcessing::Error`:
-/// https://cgit.freedesktop.org/pulseaudio/webrtc-audio-processing/tree/webrtc/modules/audio_processing/include/audio_processing.h?id=9def8cf10d3c97640d32f1328535e881288f700f
+/// <https://cgit.freedesktop.org/pulseaudio/webrtc-audio-processing/tree/webrtc/modules/audio_processing/include/audio_processing.h?id=9def8cf10d3c97640d32f1328535e881288f700f>
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Error {
     /// An unspecified error from the underlying WebRTC library. `kUnspecifiedError`
@@ -110,8 +110,8 @@ fn result_from_code<T>(on_success: T, error_code: i32) -> Result<T, Error> {
     }
 }
 
-/// [`Self`] provides an access to webrtc's audio processing e.g. echo cancellation and automatic
-/// gain control.
+/// [`Processor`] provides an access to WebRTC's audio processing, e.g. echo cancellation, noise
+/// removal, automatic gain control and so on.
 ///
 /// It is [`Send`] + [`Sync`] and its methods take `&self` shared reference (as we expose
 /// thread-safe APIs of the underlying C++ library).
@@ -119,9 +119,6 @@ fn result_from_code<T>(on_success: T, error_code: i32) -> Result<T, Error> {
 /// between capture and render threads.
 ///
 /// Functionality in the C++ library that we don't yet expose:
-/// - ability to (re)initialize the processor (keep config, but but drop any state)
-///   - with optional support to change the capture/render stream config (number of channels)
-/// - changing the number of channels on-the-fly in process_capture/render_frame()
 /// - getting the current config (can only return the FFI, but we can compare against user-supplied
 ///   one)
 #[derive(Debug)]
@@ -136,14 +133,14 @@ pub struct Processor {
 }
 
 impl Processor {
-    /// Creates a new [`Self`]. Detailed configuration can be be passed to [`Self::set_config()`] at
-    /// any time during processing.
+    /// Creates a new [`Processor`]. Detailed configuration can be be passed to
+    /// [`Self::set_config()`] at any time during processing.
     pub fn new(sample_rate_hz: u32) -> Result<Self, Error> {
         Self::new_with_ptr(sample_rate_hz, null_mut())
     }
 
     /// [Highly experimental]
-    /// Creates a new `Processor` with custom AEC3 configuration. The AEC3 configuration needs to be
+    /// Creates a new [`Processor`] with custom AEC3 configuration. The AEC3 configuration needs to be
     /// valid, otherwise this returns [`Error::BadParameter`].
     ///
     /// To change the AEC3 configuration at runtime, the [`Processor`] needs to be currently
@@ -177,7 +174,7 @@ impl Processor {
     /// `frame` is a non-interleaved audio frame data: mutable iterator/Vec/array/slice of
     /// channels, which are Vecs/arrays/slices of [`f32`] samples.
     ///
-    /// Processor dynamically adapts to the number of channels in `frame` (at the const of partial
+    /// Processor dynamically adapts to the number of channels in `frame` (at the cost of partial
     /// reinitialization).
     ///
     /// # Panics
@@ -214,11 +211,11 @@ impl Processor {
     /// `frame` is a non-interleaved audio frame data: mutable iterator/Vec/array/slice of
     /// channels, which are Vecs/arrays/slices of [`f32`] samples.
     ///
-    /// Processor dynamically adapts to the number of channels in `frame` (at the const of partial
+    /// Processor dynamically adapts to the number of channels in `frame` (at the cost of partial
     /// reinitialization).
     ///
     /// # Panics
-    /// Panics if the number of channels or samples doesn't match passed [`InitializationConfig`].
+    /// Panics if the number of samples doesn't match 10ms @ `sample_rate_hz` passed to constructor.
     pub fn process_render_frame<F, Ch>(&self, frame: F) -> Result<(), Error>
     where
         F: IntoIterator<Item = Ch>,
@@ -239,11 +236,11 @@ impl Processor {
     /// `frame` is a non-interleaved audio frame data: mutable iterator/Vec/array/slice of
     /// channels, which are Vecs/arrays/slices of [`f32`] samples.
     ///
-    /// Processor dynamically adapts to the number of channels in `frame` (at the const of partial
+    /// Processor dynamically adapts to the number of channels in `frame` (at the cost of partial
     /// reinitialization).
     ///
     /// # Panics
-    /// Panics if the number of channels or samples doesn't match passed [`InitializationConfig`].
+    /// Panics if the number of samples doesn't match 10ms @ `sample_rate_hz` passed to constructor.
     pub fn analyze_render_frame<F, Ch>(&self, frame: F) -> Result<(), Error>
     where
         F: IntoIterator<Item = Ch>,
