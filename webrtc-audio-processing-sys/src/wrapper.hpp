@@ -57,6 +57,10 @@ AudioProcessing* create_audio_processing(
 // Instantiates an EchoCanceller3Config with the webrtc's default settings.
 webrtc::EchoCanceller3Config create_aec3_config();
 
+// Instantiates an EchoCanceller3Config with the webrtc's default multichannel
+// settings. Requires wrapper.cpp built with WEBRTC_AEC3_CONFIG.
+webrtc::EchoCanceller3Config create_multichannel_aec3_config();
+
 // Checks and updates the config parameters to lie within (mostly) reasonable
 // ranges. Returns true if and only of the config did not need to be changed.
 bool validate_aec3_config(webrtc::EchoCanceller3Config* config);

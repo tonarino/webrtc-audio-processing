@@ -48,12 +48,8 @@ class EchoCanceller3Factory : public webrtc::EchoControlFactory {
       int sample_rate_hz,
       int num_render_channels,
       int num_capture_channels) override {
-    std::optional<webrtc::EchoCanceller3Config> multichannel_config;
-    if (num_render_channels > 1 || num_capture_channels > 1) {
-      // Use optimized multichannel config when processing multiple channels
-      multichannel_config =
-          webrtc::EchoCanceller3::CreateDefaultMultichannelConfig();
-    }
+    std::optional<webrtc::EchoCanceller3Config> multichannel_config =
+        std::nullopt;
     return std::unique_ptr<webrtc::EchoControl>(
         new webrtc::EchoCanceller3(config_, multichannel_config, sample_rate_hz,
                                    num_render_channels, num_capture_channels));
@@ -110,6 +106,12 @@ webrtc::EchoCanceller3Config create_aec3_config() {
   webrtc::EchoCanceller3Config config;
   return config;
 }
+
+#ifdef WEBRTC_AEC3_CONFIG
+webrtc::EchoCanceller3Config create_multichannel_aec3_config() {
+  return webrtc::EchoCanceller3::CreateDefaultMultichannelConfig();
+}
+#endif
 
 bool validate_aec3_config(webrtc::EchoCanceller3Config* config) {
   if (config == nullptr) {

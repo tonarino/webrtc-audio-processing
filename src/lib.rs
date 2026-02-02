@@ -143,6 +143,10 @@ impl Processor {
     /// Creates a new [`Processor`] with custom AEC3 configuration. The AEC3 configuration needs to be
     /// valid, otherwise this returns [`Error::BadParameter`].
     ///
+    /// Note that passing the AEC3 configuration disables the internal logic that uses different
+    /// AEC3 config based on whether the audio stream is (truly) multichannel. You can use
+    /// [`experimental::EchoCanceller3Config::multichannel_default()`].
+    ///
     /// To change the AEC3 configuration at runtime, the [`Processor`] needs to be currently
     /// recreated. This limitation comes from the Rust wrapper and could be eventually lifted.
     #[cfg(feature = "experimental-aec3-config")]
