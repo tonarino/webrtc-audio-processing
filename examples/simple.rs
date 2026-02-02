@@ -2,8 +2,7 @@ use webrtc_audio_processing::*;
 use webrtc_audio_processing_config::{Config, EchoCanceller};
 
 fn main() {
-    let sample_rate_hz = 48_000;
-    let ap = Processor::new(sample_rate_hz).unwrap();
+    let ap = Processor::new().unwrap();
 
     let config = Config { echo_canceller: Some(EchoCanceller::default()), ..Default::default() };
     ap.set_config(config);
@@ -32,7 +31,8 @@ fn main() {
 /// Generate example stereo frames that simulates a situation where the
 /// microphone (capture) would be picking up the speaker (render) output.
 fn sample_stereo_frames(processor: &Processor) -> (Vec<Vec<f32>>, Vec<Vec<f32>>) {
-    let num_samples_per_frame = processor.num_samples_per_frame();
+    let sample_rate_hz = 48_000;
+    let num_samples_per_frame = processor.get_num_samples_for_rate(sample_rate_hz);
 
     let mut render_frame = vec![vec![]; 2];
     let mut capture_frame = vec![vec![]; 2];
