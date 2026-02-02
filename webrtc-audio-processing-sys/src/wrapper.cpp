@@ -76,8 +76,6 @@ struct AudioProcessing {
 };
 
 AudioProcessing* create_audio_processing(
-    const webrtc::StreamConfig& capture_stream_config,
-    const webrtc::StreamConfig& render_stream_config,
     webrtc::EchoCanceller3Config* aec3_config,
     int* error) {
   auto ap = std::make_unique<AudioProcessing>();
@@ -102,19 +100,6 @@ AudioProcessing* create_audio_processing(
 #endif
   }
   ap->processor.reset(builder.Create().release());
-
-  // The input and output streams must have the same number of channels.
-  webrtc::ProcessingConfig pconfig = {
-      capture_stream_config,  // capture input
-      capture_stream_config,  // capture output
-      render_stream_config,   // render input
-      render_stream_config,   // render output
-  };
-  const int code = ap->processor->Initialize(pconfig);
-  if (code != webrtc::AudioProcessing::kNoError) {
-    *error = code;
-    return nullptr;
-  }
 
   return ap.release();
 }

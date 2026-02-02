@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 /// [Highly experimental]
 /// Exposes a finer-grained control of the internal AEC3 configuration.
 /// It's minimally documented and highly experimental, and we don't yet provide Rust-idiomatic API.
-/// If you want to create a new instance of `EchoCanceller3Config`, and only modify
+/// If you want to create a new instance of [`EchoCanceller3Config`], and only modify
 /// some of the fields you are interested in, you need to do in the following way:
 ///
 /// ```
@@ -45,7 +45,7 @@ impl Deref for EchoCanceller3Config {
 
 impl DerefMut for EchoCanceller3Config {
     /// After mutating the internals of the struct, the users are responsible for calling
-    /// [`validate()`] before passing it to [`Processor`], or function calls may fail.
+    /// [`Self::validate()`] before passing it to [`crate::Processor`], or function calls may fail.
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }

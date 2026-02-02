@@ -49,10 +49,8 @@ webrtc::StreamConfig create_stream_config(int sample_rate_hz,
 
 // Creates a new instance of AudioProcessing.
 // Takes a mutable pointer to the AEC3 config, as it internally calls
-// validate_aec3_config.
+// validate_aec3_config. `aec3_config` can be null.
 AudioProcessing* create_audio_processing(
-    const webrtc::StreamConfig& capture_stream_config,
-    const webrtc::StreamConfig& render_stream_config,
     webrtc::EchoCanceller3Config* aec3_config,
     int* error);
 

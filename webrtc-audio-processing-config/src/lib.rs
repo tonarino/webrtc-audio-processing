@@ -8,8 +8,9 @@
 use serde::{Deserialize, Serialize};
 
 /// The parameters and behavior of the audio processing module are controlled
-/// by changing the default values in this `Config` struct.
-/// The config is applied by passing the struct to the [`set_config`] method.
+/// by changing the default values in this [`Config`] struct.
+/// The config is applied by passing the struct to the
+/// [`Processor::set_config()`](webrtc-audio-processing::Processor::set_config()) method.
 #[derive(Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(default))]
 pub struct Config {

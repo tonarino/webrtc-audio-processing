@@ -109,25 +109,10 @@ mod tests {
     }
 
     #[test]
-    fn test_create_failure() {
-        unsafe {
-            let mut error = 0;
-            // We reuse the same stream config for both capture and render.
-            let stream_config = create_stream_config(SAMPLE_RATE_HZ, 0);
-            let ap =
-                create_audio_processing(&stream_config, &stream_config, null_mut(), &mut error);
-            assert!(!ap.is_null());
-            assert_success(error);
-        }
-    }
-
-    #[test]
     fn test_create_delete() {
         unsafe {
             let mut error = 0;
-            let stream_config = create_stream_config(SAMPLE_RATE_HZ, 1);
-            let ap =
-                create_audio_processing(&stream_config, &stream_config, null_mut(), &mut error);
+            let ap = create_audio_processing(null_mut(), &mut error);
             assert!(!ap.is_null());
             assert_success(error);
             delete_audio_processing(ap);
@@ -138,9 +123,7 @@ mod tests {
     fn test_config() {
         unsafe {
             let mut error = 0;
-            let stream_config = create_stream_config(SAMPLE_RATE_HZ, 1);
-            let ap =
-                create_audio_processing(&stream_config, &stream_config, null_mut(), &mut error);
+            let ap = create_audio_processing(null_mut(), &mut error);
             assert!(!ap.is_null());
             assert_success(error);
 
@@ -158,15 +141,14 @@ mod tests {
     fn test_process() {
         unsafe {
             let mut error = 0;
-            let stream_config = create_stream_config(SAMPLE_RATE_HZ, 1);
-            let ap =
-                create_audio_processing(&stream_config, &stream_config, null_mut(), &mut error);
+            let ap = create_audio_processing(null_mut(), &mut error);
             assert!(!ap.is_null());
             assert_success(error);
 
             let config = config_with_all_enabled();
             set_config(ap, &config);
 
+            let stream_config = create_stream_config(SAMPLE_RATE_HZ, 1);
             let num_samples = stream_config.num_frames_; // frames in WebRTC == our samples
             let mut frame = vec![vec![0f32; num_samples as usize]; 1];
             let frame_ptr = frame.iter_mut().map(|v| v.as_mut_ptr()).collect::<Vec<*mut f32>>();
@@ -181,9 +163,7 @@ mod tests {
     fn test_empty_stats() {
         unsafe {
             let mut error = 0;
-            let stream_config = create_stream_config(SAMPLE_RATE_HZ, 1);
-            let ap =
-                create_audio_processing(&stream_config, &stream_config, null_mut(), &mut error);
+            let ap = create_audio_processing(null_mut(), &mut error);
             assert!(!ap.is_null());
             assert_success(error);
 
@@ -207,15 +187,14 @@ mod tests {
     fn test_some_stats() {
         unsafe {
             let mut error = 0;
-            let stream_config = create_stream_config(SAMPLE_RATE_HZ, 1);
-            let ap =
-                create_audio_processing(&stream_config, &stream_config, null_mut(), &mut error);
+            let ap = create_audio_processing(null_mut(), &mut error);
             assert!(!ap.is_null());
             assert_success(error);
 
             let config = config_with_all_enabled();
             set_config(ap, &config);
 
+            let stream_config = create_stream_config(SAMPLE_RATE_HZ, 1);
             let num_samples = stream_config.num_frames_; // frames in WebRTC == our samples
             let mut frame = vec![vec![0f32; num_samples as usize]; 1];
             let frame_ptr = frame.iter_mut().map(|v| v.as_mut_ptr()).collect::<Vec<*mut f32>>();

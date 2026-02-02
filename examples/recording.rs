@@ -37,7 +37,7 @@ use std::{
     time::Duration,
 };
 use structopt::StructOpt;
-use webrtc_audio_processing::{InitializationConfig, Processor};
+use webrtc_audio_processing::Processor;
 use webrtc_audio_processing_config::Config;
 
 mod common;
@@ -183,11 +183,7 @@ fn main() -> Result<(), Error> {
 
     let pa = portaudio::PortAudio::new()?;
 
-    let processor = Arc::new(Processor::new(&InitializationConfig {
-        num_capture_channels: opt.capture.num_channels as usize,
-        num_render_channels: opt.render.num_channels as usize,
-        sample_rate_hz: AUDIO_SAMPLE_RATE,
-    })?);
+    let processor = Arc::new(Processor::new(AUDIO_SAMPLE_RATE)?);
 
     processor.set_config(opt.config.clone());
 

@@ -36,14 +36,7 @@ struct Args {
 }
 
 fn create_processor(config: &AppConfig) -> Result<Processor, Error> {
-    let processor = Processor::with_aec3_config(
-        &InitializationConfig {
-            num_capture_channels: config.num_capture_channels,
-            num_render_channels: config.num_render_channels,
-            sample_rate_hz: SAMPLE_RATE as u32,
-        },
-        config.aec3.clone(),
-    )?;
+    let processor = Processor::with_aec3_config(SAMPLE_RATE as u32, config.aec3.clone())?;
 
     processor.set_config(config.config.clone());
     Ok(processor)

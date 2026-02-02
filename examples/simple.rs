@@ -2,13 +2,8 @@ use webrtc_audio_processing::*;
 use webrtc_audio_processing_config::{Config, EchoCanceller};
 
 fn main() {
-    let config = InitializationConfig {
-        num_capture_channels: 2, // Stereo mic input
-        num_render_channels: 2,  // Stereo speaker output
-        sample_rate_hz: 48_000,  // The maximum processing rate
-    };
-
-    let ap = Processor::new(&config).unwrap();
+    let sample_rate_hz = 48_000;
+    let ap = Processor::new(sample_rate_hz).unwrap();
 
     let config = Config { echo_canceller: Some(EchoCanceller::default()), ..Default::default() };
     ap.set_config(config);

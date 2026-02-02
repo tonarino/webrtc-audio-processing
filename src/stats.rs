@@ -18,10 +18,12 @@ pub struct Stats {
     pub divergent_filter_fraction: Option<f64>,
 
     /// The delay median in milliseconds. The values are aggregated until the first call to
-    /// [`get_stats()`] and afterwards aggregated and updated every second.
+    /// [`Processor::get_stats()`](crate::Processor::get_stats()) and afterwards aggregated and
+    /// updated every second.
     pub delay_median_ms: Option<u32>,
     /// The delay standard deviation in milliseconds. The values are aggregated until the first
-    /// call to [`get_stats()`] and afterwards aggregated and updated every second.
+    /// call to [`Processor::get_stats()`](crate::Processor::get_stats()) and afterwards aggregated
+    /// and updated every second.
     pub delay_standard_deviation_ms: Option<u32>,
 
     /// Residual echo detector likelihood.
@@ -30,7 +32,8 @@ pub struct Stats {
     pub residual_echo_likelihood_recent_max: Option<f64>,
 
     /// The instantaneous delay estimate produced in the AEC. The unit is in milliseconds and the
-    /// value is the instantaneous value at the time of the call to [`get_stats()`].
+    /// value is the instantaneous value at the time of the call to
+    /// [`Processor::get_stats()`](crate::Processor::get_stats()).
     pub delay_ms: Option<u32>,
 }
 
