@@ -183,4 +183,8 @@ void delete_audio_processing(AudioProcessing* ap) {
   delete ap;
 }
 
+int get_chunk_size_ms() {
+  return webrtc::AudioProcessing::kChunkSizeMs;
+}
+
 }  // namespace webrtc_audio_processing_wrapper
