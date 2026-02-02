@@ -120,4 +120,7 @@ void initialize(AudioProcessing* ap);
 // destroyed by this function.
 void delete_audio_processing(AudioProcessing* ap);
 
+// Returns the constant kChunkSizeMs from webrtc::AudioProcessing.
+int get_chunk_size_ms();
+
 }  // namespace webrtc_audio_processing_wrapper

@@ -132,7 +132,7 @@ fn create_stream_settings(
         input_params,
         output_params,
         f64::from(AUDIO_SAMPLE_RATE),
-        processor.num_samples_per_frame() as u32,
+        processor.get_num_samples_for_rate(AUDIO_SAMPLE_RATE) as u32,
     ))
 }
 
@@ -183,7 +183,7 @@ fn main() -> Result<(), Error> {
 
     let pa = portaudio::PortAudio::new()?;
 
-    let processor = Arc::new(Processor::new(AUDIO_SAMPLE_RATE)?);
+    let processor = Arc::new(Processor::new()?);
 
     processor.set_config(opt.config.clone());
 
@@ -206,19 +206,19 @@ fn main() -> Result<(), Error> {
 
     let audio_callback = {
         // Allocate buffers outside the performance-sensitive audio loop.
-        let mut input_mut =
-            vec![0f32; processor.num_samples_per_frame() * opt.capture.num_channels as usize];
+        let num_samples = processor.get_num_samples_for_rate(AUDIO_SAMPLE_RATE);
+        let mut input_mut = vec![0f32; num_samples * opt.capture.num_channels as usize];
         let mut input_deinterleaved =
-            vec![vec![0f32; processor.num_samples_per_frame()]; opt.capture.num_channels as usize];
+            vec![vec![0f32; num_samples]; opt.capture.num_channels as usize];
 
         let mut output_deinterleaved =
-            vec![vec![0f32; processor.num_samples_per_frame()]; opt.render.num_channels as usize];
+            vec![vec![0f32; num_samples]; opt.render.num_channels as usize];
 
         let running = running.clone();
         let mute = opt.render.mute;
         let processor = Arc::clone(&processor);
         move |portaudio::DuplexStreamCallbackArgs { in_buffer, out_buffer, frames, .. }| {
-            assert_eq!(frames, processor.num_samples_per_frame());
+            assert_eq!(frames, num_samples);
 
             let mut should_continue = true;
 
