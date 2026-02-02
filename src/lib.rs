@@ -612,6 +612,16 @@ mod tests {
     }
 
     #[test]
+    fn test_zero_channels() {
+        let ap = Processor::new(SAMPLE_RATE_HZ).unwrap();
+        let mut frame: Vec<Vec<f32>> = vec![];
+
+        assert_eq!(ap.process_capture_frame(&mut frame), Err(Error::BadNumberChannels));
+        assert_eq!(ap.process_render_frame(&mut frame), Err(Error::BadNumberChannels));
+        assert_eq!(ap.analyze_render_frame(&frame), Err(Error::BadNumberChannels));
+    }
+
+    #[test]
     // The test consistently fails on MacOS, probably because it is sensitive to timing and
     // thead::sleep() which is notoriously imprecise on macs.
     #[cfg_attr(target_os = "macos", ignore)]
