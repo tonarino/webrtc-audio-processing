@@ -4,7 +4,7 @@ use std::{fs, path::PathBuf};
 use structopt::StructOpt;
 #[cfg(feature = "experimental-aec3-config")]
 use webrtc_audio_processing::experimental;
-use webrtc_audio_processing_config::Config;
+use webrtc_audio_processing_config::{Config, Pipeline};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
@@ -29,6 +29,23 @@ impl Default for AppConfig {
 }
 
 impl AppConfig {
+    pub fn multichannel_default() -> Self {
+        Self {
+            num_capture_channels: 2,
+            num_render_channels: 2,
+            config: Config {
+                pipeline: Pipeline {
+                    multi_channel_render: true,
+                    multi_channel_capture: true,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            #[cfg(feature = "experimental-aec3-config")]
+            aec3: experimental::EchoCanceller3Config::multichannel_default(),
+        }
+    }
+
     pub fn load(path: Option<PathBuf>) -> Result<Self, Error> {
         match path {
             Some(path) => {
@@ -54,13 +71,18 @@ impl AppConfig {
 
 fn main() -> Result<(), Error> {
     #[derive(Debug, StructOpt)]
-    struct Args {
-        #[structopt(short, long)]
-        config_file: Option<PathBuf>,
+    enum Args {
+        ReadConfigFile { config_file: PathBuf },
+        DefaultConfig,
+        DefaultMultichannelConfig,
     }
     let args = Args::from_args();
 
-    let config = AppConfig::load(args.config_file)?;
+    let config = match args {
+        Args::ReadConfigFile { config_file } => AppConfig::load(Some(config_file))?,
+        Args::DefaultConfig => AppConfig::default(),
+        Args::DefaultMultichannelConfig => AppConfig::multichannel_default(),
+    };
     println!("{}", serde_json::to_string_pretty(&config)?);
 
     Ok(())
@@ -72,16 +94,28 @@ mod tests {
 
     #[test]
     fn test_default_config_matches_file() {
-        let file_path = PathBuf::from("examples/aec-configs/defaults.json5");
-        let file_contents = fs::read_to_string(file_path).expect("Failed to load defaults.json5");
+        test_config_matches_file("examples/aec-configs/defaults.json5", AppConfig::default());
+    }
 
-        let default_config = AppConfig::default();
-        let default_json = serde_json::to_string_pretty(&default_config).unwrap();
+    #[test]
+    fn test_multichannel_default_config_matches_file() {
+        test_config_matches_file(
+            "examples/aec-configs/multichannel-defaults.json5",
+            AppConfig::multichannel_default(),
+        );
+    }
+
+    fn test_config_matches_file(filepath: &str, config: AppConfig) {
+        let file_path = PathBuf::from(filepath);
+        let file_contents = fs::read_to_string(&file_path)
+            .unwrap_or_else(|e| panic!("Failed to load {:?}: {:#}.", file_path, e));
+
+        let json = serde_json::to_string_pretty(&config).unwrap();
 
         assert_eq!(
-            file_contents.trim(), default_json.trim(),
-            "The library's default config does not match examples/aec-configs/defaults.json5.\n\
-             Update the file by running: cargo run --example aec_config --features \"serde experimental-aec3-config\" > examples/aec-configs/defaults.json5"
+            file_contents.trim(), json.trim(),
+            "The passed config does not match {filepath}.\n\
+             Update the file by running: cargo run --example aec_config --features serde,experimental-aec3-config -- default-* > {filepath}"
         );
     }
 }

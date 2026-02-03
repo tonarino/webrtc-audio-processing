@@ -13,6 +13,8 @@ use serde::{Deserialize, Serialize};
 /// ```
 /// use webrtc_audio_processing::experimental::EchoCanceller3Config;
 /// let mut aec3_config = EchoCanceller3Config::default();
+/// // Alternatively:
+/// let mut aec3_config = EchoCanceller3Config::multichannel_default();
 /// aec3_config.suppressor.dominant_nearend_detection.enr_threshold = 0.25;
 /// aec3_config.suppressor.dominant_nearend_detection.snr_threshold = 30.0;
 /// assert!(aec3_config.validate());
@@ -22,6 +24,12 @@ use serde::{Deserialize, Serialize};
 pub struct EchoCanceller3Config(ffi::EchoCanceller3Config);
 
 impl EchoCanceller3Config {
+    /// Create default AEC3 config for multichannel audio processor.
+    /// See also [`EchoCanceller3Config::default()`].
+    pub fn multichannel_default() -> Self {
+        Self(unsafe { ffi::create_multichannel_aec3_config() })
+    }
+
     /// Checks and updates the config parameters to lie within (mostly) reasonable ranges.
     /// Returns true if and only of the config did not need to be changed.
     pub fn validate(&mut self) -> bool {
@@ -30,6 +38,8 @@ impl EchoCanceller3Config {
 }
 
 impl Default for EchoCanceller3Config {
+    /// Create default single-channel AEC3 config.
+    /// See also [`EchoCanceller3Config::multichannel_default()`].
     fn default() -> Self {
         Self(unsafe { ffi::create_aec3_config() })
     }

@@ -140,8 +140,13 @@ impl Processor {
     }
 
     /// [Highly experimental]
-    /// Creates a new [`Processor`] with custom AEC3 configuration. The AEC3 configuration needs to be
-    /// valid, otherwise this returns [`Error::BadParameter`].
+    /// Creates a new [`Processor`] with custom AEC3 configuration. The AEC3 configuration needs to
+    /// be valid, otherwise this returns [`Error::BadParameter`].
+    ///
+    /// Note that passing the AEC3 configuration disables the internal logic to use different
+    /// AEC3 default config based on whether the audio stream is truly multichannel (though
+    /// multichannel detection is still used for other functionality). You can use
+    /// [`experimental::EchoCanceller3Config::multichannel_default()`].
     ///
     /// To change the AEC3 configuration at runtime, the [`Processor`] needs to be currently
     /// recreated. This limitation comes from the Rust wrapper and could be eventually lifted.
@@ -474,15 +479,23 @@ mod tests {
             Self { processor, num_samples, num_channels }
         }
 
-        fn generate_sine_frame(&self, frequency: f32) -> Vec<Vec<f32>> {
-            let mut channel = Vec::with_capacity(self.num_samples);
-            for i in 0..self.num_samples {
-                let sample =
-                    (i as f32 * frequency / 48000.0 * 2.0 * std::f32::consts::PI).sin() * 0.5;
-                channel.push(sample);
+        /// For multichannel samples `per_channel_offset` determines the phase offset of each
+        /// subsequent channel. Used to create true stereo samples. Useful range is 0..1.
+        fn generate_sine_frame(&self, frequency: f32, per_channel_offset: f32) -> Vec<Vec<f32>> {
+            let mut frame = Vec::with_capacity(self.num_channels);
+            for ch_nr in 0..self.num_channels {
+                let mut channel = Vec::with_capacity(self.num_samples);
+                for i in 0..self.num_samples {
+                    let phase = i as f32 * frequency / 48000.0;
+                    let offset = ch_nr as f32 * per_channel_offset;
+                    let sample = ((phase + offset) * 2.0 * std::f32::consts::PI).sin() * 0.5;
+                    channel.push(sample);
+                }
+
+                frame.push(channel);
             }
 
-            vec![channel; self.num_channels]
+            frame
         }
 
         fn process_frames(
@@ -741,7 +754,7 @@ mod tests {
             for i in 0..100 {
                 // Make a pulse for 50ms (5 frames), then silence
                 let mut render = if i < 5 {
-                    context.generate_sine_frame(440.0)
+                    context.generate_sine_frame(440.0, 0.0)
                 } else {
                     vec![vec![0.0; num_samples]]
                 };
@@ -796,7 +809,7 @@ mod tests {
         });
 
         // Test with pure sine wave
-        let render_frame = context.generate_sine_frame(440.0);
+        let render_frame = context.generate_sine_frame(440.0, 0.0);
         let erle = context.measure_echo_reduction(&render_frame, 100);
 
         // Verify there is echo loss.
@@ -813,7 +826,7 @@ mod tests {
     #[test]
     fn test_aec3_configuration_impact() {
         let mut context = TestContext::new(2, None); // Use stereo
-        let render_frame = context.generate_sine_frame(440.0);
+        let render_frame = context.generate_sine_frame(440.0, 0.0);
 
         // Measure for Full mode (the default)
         context.processor.set_config(Config {
@@ -836,39 +849,84 @@ mod tests {
         );
     }
 
+    /// Verifies AEC3 config setting with mono signal.
+    #[test]
+    #[cfg(feature = "experimental-aec3-config")]
+    fn test_aec3_configuration_tuning_mono() {
+        test_aec3_configuration_tuning(1, 0.0);
+    }
+
+    /// Verifies AEC3 config setting with fake stereo signal (both channels have the same content).
+    #[test]
+    #[cfg(feature = "experimental-aec3-config")]
+    fn test_aec3_configuration_tuning_fake_stereo() {
+        test_aec3_configuration_tuning(2, 0.0);
+    }
+
+    /// Verifies AEC3 config setting with true stereo signal (left/right channels different).
+    #[test]
+    #[cfg(feature = "experimental-aec3-config")]
+    fn test_aec3_configuration_tuning_true_stereo() {
+        test_aec3_configuration_tuning(2, 0.1);
+    }
+
     /// Verifies that unique AEC3 configurations produce measurably different results.
     ///
     /// This test is used to verify that a AEC3 configuration will apply and output
     /// different results (in this case, 4dB of ERL).
-    #[test]
+    ///
+    /// It is parametrized by
+    /// - the number of channels (significant because of multichannel config variant/detection)
+    /// - offset of the sine wave of individual channels (e.g. true vs. fake stereo)
     #[cfg(feature = "experimental-aec3-config")]
-    fn test_aec3_configuration_tuning() {
+    fn test_aec3_configuration_tuning(num_channels: usize, sample_frame_signal_offset: f32) {
+        // Enable multichannel processing, otherwise AEC simply downmixes.
+        let pipeline = config::Pipeline {
+            multi_channel_render: num_channels > 1,
+            multi_channel_capture: num_channels > 1,
+            ..Default::default()
+        };
+        // Shorten the "true stereo" detection from the default 2 seconds. AEC3 starts with the
+        // single-channel config by default and only switches to multichannel with hysteresis.
+        // Our warmup interval is only 0.5 secs of audio (50 frames).
+        let base_aec3_config = {
+            let mut mutable = experimental::EchoCanceller3Config::default();
+            mutable.multi_channel.stereo_detection_hysteresis_seconds = 0.1;
+            mutable
+        };
+
         // Test strong suppression
         let strong_reduction = {
-            let config =
-                Config { echo_canceller: Some(EchoCanceller::default()), ..Default::default() };
-            let mut aec3_config = experimental::EchoCanceller3Config::default();
+            let config = Config {
+                pipeline,
+                echo_canceller: Some(EchoCanceller::default()),
+                ..Default::default()
+            };
+            let mut aec3_config = base_aec3_config;
             // Aggressive suppression
             aec3_config.suppressor.normal_tuning.mask_lf.enr_suppress = 5.0;
             aec3_config.suppressor.normal_tuning.mask_hf.enr_suppress = 5.0;
 
-            let mut context = TestContext::new(2, Some(aec3_config));
-            let render_frame = context.generate_sine_frame(440.0);
+            let mut context = TestContext::new(num_channels, Some(aec3_config));
+            let render_frame = context.generate_sine_frame(440.0, sample_frame_signal_offset);
             context.processor.set_config(config);
             context.measure_steady_state_performance(&render_frame, 50, 10)
         };
 
         // Test light suppression
         let light_reduction = {
-            let config =
-                Config { echo_canceller: Some(EchoCanceller::default()), ..Default::default() };
-            let mut aec3_config = experimental::EchoCanceller3Config::default();
+            let config = Config {
+                pipeline,
+                echo_canceller: Some(EchoCanceller::default()),
+                ..Default::default()
+            };
+            let mut aec3_config = base_aec3_config;
             // Very light suppression
             aec3_config.suppressor.normal_tuning.mask_lf.enr_suppress = 0.1;
             aec3_config.suppressor.normal_tuning.mask_hf.enr_suppress = 0.1;
 
-            let mut context = TestContext::new(2, Some(aec3_config));
-            let render_frame = context.generate_sine_frame(440.0);
+            let mut context = TestContext::new(num_channels, Some(aec3_config));
+            let render_frame = context.generate_sine_frame(440.0, sample_frame_signal_offset);
             context.processor.set_config(config);
             context.measure_steady_state_performance(&render_frame, 50, 10)
         };
@@ -876,7 +934,8 @@ mod tests {
         // Verify the configurations produce measurably different results
         assert!(
             strong_reduction > light_reduction + 3.0,
-            "Strong suppression ({:.1} dB) should achieve at least 3dB more reduction than light suppression ({:.1} dB)",
+            "Strong suppression ({:.1} dB) should achieve at least 3dB more reduction than light \
+             suppression ({:.1} dB)",
             strong_reduction,
             light_reduction
         );
@@ -889,7 +948,7 @@ mod tests {
     #[test]
     fn test_aec3_configuration_behavior() {
         let mut context = TestContext::new(2, None);
-        let render_frame = context.generate_sine_frame(440.0);
+        let render_frame = context.generate_sine_frame(440.0, 0.0);
         let mut capture_frame = render_frame.clone();
 
         // Configure initial Full mode (default)
