@@ -185,7 +185,7 @@ fn main() -> Result<(), Error> {
 
     let processor = Arc::new(Processor::new(AUDIO_SAMPLE_RATE)?);
 
-    processor.set_config(opt.config.clone());
+    processor.set_config(opt.config);
 
     let running = Arc::new(AtomicBool::new(true));
 

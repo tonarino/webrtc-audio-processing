@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 /// aec3_config.suppressor.dominant_nearend_detection.snr_threshold = 30.0;
 /// assert!(aec3_config.validate());
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(default))]
 pub struct EchoCanceller3Config(ffi::EchoCanceller3Config);
 
