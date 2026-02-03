@@ -127,4 +127,3 @@ jobs:
         with:
           clang-format-version: 13
           check-path: webrtc-audio-processing-sys/src
-          fallback-style: Chromium
