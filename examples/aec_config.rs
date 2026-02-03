@@ -4,7 +4,7 @@ use std::{fs, path::PathBuf};
 use structopt::StructOpt;
 #[cfg(feature = "experimental-aec3-config")]
 use webrtc_audio_processing::experimental;
-use webrtc_audio_processing_config::Config;
+use webrtc_audio_processing_config::{Config, Pipeline};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
@@ -33,7 +33,14 @@ impl AppConfig {
         Self {
             num_capture_channels: 2,
             num_render_channels: 2,
-            config: Config::default(),
+            config: Config {
+                pipeline: Pipeline {
+                    multi_channel_render: true,
+                    multi_channel_capture: true,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
             #[cfg(feature = "experimental-aec3-config")]
             aec3: experimental::EchoCanceller3Config::multichannel_default(),
         }

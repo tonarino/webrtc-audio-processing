@@ -4,8 +4,8 @@
   "config": {
     "pipeline": {
       "maximum_internal_processing_rate": "Max48000Hz",
-      "multi_channel_render": false,
-      "multi_channel_capture": false,
+      "multi_channel_render": true,
+      "multi_channel_capture": true,
       "capture_downmix_method": "Average"
     },
     "capture_amplifier": null,
