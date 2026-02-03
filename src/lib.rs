@@ -988,6 +988,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "experimental-aec3-config")]
     fn test_init_delay() {
         let sample_rate = 48000;
         let num_channels = 2;
