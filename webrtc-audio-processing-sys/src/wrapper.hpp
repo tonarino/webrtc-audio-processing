@@ -5,9 +5,8 @@
 // TODO: Add support for AEC dump. webrtc-audio-processing library does not
 // include TaskQueue implementation, which is needed.
 
-#include <optional>
+#include "api/audio/audio_processing.h"
 #include "api/audio/echo_canceller3_config.h"
-#include "modules/audio_processing/include/audio_processing.h"
 
 namespace webrtc_audio_processing_wrapper {
 
@@ -47,13 +46,6 @@ struct Stats {
 webrtc::StreamConfig create_stream_config(int sample_rate_hz,
                                           size_t num_channels);
 
-// Creates a new instance of AudioProcessing.
-// Takes a mutable pointer to the AEC3 config, as it internally calls
-// validate_aec3_config. `aec3_config` can be null.
-AudioProcessing* create_audio_processing(
-    webrtc::EchoCanceller3Config* aec3_config,
-    int* error);
-
 // Instantiates an EchoCanceller3Config with the webrtc's default settings.
 webrtc::EchoCanceller3Config create_aec3_config();
 
@@ -64,6 +56,10 @@ webrtc::EchoCanceller3Config create_multichannel_aec3_config();
 // Checks and updates the config parameters to lie within (mostly) reasonable
 // ranges. Returns true if and only of the config did not need to be changed.
 bool validate_aec3_config(webrtc::EchoCanceller3Config* config);
+
+// Creates a new instance of AudioProcessing with default baseline and AEC3
+// configuration.
+AudioProcessing* create_audio_processing();
 
 // Processes and modifies the audio frame from a capture device.
 // Each element in |channels| is an array of float representing a single-channel
@@ -100,6 +96,16 @@ Stats get_stats(AudioProcessing* ap);
 // construct for runtime configuration.
 void set_config(AudioProcessing* ap,
                 const webrtc::AudioProcessing::Config& config);
+
+// Set custom AEC3 config (the same for both single- and multi-channel
+// processing). |aec3_config| should be either null or valid, otherwise this
+// returns non-zero error code, and doesn't apply any config. If null is passed,
+// AEC3 config is reset to default (slightly different for single- and
+// multi-channel processing). Causes reinitialization of the whole
+// AudioProcessing if and only if the configuration contents have changed,
+// otherwise returns quickly.
+int set_aec3_config(AudioProcessing* ap,
+                    const webrtc::EchoCanceller3Config* aec3_config);
 
 // Sets the |delay| in ms between process_render_frame() receiving a far-end
 // frame and process_capture_frame() receiving a near-end frame containing the

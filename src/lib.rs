@@ -20,7 +20,6 @@ use crate::config::{EchoCanceller, IntoFfi};
 use std::{
     convert::TryFrom,
     error, fmt,
-    ptr::null_mut,
     sync::atomic::{AtomicU32, Ordering},
 };
 use webrtc_audio_processing_sys::{self as ffi, StreamConfig};
@@ -133,44 +132,19 @@ pub struct Processor {
 }
 
 impl Processor {
-    /// Creates a new [`Processor`]. Detailed configuration can be be passed to
-    /// [`Self::set_config()`] at any time during processing.
-    pub fn new(sample_rate_hz: u32) -> Result<Self, Error> {
-        Self::new_with_ptr(sample_rate_hz, null_mut())
-    }
-
-    /// [Highly experimental]
-    /// Creates a new [`Processor`] with custom AEC3 configuration. The AEC3 configuration needs to
-    /// be valid, otherwise this returns [`Error::BadParameter`].
+    /// Creates a new [`Processor`] with default general and AEC3 configs.
     ///
-    /// Note that passing the AEC3 configuration disables the internal logic to use different
-    /// AEC3 default config based on whether the audio stream is truly multichannel (though
-    /// multichannel detection is still used for other functionality). You can use
-    /// [`experimental::EchoCanceller3Config::multichannel_default()`].
-    ///
-    /// To change the AEC3 configuration at runtime, the [`Processor`] needs to be currently
-    /// recreated. This limitation comes from the Rust wrapper and could be eventually lifted.
-    #[cfg(feature = "experimental-aec3-config")]
-    pub fn with_aec3_config(
-        sample_rate_hz: u32,
-        mut aec3_config: experimental::EchoCanceller3Config,
-    ) -> Result<Self, Error> {
-        Self::new_with_ptr(sample_rate_hz, &raw mut *aec3_config)
-    }
-
-    /// Pass null ptr in `aec3_config` to use its default config.
-    fn new_with_ptr(
-        sample_rate_hz: u32,
-        aec3_config: *mut ffi::EchoCanceller3Config,
-    ) -> Result<Self, Error> {
-        let mut code = 0;
-        let inner = unsafe { ffi::create_audio_processing(aec3_config, &mut code) };
-        Ok(Self {
-            inner: AudioProcessingPtr(result_from_code(inner, code)?),
+    /// General configuration can be be passed to [`Self::set_config()`] at any time.
+    /// AEC3 configuration can be passed to [`Self::set_aec3_config()`] at any time if the relevant
+    /// feature flag is enabled.
+    pub fn new(sample_rate_hz: u32) -> Self {
+        let inner = unsafe { ffi::create_audio_processing() };
+        Self {
+            inner: AudioProcessingPtr(inner),
             sample_rate_hz,
             // u32::MAX to denote not (yet) set.
             stream_delay_ms: AtomicU32::new(u32::MAX),
-        })
+        }
     }
 
     /// Processes and modifies the audio frame from a capture device by applying
@@ -295,6 +269,31 @@ impl Processor {
         unsafe {
             ffi::set_config(*self.inner, &config.into_ffi());
         }
+    }
+
+    /// [Highly experimental]
+    /// If `aec3_config` is [`Some`], set custom AEC3 config, which applies to both single- and
+    /// multi-channel code paths of echo cancellation.
+    /// [`experimental::EchoCanceller3Config::multichannel_default()`] is a good default if your
+    /// processing is multi-channel. The AEC3 configuration needs to be valid, otherwise this
+    /// returns [`Error::BadParameter`].
+    ///
+    /// If `aec3_config` is [`None`], AEC3 config is reset to default (slightly different for
+    /// single- and multi-channel processing).
+    ///
+    /// Causes reinitialization of the whole [`Processor`] if and only if the configuration contents
+    /// have changed since the last call, otherwise returns quickly.
+    #[cfg(feature = "experimental-aec3-config")]
+    pub fn set_aec3_config(
+        &self,
+        aec3_config: Option<&experimental::EchoCanceller3Config>,
+    ) -> Result<(), Error> {
+        let raw_aec3_config = match aec3_config {
+            Some(config) => &raw const **config,
+            None => std::ptr::null(),
+        };
+        let code = unsafe { ffi::set_aec3_config(*self.inner, raw_aec3_config) };
+        result_from_code((), code)
     }
 
     /// Reinitialize the processor: drop all state (like the estimated echo parameters), but retain
@@ -457,24 +456,8 @@ mod tests {
     }
 
     impl TestContext {
-        #[cfg(feature = "experimental-aec3-config")]
-        fn new(
-            num_channels: usize,
-            aec3_config: Option<experimental::EchoCanceller3Config>,
-        ) -> Self {
-            let processor = match aec3_config {
-                Some(aec3_config) => {
-                    Processor::with_aec3_config(SAMPLE_RATE_HZ, aec3_config).unwrap()
-                },
-                None => Processor::new(SAMPLE_RATE_HZ).unwrap(),
-            };
-            let num_samples = processor.num_samples_per_frame();
-            Self { processor, num_samples, num_channels }
-        }
-
-        #[cfg(not(feature = "experimental-aec3-config"))]
-        fn new(num_channels: usize, _: Option<()>) -> Self {
-            let processor = Processor::new(SAMPLE_RATE_HZ).unwrap();
+        fn new(num_channels: usize) -> Self {
+            let processor = Processor::new(SAMPLE_RATE_HZ);
             let num_samples = processor.num_samples_per_frame();
             Self { processor, num_samples, num_channels }
         }
@@ -555,13 +538,13 @@ mod tests {
     /// Tests proper resource cleanup on drop
     #[test]
     fn test_create_drop() {
-        let _p = Processor::new(SAMPLE_RATE_HZ).unwrap();
+        let _p = Processor::new(SAMPLE_RATE_HZ);
     }
 
     /// Tests nominal operation of the audio processing library.
     #[test]
     fn test_nominal() {
-        let ap = Processor::new(SAMPLE_RATE_HZ).unwrap();
+        let ap = Processor::new(SAMPLE_RATE_HZ);
 
         let config =
             Config { echo_canceller: Some(EchoCanceller::default()), ..Default::default() };
@@ -598,7 +581,7 @@ mod tests {
     fn test_process_signatures() {
         const NUM_SAMPLES: usize = 480;
 
-        let ap = Processor::new(SAMPLE_RATE_HZ).unwrap();
+        let ap = Processor::new(SAMPLE_RATE_HZ);
         assert_eq!(ap.num_samples_per_frame(), NUM_SAMPLES);
 
         // Iterator of Vecs
@@ -623,7 +606,7 @@ mod tests {
 
     #[test]
     fn test_zero_channels() {
-        let ap = Processor::new(SAMPLE_RATE_HZ).unwrap();
+        let ap = Processor::new(SAMPLE_RATE_HZ);
         let mut frame: Vec<Vec<f32>> = vec![];
 
         assert_eq!(ap.process_capture_frame(&mut frame), Err(Error::BadNumberChannels));
@@ -636,7 +619,7 @@ mod tests {
     // thead::sleep() which is notoriously imprecise on macs.
     #[cfg_attr(target_os = "macos", ignore)]
     fn test_nominal_threaded() {
-        let ap = Arc::new(Processor::new(SAMPLE_RATE_HZ).unwrap());
+        let ap = Arc::new(Processor::new(SAMPLE_RATE_HZ));
 
         let (render_frame, capture_frame) = sample_stereo_frames(&ap);
 
@@ -685,7 +668,7 @@ mod tests {
 
     #[test]
     fn test_tweak_processor_params() {
-        let ap = Processor::new(SAMPLE_RATE_HZ).unwrap();
+        let ap = Processor::new(SAMPLE_RATE_HZ);
 
         // Add some runtime events.
         ap.set_output_will_be_muted(true);
@@ -726,7 +709,7 @@ mod tests {
         };
 
         // Verify via stats & warm up
-        let context = TestContext::new(1, None);
+        let context = TestContext::new(1);
         context.processor.set_config(make_config(Some(200)));
 
         let mut frame = vec![vec![0.1f32; context.num_samples]];
@@ -742,7 +725,7 @@ mod tests {
 
         // Verify matched delay should handle a signal pulse better
         let measure_pulse_reduction = |applied_delay_ms| {
-            let context = TestContext::new(1, None);
+            let context = TestContext::new(1);
             // Apply either a correct hint (200ms) or an incorrect one (0ms)
             context.processor.set_config(make_config(applied_delay_ms));
 
@@ -800,7 +783,7 @@ mod tests {
     /// achieves at least 18dB ERL.
     #[test]
     fn test_echo_cancellation_effectiveness() {
-        let mut context = TestContext::new(1, None);
+        let mut context = TestContext::new(1);
 
         // Configure AEC
         context.processor.set_config(Config {
@@ -825,7 +808,7 @@ mod tests {
     /// These modes should have distinct echo cancellation behaviors by design.
     #[test]
     fn test_aec3_configuration_impact() {
-        let mut context = TestContext::new(2, None); // Use stereo
+        let mut context = TestContext::new(2); // Use stereo
         let render_frame = context.generate_sine_frame(440.0, 0.0);
 
         // Measure for Full mode (the default)
@@ -907,9 +890,10 @@ mod tests {
             aec3_config.suppressor.normal_tuning.mask_lf.enr_suppress = 5.0;
             aec3_config.suppressor.normal_tuning.mask_hf.enr_suppress = 5.0;
 
-            let mut context = TestContext::new(num_channels, Some(aec3_config));
+            let mut context = TestContext::new(num_channels);
             let render_frame = context.generate_sine_frame(440.0, sample_frame_signal_offset);
             context.processor.set_config(config);
+            context.processor.set_aec3_config(Some(&aec3_config)).unwrap();
             context.measure_steady_state_performance(&render_frame, 50, 10)
         };
 
@@ -925,9 +909,10 @@ mod tests {
             aec3_config.suppressor.normal_tuning.mask_lf.enr_suppress = 0.1;
             aec3_config.suppressor.normal_tuning.mask_hf.enr_suppress = 0.1;
 
-            let mut context = TestContext::new(num_channels, Some(aec3_config));
+            let mut context = TestContext::new(num_channels);
             let render_frame = context.generate_sine_frame(440.0, sample_frame_signal_offset);
             context.processor.set_config(config);
+            context.processor.set_aec3_config(Some(&aec3_config)).unwrap();
             context.measure_steady_state_performance(&render_frame, 50, 10)
         };
 
@@ -947,7 +932,7 @@ mod tests {
     /// between different modes (Full vs Mobile).
     #[test]
     fn test_aec3_configuration_behavior() {
-        let mut context = TestContext::new(2, None);
+        let mut context = TestContext::new(2);
         let render_frame = context.generate_sine_frame(440.0, 0.0);
         let mut capture_frame = render_frame.clone();
 
