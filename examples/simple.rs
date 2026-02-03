@@ -3,7 +3,7 @@ use webrtc_audio_processing_config::{Config, EchoCanceller};
 
 fn main() {
     let sample_rate_hz = 48_000;
-    let ap = Processor::new(sample_rate_hz).unwrap();
+    let ap = Processor::new(sample_rate_hz);
 
     let config = Config { echo_canceller: Some(EchoCanceller::default()), ..Default::default() };
     ap.set_config(config);

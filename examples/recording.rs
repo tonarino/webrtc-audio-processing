@@ -183,7 +183,7 @@ fn main() -> Result<(), Error> {
 
     let pa = portaudio::PortAudio::new()?;
 
-    let processor = Arc::new(Processor::new(AUDIO_SAMPLE_RATE)?);
+    let processor = Arc::new(Processor::new(AUDIO_SAMPLE_RATE));
 
     processor.set_config(opt.config);
 

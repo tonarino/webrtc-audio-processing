@@ -13,6 +13,24 @@
 #include <mutex>
 #include <optional>
 
+// EchoCanceller3Config doesn't provide == operator. We write a poor man's
+// version ourselves. We need to inject it to webrtc namespace.
+namespace webrtc {
+
+bool operator==(const webrtc::EchoCanceller3Config& a,
+                const webrtc::EchoCanceller3Config& b) {
+  // Do byte-by-byte comparison. Reportedly this can cause false negatives
+  // because padding bytes can be technically garbage. But never false
+  // positives.
+  if (std::memcmp(&a, &b, sizeof(a)) == 0) {
+    return true;
+  }
+
+  return false;
+}
+
+}  // namespace webrtc
+
 namespace webrtc_audio_processing_wrapper {
 namespace {
 
@@ -37,25 +55,69 @@ OptionalBool from_absl_optional(const std::optional<bool>& optional) {
   return rv;
 }
 
+// Utility class to share EchoCanceller3Config between `EchoCanceller3Factory`
+// and `AudioProcessing` (when wrapped in shared_ptr).
+// Thread-safe (protected by a mutex).
+class Aec3ConfigHolder {
+ public:
+  Aec3ConfigHolder() {}
+
+  std::optional<webrtc::EchoCanceller3Config> get_config() const {
+    std::lock_guard lock(mutex_);
+    return config_;
+  }
+
+  // Returns true if the config has changed, false otherwise.
+  bool set_config(std::optional<webrtc::EchoCanceller3Config> config) {
+    std::lock_guard lock(mutex_);
+    if (config == config_) {
+      return false;
+    } else {
+      config_ = std::move(config);
+      return true;
+    }
+  }
+
+ private:
+  // Protects access to `config_`.
+  mutable std::mutex mutex_;
+  // You must lock `mutex_` to access this field.
+  std::optional<webrtc::EchoCanceller3Config> config_ = std::nullopt;
+};
+
 #ifdef WEBRTC_AEC3_CONFIG
 class EchoCanceller3Factory : public webrtc::EchoControlFactory {
  public:
-  explicit EchoCanceller3Factory(const webrtc::EchoCanceller3Config& config)
-      : config_(config) {}
+  explicit EchoCanceller3Factory(
+      const std::shared_ptr<Aec3ConfigHolder>& config_holder)
+      : config_holder_(config_holder) {}
 
   std::unique_ptr<webrtc::EchoControl> Create(
       int sample_rate_hz,
       int num_render_channels,
       int num_capture_channels) override {
+    webrtc::EchoCanceller3Config config;  // (single-channel defaults)
     std::optional<webrtc::EchoCanceller3Config> multichannel_config =
         std::nullopt;
-    return std::unique_ptr<webrtc::EchoControl>(
-        new webrtc::EchoCanceller3(config_, multichannel_config, sample_rate_hz,
-                                   num_render_channels, num_capture_channels));
+
+    auto explicit_config = config_holder_->get_config();
+    if (explicit_config) {
+      // Keep null multichannel_config to use explicit_config at all times.
+      config = *explicit_config;
+    } else {
+      // Keep default (single-channel) config and use different multichannel
+      // default. This behavior mimics the logic of
+      // AudioProcessingImpl::InitializeEchoController().
+      multichannel_config = create_multichannel_aec3_config();
+    }
+
+    return std::make_unique<webrtc::EchoCanceller3>(
+        config, multichannel_config, sample_rate_hz, num_render_channels,
+        num_capture_channels);
   }
 
  private:
-  webrtc::EchoCanceller3Config config_;
+  std::shared_ptr<Aec3ConfigHolder> config_holder_;
 };
 #endif
 
@@ -88,35 +150,23 @@ bool validate_aec3_config(webrtc::EchoCanceller3Config* config) {
 
 struct AudioProcessing {
   std::unique_ptr<webrtc::AudioProcessing> processor;
+  std::shared_ptr<Aec3ConfigHolder> aec3_config_holder;
 };
 
-AudioProcessing* create_audio_processing(
-    webrtc::EchoCanceller3Config* aec3_config,
-    int* error) {
-  auto ap = std::make_unique<AudioProcessing>();
+AudioProcessing* create_audio_processing() {
+  auto aec3_config_holder = std::make_shared<Aec3ConfigHolder>();
 
   webrtc::AudioProcessingBuilder builder;
-  if (aec3_config != nullptr) {
-    // Validate the configuration
-    if (!validate_aec3_config(aec3_config)) {
-      *error = webrtc::AudioProcessing::kBadParameterError;
-      return nullptr;
-    }
-
 #ifdef WEBRTC_AEC3_CONFIG
-    auto* factory = new EchoCanceller3Factory(*aec3_config);
-    builder.SetEchoControlFactory(
-        std::unique_ptr<webrtc::EchoControlFactory>(factory));
-#else
-    // Fallback: advanced AEC3 configuration is not available in
-    // non-experimental builds.
-    *error = webrtc::AudioProcessing::kUnsupportedComponentError;
-    return nullptr;
+  auto* factory = new EchoCanceller3Factory(aec3_config_holder);
+  builder.SetEchoControlFactory(
+      std::unique_ptr<webrtc::EchoControlFactory>(factory));
 #endif
-  }
-  ap->processor.reset(builder.Create().release());
+  auto processor =
+      std::unique_ptr<webrtc::AudioProcessing>(builder.Create().release());
 
-  return ap.release();
+  return new AudioProcessing{std::move(processor),
+                             std::move(aec3_config_holder)};
 }
 
 void initialize(AudioProcessing* ap) {
@@ -167,6 +217,35 @@ void set_config(AudioProcessing* ap,
                 const webrtc::AudioProcessing::Config& config) {
   ap->processor->ApplyConfig(config);
 }
+
+#ifdef WEBRTC_AEC3_CONFIG
+// Set custom AEC3 config (for both single- and multi-channel processing).
+// `aec3_config` should be either null or valid, otherwise this returns non-zero
+// error code, and doesn't apply any config. If null is passed, AEC3 config is
+// reset to default (slightly different for single- and multi-channel
+// processing).
+int set_aec3_config(AudioProcessing* ap,
+                    const webrtc::EchoCanceller3Config* aec3_config) {
+  std::optional<webrtc::EchoCanceller3Config> opt_config = std::nullopt;
+
+  if (aec3_config) {
+    opt_config = *aec3_config;
+    // Validate the just-made copy so that we don't modify the argument.
+    if (!validate_aec3_config(&(*opt_config))) {
+      return webrtc::AudioProcessing::kBadParameterError;
+    }
+  }
+
+  bool has_changed = ap->aec3_config_holder->set_config(std::move(opt_config));
+
+  // Trigger reinit so that the factory is called again and new config is read.
+  if (has_changed) {
+    initialize(ap);
+  }
+
+  return 0;
+}
+#endif
 
 void set_stream_delay_ms(AudioProcessing* ap, int delay) {
   ap->processor->set_stream_delay_ms(delay);

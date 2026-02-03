@@ -56,7 +56,6 @@ impl From<OptionalBool> for Option<bool> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::ptr::null_mut;
 
     const SAMPLE_RATE_HZ: i32 = 48_000;
 
@@ -111,10 +110,8 @@ mod tests {
     #[test]
     fn test_create_delete() {
         unsafe {
-            let mut error = 0;
-            let ap = create_audio_processing(null_mut(), &mut error);
+            let ap = create_audio_processing();
             assert!(!ap.is_null());
-            assert_success(error);
             delete_audio_processing(ap);
         }
     }
@@ -122,10 +119,8 @@ mod tests {
     #[test]
     fn test_config() {
         unsafe {
-            let mut error = 0;
-            let ap = create_audio_processing(null_mut(), &mut error);
+            let ap = create_audio_processing();
             assert!(!ap.is_null());
-            assert_success(error);
 
             let config = AudioProcessing_Config::default();
             set_config(ap, &config);
@@ -140,10 +135,8 @@ mod tests {
     #[test]
     fn test_process() {
         unsafe {
-            let mut error = 0;
-            let ap = create_audio_processing(null_mut(), &mut error);
+            let ap = create_audio_processing();
             assert!(!ap.is_null());
-            assert_success(error);
 
             let config = config_with_all_enabled();
             set_config(ap, &config);
@@ -162,10 +155,8 @@ mod tests {
     #[test]
     fn test_empty_stats() {
         unsafe {
-            let mut error = 0;
-            let ap = create_audio_processing(null_mut(), &mut error);
+            let ap = create_audio_processing();
             assert!(!ap.is_null());
-            assert_success(error);
 
             let stats = get_stats(ap);
             println!("Stats:\n{:#?}", stats);
@@ -186,10 +177,8 @@ mod tests {
     #[test]
     fn test_some_stats() {
         unsafe {
-            let mut error = 0;
-            let ap = create_audio_processing(null_mut(), &mut error);
+            let ap = create_audio_processing();
             assert!(!ap.is_null());
-            assert_success(error);
 
             let config = config_with_all_enabled();
             set_config(ap, &config);

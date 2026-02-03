@@ -36,7 +36,8 @@ struct Args {
 }
 
 fn create_processor(config: &AppConfig) -> Result<Processor, Error> {
-    let processor = Processor::with_aec3_config(SAMPLE_RATE as u32, config.aec3)?;
+    let processor = Processor::new(SAMPLE_RATE as u32);
+    processor.set_aec3_config(Some(&config.aec3))?;
 
     processor.set_config(config.config);
     Ok(processor)
