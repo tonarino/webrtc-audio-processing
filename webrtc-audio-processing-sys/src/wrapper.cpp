@@ -9,7 +9,6 @@
 #include "modules/audio_processing/aec3/echo_canceller3.h"
 #endif
 
-#include <algorithm>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -67,6 +66,26 @@ webrtc::StreamConfig create_stream_config(int sample_rate_hz,
   return webrtc::StreamConfig(sample_rate_hz, num_channels);
 }
 
+webrtc::EchoCanceller3Config create_aec3_config() {
+  // This needs to happen in the C/C++ world, as the initial values defined in
+  // the header file are only visible here.
+  webrtc::EchoCanceller3Config config;
+  return config;
+}
+
+#ifdef WEBRTC_AEC3_CONFIG
+webrtc::EchoCanceller3Config create_multichannel_aec3_config() {
+  return webrtc::EchoCanceller3::CreateDefaultMultichannelConfig();
+}
+#endif
+
+bool validate_aec3_config(webrtc::EchoCanceller3Config* config) {
+  if (config == nullptr) {
+    return false;
+  }
+  return webrtc::EchoCanceller3Config::Validate(config);
+}
+
 struct AudioProcessing {
   std::unique_ptr<webrtc::AudioProcessing> processor;
 };
@@ -98,26 +117,6 @@ AudioProcessing* create_audio_processing(
   ap->processor.reset(builder.Create().release());
 
   return ap.release();
-}
-
-webrtc::EchoCanceller3Config create_aec3_config() {
-  // This needs to happen in the C/C++ world, as the initial values defined in
-  // the header file are only visible here.
-  webrtc::EchoCanceller3Config config;
-  return config;
-}
-
-#ifdef WEBRTC_AEC3_CONFIG
-webrtc::EchoCanceller3Config create_multichannel_aec3_config() {
-  return webrtc::EchoCanceller3::CreateDefaultMultichannelConfig();
-}
-#endif
-
-bool validate_aec3_config(webrtc::EchoCanceller3Config* config) {
-  if (config == nullptr) {
-    return false;
-  }
-  return webrtc::EchoCanceller3Config::Validate(config);
 }
 
 void initialize(AudioProcessing* ap) {
