@@ -140,11 +140,12 @@ impl Processor {
     }
 
     /// [Highly experimental]
-    /// Creates a new [`Processor`] with custom AEC3 configuration. The AEC3 configuration needs to be
-    /// valid, otherwise this returns [`Error::BadParameter`].
+    /// Creates a new [`Processor`] with custom AEC3 configuration. The AEC3 configuration needs to
+    /// be valid, otherwise this returns [`Error::BadParameter`].
     ///
-    /// Note that passing the AEC3 configuration disables the internal logic that uses different
-    /// AEC3 config based on whether the audio stream is (truly) multichannel. You can use
+    /// Note that passing the AEC3 configuration disables the internal logic to use different
+    /// AEC3 default config based on whether the audio stream is truly multichannel (though
+    /// multichannel detection is still used for other functionality). You can use
     /// [`experimental::EchoCanceller3Config::multichannel_default()`].
     ///
     /// To change the AEC3 configuration at runtime, the [`Processor`] needs to be currently
