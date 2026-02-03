@@ -39,7 +39,7 @@ impl EchoCanceller3Config {
 
 impl Default for EchoCanceller3Config {
     /// Create default single-channel AEC3 config.
-    /// See also [`choCanceller3Config::multichannel_default()`].
+    /// See also [`EchoCanceller3Config::multichannel_default()`].
     fn default() -> Self {
         Self(unsafe { ffi::create_aec3_config() })
     }
