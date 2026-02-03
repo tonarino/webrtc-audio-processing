@@ -48,6 +48,9 @@ class EchoCanceller3Factory : public webrtc::EchoControlFactory {
       int sample_rate_hz,
       int num_render_channels,
       int num_capture_channels) override {
+    fprintf(stderr, "-> EchoCanceller3Factory::Create called with rate=%d, render_chs=%d, capture_chs=%d\n",
+            sample_rate_hz, num_render_channels, num_capture_channels);
+    fflush(stderr);
     std::optional<webrtc::EchoCanceller3Config> multichannel_config =
         std::nullopt;
     return std::unique_ptr<webrtc::EchoControl>(
@@ -74,10 +77,14 @@ struct AudioProcessing {
 AudioProcessing* create_audio_processing(
     webrtc::EchoCanceller3Config* aec3_config,
     int* error) {
+  fprintf(stderr, "-> create_audio_processing start\n");
+  fflush(stderr);
   auto ap = std::make_unique<AudioProcessing>();
 
   webrtc::AudioProcessingBuilder builder;
   if (aec3_config != nullptr) {
+    fprintf(stderr, "-> aec3_config config provided\n");
+    fflush(stderr);
     // Validate the configuration
     if (!validate_aec3_config(aec3_config)) {
       *error = webrtc::AudioProcessing::kBadParameterError;
@@ -85,10 +92,14 @@ AudioProcessing* create_audio_processing(
     }
 
 #ifdef WEBRTC_AEC3_CONFIG
+    fprintf(stderr, "-> WEBRTC_AEC3_CONFIG is defined\n");
+    fflush(stderr);
     auto* factory = new EchoCanceller3Factory(*aec3_config);
     builder.SetEchoControlFactory(
         std::unique_ptr<webrtc::EchoControlFactory>(factory));
 #else
+    fprintf(stderr, "-> WEBRTC_AEC3_CONFIG is not defined\n");
+    fflush(stderr);
     // Fallback: advanced AEC3 configuration is not available in
     // non-experimental builds.
     *error = webrtc::AudioProcessing::kUnsupportedComponentError;
@@ -96,6 +107,8 @@ AudioProcessing* create_audio_processing(
 #endif
   }
   ap->processor.reset(builder.Create().release());
+  fprintf(stderr, "-> create_audio_processing end\n");
+  fflush(stderr);
 
   return ap.release();
 }
@@ -121,6 +134,8 @@ bool validate_aec3_config(webrtc::EchoCanceller3Config* config) {
 }
 
 void initialize(AudioProcessing* ap) {
+  fprintf(stderr, "-> initialize called\n");
+  fflush(stderr);
   ap->processor->Initialize();
 }
 

@@ -986,4 +986,33 @@ mod tests {
             "Echo metrics should remain available after config change"
         );
     }
+
+    #[test]
+    fn test_init_delay() {
+        let sample_rate = 48000;
+        let num_channels = 2;
+
+        let aec3_config = experimental::EchoCanceller3Config::default();
+        let processor = Processor::with_aec3_config(sample_rate, aec3_config).unwrap();
+
+        let mut config = Config::default();
+        config.echo_canceller = Some(EchoCanceller::default());
+        config.pipeline.multi_channel_render = true;
+        config.pipeline.multi_channel_capture = true;
+        println!("Calling set_config...");
+        processor.set_config(config);
+
+        let num_samples = processor.num_samples_per_frame();
+        println!("num_samples_per_frame: {}", num_samples);
+
+        // Prepare stereo frames
+        let mut render_frame = vec![vec![0.1f32; num_samples]; num_channels];
+        let mut capture_frame = vec![vec![0.1f32; num_samples]; num_channels];
+
+        println!("Processing first 10 frames (stereo 48kHz)...");
+        for _ in 0..10 {
+            processor.process_render_frame(&mut render_frame).unwrap();
+            processor.process_capture_frame(&mut capture_frame).unwrap();
+        }
+    }
 }
