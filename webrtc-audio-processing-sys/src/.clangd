@@ -1,0 +1,2 @@
+CompileFlags:
+  Add: [-DWEBRTC_AEC3_CONFIG]
