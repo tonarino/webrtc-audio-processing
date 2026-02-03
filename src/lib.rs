@@ -875,11 +875,29 @@ mod tests {
     /// - offset of the sine wave of individual channels (e.g. true vs. fake stereo)
     #[cfg(feature = "experimental-aec3-config")]
     fn test_aec3_configuration_tuning(num_channels: usize, sample_frame_signal_offset: f32) {
+        // Enable multichannel processing, otherwise AEC simply downmixes.
+        let pipeline = config::Pipeline {
+            multi_channel_render: num_channels > 1,
+            multi_channel_capture: num_channels > 1,
+            ..Default::default()
+        };
+        // Shorten the "true stereo" detection from the default 2 seconds. AEC3 starts with the
+        // single-channel config by default and only switches to multichannel with hysteresis.
+        // Our warmup interval is only 0.5 secs of audio (50 frames).
+        let base_aec3_config = {
+            let mut mutable = experimental::EchoCanceller3Config::default();
+            mutable.multi_channel.stereo_detection_hysteresis_seconds = 0.1;
+            mutable
+        };
+
         // Test strong suppression
         let strong_reduction = {
-            let config =
-                Config { echo_canceller: Some(EchoCanceller::default()), ..Default::default() };
-            let mut aec3_config = experimental::EchoCanceller3Config::default();
+            let config = Config {
+                pipeline,
+                echo_canceller: Some(EchoCanceller::default()),
+                ..Default::default()
+            };
+            let mut aec3_config = base_aec3_config;
             // Aggressive suppression
             aec3_config.suppressor.normal_tuning.mask_lf.enr_suppress = 5.0;
             aec3_config.suppressor.normal_tuning.mask_hf.enr_suppress = 5.0;
@@ -892,9 +910,12 @@ mod tests {
 
         // Test light suppression
         let light_reduction = {
-            let config =
-                Config { echo_canceller: Some(EchoCanceller::default()), ..Default::default() };
-            let mut aec3_config = experimental::EchoCanceller3Config::default();
+            let config = Config {
+                pipeline,
+                echo_canceller: Some(EchoCanceller::default()),
+                ..Default::default()
+            };
+            let mut aec3_config = base_aec3_config;
             // Very light suppression
             aec3_config.suppressor.normal_tuning.mask_lf.enr_suppress = 0.1;
             aec3_config.suppressor.normal_tuning.mask_hf.enr_suppress = 0.1;
