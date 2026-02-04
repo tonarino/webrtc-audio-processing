@@ -152,7 +152,7 @@ impl Processor {
     ///   functionality). You can use [`experimental::EchoCanceller3Config::multichannel_default()`]
     ///
     /// To change the AEC3 configuration at runtime, the [`Processor`] needs to be currently
-    /// recreated. This limitation could be eventually lifted, see issue #77.
+    /// recreated. This limitation could be eventually lifted, see PR #77.
     #[cfg(feature = "experimental-aec3-config")]
     pub fn with_aec3_config(
         sample_rate_hz: u32,
