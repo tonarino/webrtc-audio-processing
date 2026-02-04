@@ -165,12 +165,17 @@ impl Processor {
     ) -> Result<Self, Error> {
         let mut code = 0;
         let inner = unsafe { ffi::create_audio_processing(aec3_config, &mut code) };
-        Ok(Self {
-            inner: AudioProcessingPtr(result_from_code(inner, code)?),
-            sample_rate_hz,
-            // u32::MAX to denote not (yet) set.
-            stream_delay_ms: AtomicU32::new(u32::MAX),
-        })
+        // First check the error code.
+        let inner = result_from_code(inner, code)?;
+        // Then check for null. This shouldn't normally happen, but can in corner cases like when
+        // linking to webrtc-audio-processing built with WEBRTC_EXCLUDE_AUDIO_PROCESSING_MODULE.
+        if inner.is_null() {
+            return Err(Error::NullPointer);
+        }
+        let inner = AudioProcessingPtr(inner);
+
+        // u32::MAX to denote stream_delay_ms not (yet) set.
+        Ok(Self { inner, sample_rate_hz, stream_delay_ms: AtomicU32::new(u32::MAX) })
     }
 
     /// Processes and modifies the audio frame from a capture device by applying
