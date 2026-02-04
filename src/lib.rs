@@ -20,6 +20,7 @@ use crate::config::{EchoCanceller, IntoFfi};
 use std::{
     convert::TryFrom,
     error, fmt,
+    num::NonZero,
     ptr::null_mut,
     sync::atomic::{AtomicU32, Ordering},
 };
@@ -133,34 +134,47 @@ pub struct Processor {
 }
 
 impl Processor {
-    /// Creates a new [`Processor`]. Detailed configuration can be be passed to
+    /// Creates a new [`Processor`]. Detailed general configuration can be be passed to
     /// [`Self::set_config()`] at any time during processing.
-    pub fn new(sample_rate_hz: u32) -> Result<Self, Error> {
-        Self::new_with_ptr(sample_rate_hz, null_mut())
+    ///
+    /// You can pass `initial_channels` to initialize the processor early with given number of
+    /// capture channels. The number of channels is still changeable dynamically with
+    /// [`Self::process_capture_frame()`] and friends. If [`None`] is passed, the capture and render
+    /// parts of the processor are initialized on first calls to [`Self::process_capture_frame()`]
+    /// and [`Self::process_render_frame()`]/[`Self::analyze_render_frame()`] respectively.
+    pub fn new(
+        sample_rate_hz: u32,
+        initial_channels: Option<ChannelCounts>,
+    ) -> Result<Self, Error> {
+        Self::new_with_ptr(sample_rate_hz, initial_channels, null_mut())
     }
 
     /// [Highly experimental]
     /// Creates a new [`Processor`] with custom AEC3 configuration. The AEC3 configuration needs to
     /// be valid, otherwise this returns [`Error::BadParameter`].
     ///
-    /// Note that passing the AEC3 configuration disables the internal logic to use different
+    /// Note that passing the AEC3 configuration:
+    /// - force-enables the echo canceller submodule no matter
+    /// disables the internal logic to use different
     /// AEC3 default config based on whether the audio stream is truly multichannel (though
     /// multichannel detection is still used for other functionality). You can use
     /// [`experimental::EchoCanceller3Config::multichannel_default()`].
     ///
     /// To change the AEC3 configuration at runtime, the [`Processor`] needs to be currently
-    /// recreated. This limitation comes from the Rust wrapper and could be eventually lifted.
+    /// recreated. This limitation could be eventually lifted, see issue #77.
     #[cfg(feature = "experimental-aec3-config")]
     pub fn with_aec3_config(
         sample_rate_hz: u32,
+        initial_channels: Option<ChannelCounts>,
         mut aec3_config: experimental::EchoCanceller3Config,
     ) -> Result<Self, Error> {
-        Self::new_with_ptr(sample_rate_hz, &raw mut *aec3_config)
+        Self::new_with_ptr(sample_rate_hz, initial_channels, &raw mut *aec3_config)
     }
 
     /// Pass null ptr in `aec3_config` to use its default config.
     fn new_with_ptr(
         sample_rate_hz: u32,
+        initial_channels: Option<ChannelCounts>,
         aec3_config: *mut ffi::EchoCanceller3Config,
     ) -> Result<Self, Error> {
         let mut code = 0;
@@ -332,6 +346,16 @@ impl Drop for Processor {
             ffi::delete_audio_processing(*self.inner);
         }
     }
+}
+
+/// The number of capture and render channels. Argument to [`Processor::new()`] and friends.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ChannelCounts {
+    /// The number of capture channels.
+    pub capture: NonZero<usize>,
+    /// Rhe number of render (playback) channels.
+    pub render: NonZero<usize>,
 }
 
 /// Wrap the raw FFI pointer so that we can unsafe impl Send, Sync only for it and not for the whole
