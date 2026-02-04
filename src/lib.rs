@@ -133,7 +133,7 @@ pub struct Processor {
 }
 
 impl Processor {
-    /// Creates a new [`Processor`]. Detailed configuration can be be passed to
+    /// Creates a new [`Processor`]. Detailed general configuration can be be passed to
     /// [`Self::set_config()`] at any time during processing.
     pub fn new(sample_rate_hz: u32) -> Result<Self, Error> {
         Self::new_with_ptr(sample_rate_hz, null_mut())
@@ -143,13 +143,16 @@ impl Processor {
     /// Creates a new [`Processor`] with custom AEC3 configuration. The AEC3 configuration needs to
     /// be valid, otherwise this returns [`Error::BadParameter`].
     ///
-    /// Note that passing the AEC3 configuration disables the internal logic to use different
-    /// AEC3 default config based on whether the audio stream is truly multichannel (though
-    /// multichannel detection is still used for other functionality). You can use
-    /// [`experimental::EchoCanceller3Config::multichannel_default()`].
+    /// Note that passing the AEC3 configuration:
+    /// - force-enables the echo canceller submodule and hardcodes its variant to
+    ///   [`config::EchoCanceller::Full`] no matter the contents of [Config::echo_canceller]; it is
+    ///   strongly recommended to still set that field accordingly.
+    /// - disables the internal logic to use different AEC3 default config based on whether the
+    ///   audio stream is truly multichannel (though multichannel detection is still used for other
+    ///   functionality). You can use [`experimental::EchoCanceller3Config::multichannel_default()`]
     ///
     /// To change the AEC3 configuration at runtime, the [`Processor`] needs to be currently
-    /// recreated. This limitation comes from the Rust wrapper and could be eventually lifted.
+    /// recreated. This limitation could be eventually lifted, see PR #77.
     #[cfg(feature = "experimental-aec3-config")]
     pub fn with_aec3_config(
         sample_rate_hz: u32,
