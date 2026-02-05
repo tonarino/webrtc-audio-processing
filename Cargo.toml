@@ -27,6 +27,7 @@ maintenance = { status = "actively-developed" }
 
 [features]
 serde = ["webrtc-audio-processing-config/serde", "webrtc-audio-processing-sys/serde", "dep:serde"]
+display = ["webrtc-audio-processing-config/display"]
 bundled = ["webrtc-audio-processing-sys/bundled"]
 experimental-aec3-config = ["webrtc-audio-processing-sys/experimental-aec3-config"]
 
