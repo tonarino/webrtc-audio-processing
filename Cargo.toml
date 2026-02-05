@@ -26,6 +26,7 @@ travis-ci = { repository = "tonarino/webrtc-audio-processing", branch = "master"
 maintenance = { status = "actively-developed" }
 
 [features]
+schemars = ["webrtc-audio-processing-config/schemars"]
 serde = ["webrtc-audio-processing-config/serde", "webrtc-audio-processing-sys/serde", "dep:serde"]
 strum = ["webrtc-audio-processing-config/strum"]
 bundled = ["webrtc-audio-processing-sys/bundled"]

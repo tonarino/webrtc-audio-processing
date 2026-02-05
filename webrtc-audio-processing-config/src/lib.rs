@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 /// The config is applied by passing the struct to the
 /// [`Processor::set_config()`](webrtc-audio-processing::Processor::set_config()) method.
 #[derive(Debug, Default, Copy, Clone, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(default))]
 pub struct Config {
     /// Sets the properties of the audio processing pipeline.
@@ -35,6 +36,7 @@ pub struct Config {
 
 /// Sets the properties of the audio processing pipeline.
 #[derive(Debug, Default, Copy, Clone, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(default))]
 pub struct Pipeline {
     /// Maximum allowed processing rate used internally.
@@ -54,6 +56,7 @@ pub struct Pipeline {
 
 /// Internal processing rate.
 #[derive(Debug, Copy, Clone, Default, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "strum", derive(strum::Display, strum::EnumIter))]
 pub enum PipelineProcessingRate {
@@ -69,6 +72,7 @@ pub enum PipelineProcessingRate {
 
 /// Downmix method for multi-channel capture audio.
 #[derive(Debug, Copy, Default, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "strum", derive(strum::Display, strum::EnumIter))]
 pub enum DownmixMethod {
@@ -82,6 +86,7 @@ pub enum DownmixMethod {
 
 /// A choice of capture-side pre-amplification/volume adjustment.
 #[derive(Debug, Copy, Clone, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "strum", derive(strum::Display, strum::EnumIter))]
 pub enum CaptureAmplifier {
@@ -97,6 +102,7 @@ pub enum CaptureAmplifier {
 /// TODO(webrtc:5298): Will be deprecated to use the pre-gain functionality
 /// in capture_level_adjustment instead.
 #[derive(Debug, Copy, Clone, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(default))]
 pub struct PreAmplifier {
     /// Fixed linear gain multiplier. The default is 1.0 (no effect).
@@ -112,6 +118,7 @@ impl Default for PreAmplifier {
 /// Functionality for general level adjustment in the capture pipeline. This
 /// should not be used together with the legacy PreAmplifier functionality.
 #[derive(Debug, Copy, Clone, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(default))]
 pub struct CaptureLevelAdjustment {
     /// The `pre_gain_factor` scales the signal before any processing is done.
@@ -132,6 +139,7 @@ impl Default for CaptureLevelAdjustment {
 
 /// Analog mic gain emulation for capture level adjustment.
 #[derive(Debug, Copy, Clone, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(default))]
 pub struct AnalogMicGainEmulation {
     /// Initial analog gain level to use for the emulated analog gain. Must
@@ -147,6 +155,7 @@ impl Default for AnalogMicGainEmulation {
 
 /// HPF (high-pass filter) configuration.
 #[derive(Debug, Copy, Clone, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(default))]
 pub struct HighPassFilter {
     /// Whether or not HPF should be applied in the full-band (i.e. 20 – 20,000 Hz).
@@ -165,6 +174,7 @@ impl Default for HighPassFilter {
 /// Functionality in the C++ library that we don't yet expose:
 /// - EchoCanceller::enforce_high_pass_filtering: hard-coded to true on Full, false on Mobile
 #[derive(Debug, Copy, Clone, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "strum", derive(strum::Display, strum::EnumIter))]
 pub enum EchoCanceller {
@@ -193,6 +203,7 @@ impl Default for EchoCanceller {
 
 /// Enables background noise suppression.
 #[derive(Debug, Copy, Clone, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(default))]
 pub struct NoiseSuppression {
     /// Determines the aggressiveness of the suppression. Increasing the level will reduce the
@@ -213,6 +224,7 @@ impl Default for NoiseSuppression {
 
 /// Noise suppression level.
 #[derive(Debug, Copy, Clone, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "strum", derive(strum::Display, strum::EnumIter))]
 pub enum NoiseSuppressionLevel {
@@ -229,6 +241,7 @@ pub enum NoiseSuppressionLevel {
 
 /// A choice of the gain controller implementation.
 #[derive(Debug, Copy, Clone, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "strum", derive(strum::Display, strum::EnumIter))]
 pub enum GainController {
@@ -247,6 +260,7 @@ pub enum GainController {
 /// HAL.
 /// Recommended to be enabled on the client-side.
 #[derive(Debug, Copy, Clone, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(default))]
 pub struct GainController1 {
     /// AGC mode.
@@ -289,6 +303,7 @@ impl Default for GainController1 {
 
 /// Gain control mode.
 #[derive(Debug, Copy, Clone, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "strum", derive(strum::Display, strum::EnumIter))]
 pub enum GainControllerMode {
@@ -321,6 +336,7 @@ pub enum GainControllerMode {
 
 /// Enables the analog gain controller functionality.
 #[derive(Debug, Copy, Clone, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(default))]
 pub struct AnalogGainController {
     /// TODO(bugs.webrtc.org/7494): Will be deprecated.
@@ -359,6 +375,7 @@ impl Default for AnalogGainController {
 
 /// Enables clipping prediction functionality.
 #[derive(Debug, Copy, Clone, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(default))]
 pub struct ClippingPredictor {
     /// Mode.
@@ -395,6 +412,7 @@ impl Default for ClippingPredictor {
 
 /// Clipping predictor mode.
 #[derive(Debug, Copy, Clone, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "strum", derive(strum::Display, strum::EnumIter))]
 pub enum ClippingPredictorMode {
@@ -415,6 +433,7 @@ pub enum ClippingPredictorMode {
 /// three different controllers (namely, input volume controller, adaptive
 /// digital controller and fixed digital controller) and a limiter.
 #[derive(Debug, Copy, Default, Clone, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(default))]
 pub struct GainController2 {
     /// Enables the input volume controller, which adjusts the input
@@ -435,6 +454,7 @@ pub struct GainController2 {
 /// applies a digital gain after echo cancellation and after noise
 /// suppression.
 #[derive(Debug, Copy, Clone, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(default))]
 pub struct AdaptiveDigital {
     /// Headroom (dB).
@@ -465,6 +485,7 @@ impl Default for AdaptiveDigital {
 /// digital gain after the adaptive digital controller and before the
 /// limiter.
 #[derive(Debug, Copy, Clone, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(default))]
 pub struct FixedDigital {
     /// By setting `gain_db` to a value greater than zero, the limiter can be
