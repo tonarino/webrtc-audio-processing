@@ -31,13 +31,9 @@ jobs:
           toolchain: stable
           override: true
       - name: Install Dependencies (if Ubuntu)
-        env:
-          ACCEPT_EULA: Y
         run: sudo apt-get -y update && sudo apt-get install -f && sudo apt-get -y install pkg-config meson ninja-build
         if: contains(runner.os, 'Linux')
       - name: Install Dependencies (if macos)
-        env:
-          ACCEPT_EULA: Y
         run: brew update && brew install pkg-config meson ninja
         if: contains(runner.os, 'macOS')
       - uses: Swatinem/rust-cache@v1
@@ -76,8 +72,6 @@ jobs:
           toolchain: stable
           override: true
       - name: Install System Dependencies
-        env:
-          ACCEPT_EULA: Y
         run: sudo apt-get -y update && sudo apt-get install -f && sudo apt-get -y install pkg-config meson ninja-build
       - name: Compile webrtc-audio-processing 2.1 library manually
         run: |
@@ -139,4 +133,6 @@ jobs:
           submodules: recursive
       - uses: dtolnay/rust-toolchain@nightly
       - uses: dtolnay/install@cargo-docs-rs
+      - name: Install System Dependencies
+        run: sudo apt-get -y update && sudo apt-get install -f && sudo apt-get -y install pkg-config meson ninja-build
       - run: cargo docs-rs
