@@ -55,33 +55,41 @@ pub struct Pipeline {
 /// Internal processing rate.
 #[derive(Debug, Copy, Clone, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "strum", derive(strum::Display, strum::EnumIter))]
 pub enum PipelineProcessingRate {
     /// Limit the rate to 32k Hz.
+    #[cfg_attr(feature = "strum", strum(serialize = "32 kHz"))]
     Max32000Hz = 32_000,
 
     /// Limit the rate to 48k Hz.
     #[default]
+    #[cfg_attr(feature = "strum", strum(serialize = "48 kHz"))]
     Max48000Hz = 48_000,
 }
 
 /// Downmix method for multi-channel capture audio.
 #[derive(Debug, Copy, Default, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "strum", derive(strum::Display, strum::EnumIter))]
 pub enum DownmixMethod {
     /// Mix by averaging.
     #[default]
     Average,
     /// Mix by selecting the first channel.
+    #[cfg_attr(feature = "strum", strum(serialize = "Use first channel"))]
     UseFirstChannel,
 }
 
 /// A choice of capture-side pre-amplification/volume adjustment.
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "strum", derive(strum::Display, strum::EnumIter))]
 pub enum CaptureAmplifier {
     /// Use the legacy PreAmplifier.
+    #[cfg_attr(feature = "strum", strum(serialize = "Pre-amplifier"))]
     PreAmplifier(PreAmplifier),
     /// Use the new CaptureLevelAdjustment.
+    #[cfg_attr(feature = "strum", strum(serialize = "Capture level adjustment"))]
     CaptureLevelAdjustment(CaptureLevelAdjustment),
 }
 
@@ -158,8 +166,10 @@ impl Default for HighPassFilter {
 /// - EchoCanceller::enforce_high_pass_filtering: hard-coded to true on Full, false on Mobile
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "strum", derive(strum::Display, strum::EnumIter))]
 pub enum EchoCanceller {
     /// Use low-complexity AEC implementation that is optimized for mobile.
+    #[cfg_attr(feature = "strum", strum(serialize = "Mobile (AECM)"))]
     Mobile {
         /// Set the delay in ms between process_render_frame() and process_capture_frame().
         /// Mandatory for the Mobile echo canceller variant.
@@ -167,6 +177,7 @@ pub enum EchoCanceller {
     },
 
     /// Uses the full AEC3 implementation.
+    #[cfg_attr(feature = "strum", strum(serialize = "Full (AEC3)"))]
     Full {
         /// Set the delay in ms between process_render_frame() and process_capture_frame().
         /// If None, we let the AEC processor try determining it.
@@ -203,6 +214,7 @@ impl Default for NoiseSuppression {
 /// Noise suppression level.
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "strum", derive(strum::Display, strum::EnumIter))]
 pub enum NoiseSuppressionLevel {
     /// Lower suppression level.
     Low,
@@ -211,16 +223,20 @@ pub enum NoiseSuppressionLevel {
     /// Higher suppression level.
     High,
     /// Even higher suppression level.
+    #[cfg_attr(feature = "strum", strum(serialize = "Very High"))]
     VeryHigh,
 }
 
 /// A choice of the gain controller implementation.
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "strum", derive(strum::Display, strum::EnumIter))]
 pub enum GainController {
     /// Legacy gain controller 1.
+    #[cfg_attr(feature = "strum", strum(serialize = "Gain Controller 1"))]
     GainController1(GainController1),
     /// New gain controller 2.
+    #[cfg_attr(feature = "strum", strum(serialize = "Gain Controller 2"))]
     GainController2(GainController2),
 }
 
@@ -274,6 +290,7 @@ impl Default for GainController1 {
 /// Gain control mode.
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "strum", derive(strum::Display, strum::EnumIter))]
 pub enum GainControllerMode {
     /// Adaptive mode intended for use if an analog volume control is
     /// available on the capture device. It will require the user to provide
@@ -281,12 +298,14 @@ pub enum GainControllerMode {
     /// stream_analog_level() functions.
     /// It consists of an analog gain prescription for the audio device and a
     /// digital compression stage.
+    #[cfg_attr(feature = "strum", strum(serialize = "Adaptive Analog"))]
     AdaptiveAnalog,
     /// Adaptive mode intended for situations in which an analog volume
     /// control is unavailable. It operates in a similar fashion to the
     /// adaptive analog mode, but with scaling instead applied in the digital
     /// domain. As with the analog mode, it additionally uses a digital
     /// compression stage.
+    #[cfg_attr(feature = "strum", strum(serialize = "Adaptive Digital"))]
     AdaptiveDigital,
     /// Fixed mode which enables only the digital compression stage also used
     /// by the two adaptive modes.
@@ -296,6 +315,7 @@ pub enum GainControllerMode {
     /// reduces gain with increasing level) the input signal at higher
     /// levels. This mode is preferred on embedded devices where the capture
     /// signal level is predictable, so that a known gain can be applied.
+    #[cfg_attr(feature = "strum", strum(serialize = "Fixed Digital"))]
     FixedDigital,
 }
 
@@ -376,12 +396,16 @@ impl Default for ClippingPredictor {
 /// Clipping predictor mode.
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "strum", derive(strum::Display, strum::EnumIter))]
 pub enum ClippingPredictorMode {
     /// Clipping event prediction mode with fixed step estimation.
+    #[cfg_attr(feature = "strum", strum(serialize = "Clipping Event Prediction"))]
     ClippingEventPrediction,
     /// Clipped peak estimation mode with adaptive step estimation.
+    #[cfg_attr(feature = "strum", strum(serialize = "Adaptive Step Clipping Peak Prediction"))]
     AdaptiveStepClippingPeakPrediction,
     /// Clipped peak estimation mode with fixed step estimation.
+    #[cfg_attr(feature = "strum", strum(serialize = "Fixed Step Clipping Peak Prediction"))]
     FixedStepClippingPeakPrediction,
 }
 
