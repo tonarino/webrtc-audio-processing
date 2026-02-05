@@ -15,7 +15,7 @@ maintenance = { status = "actively-developed" }
 
 [features]
 serde = ["dep:serde"]
-display = ["dep:strum"]
+strum = ["dep:strum"]
 
 [dependencies]
 serde = { version = "1", features = ["derive"], optional = true }
