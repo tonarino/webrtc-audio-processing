@@ -127,3 +127,14 @@ jobs:
           clang-format-version: 13
           check-path: webrtc-audio-processing-sys/src
           fallback-style: Chromium
+
+  doc:
+    name: Documentation
+    runs-on: ubuntu-latest
+    env:
+      RUSTDOCFLAGS: -Dwarnings
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: dtolnay/install@cargo-docs-rs
+      - run: cargo docs-rs
