@@ -22,7 +22,7 @@ jobs:
           - experimental-aec3-config,schemars,serde,strum
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
       - uses: actions-rs/toolchain@v1
@@ -68,7 +68,7 @@ jobs:
           - schemars,serde
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v6
         # No need for submodules here
       - uses: actions-rs/toolchain@v1
         with:
@@ -107,7 +107,7 @@ jobs:
   fmt:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
       - uses: actions-rs/toolchain@v1
@@ -135,6 +135,8 @@ jobs:
       RUSTDOCFLAGS: -Dwarnings
     steps:
       - uses: actions/checkout@v6
+        with:
+          submodules: recursive
       - uses: dtolnay/rust-toolchain@nightly
       - uses: dtolnay/install@cargo-docs-rs
       - run: cargo docs-rs
