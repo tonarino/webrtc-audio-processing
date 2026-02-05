@@ -12,8 +12,11 @@ keywords = ["ffi"]
 categories = ["multimedia::audio"]
 license-file = "COPYING"
 
+[package.metadata.docs.rs]
+# Document with all features enabled.
+all-features = true
+
 [badges]
-travis-ci = { repository = "tonarino/webrtc-audio-processing", branch = "master" }
 maintenance = { status = "actively-developed" }
 
 [features]
@@ -32,6 +35,3 @@ pkg-config = "0.3"
 
 [dependencies]
 serde = { version = "1", features = ["derive"], optional = true }
-
-[package.metadata.docs.rs]
-features = ["bundled"]

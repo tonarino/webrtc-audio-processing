@@ -10,6 +10,10 @@ keywords = ["ffi"]
 categories = ["multimedia::audio"]
 license-file = "COPYING"
 
+[package.metadata.docs.rs]
+# Document with all features enabled.
+all-features = true
+
 [badges]
 maintenance = { status = "actively-developed" }
 
