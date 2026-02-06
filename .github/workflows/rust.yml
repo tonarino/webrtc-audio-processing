@@ -25,34 +25,23 @@ jobs:
       - uses: actions/checkout@v6
         with:
           submodules: recursive
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
+          components: clippy
       - name: Install Dependencies (if Ubuntu)
         run: sudo apt-get -y update && sudo apt-get install -f && sudo apt-get -y install pkg-config meson ninja-build
         if: contains(runner.os, 'Linux')
       - name: Install Dependencies (if macos)
         run: brew update && brew install pkg-config meson ninja
         if: contains(runner.os, 'macOS')
-      - uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
       - name: Clippy
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --features "${{ matrix.features }}" --all-targets -- -D warnings
+        run: cargo clippy --features "${{ matrix.features }}" --all-targets -- -D warnings
       - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --verbose --features "${{ matrix.features }}"
+        run: cargo build --verbose --features "${{ matrix.features }}"
       - name: Test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          # we have tests even in examples, --all-targets ensures they are run
-          args: --verbose --features "${{ matrix.features }}" --all-targets
+        # we have tests even in examples, --all-targets ensures they are run
+        run: cargo test --verbose --features "${{ matrix.features }}" --all-targets
 
   test-non-bundled:
     runs-on: ubuntu-latest
@@ -66,11 +55,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         # No need for submodules here
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
+      - uses: dtolnay/rust-toolchain@stable
       - name: Install System Dependencies
         run: sudo apt-get -y update && sudo apt-get install -f && sudo apt-get -y install pkg-config meson ninja-build
       - name: Compile webrtc-audio-processing 2.1 library manually
@@ -81,22 +66,13 @@ jobs:
           ninja -C build
           sudo ninja -C build install
           sudo ldconfig
-      - uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
       - name: Clippy
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --features "${{ matrix.features }}" --all-targets -- -D warnings
+        run: cargo clippy --features "${{ matrix.features }}" --all-targets -- -D warnings
       - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --verbose --features "${{ matrix.features }}"
+        run: cargo build --verbose --features "${{ matrix.features }}"
       - name: Test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --verbose --features "${{ matrix.features }}"
+        run: cargo test --verbose --features "${{ matrix.features }}"
 
   fmt:
     runs-on: ubuntu-latest
@@ -104,17 +80,11 @@ jobs:
       - uses: actions/checkout@v6
         with:
           submodules: recursive
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@nightly
         with:
-          profile: minimal
-          toolchain: nightly
-          override: true
           components: rustfmt
       - name: Rustfmt
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+        run: cargo fmt --all -- --check
       - name: clang-format
         uses: jidicula/clang-format-action@v4.16.0
         with:
