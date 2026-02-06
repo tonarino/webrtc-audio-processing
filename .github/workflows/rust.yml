@@ -22,20 +22,16 @@ jobs:
           - experimental-aec3-config,schemars,serde,strum
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
       - name: Install Dependencies (if Ubuntu)
-        env:
-          ACCEPT_EULA: Y
         run: sudo apt-get -y update && sudo apt-get install -f && sudo apt-get -y install pkg-config meson ninja-build
         if: contains(runner.os, 'Linux')
       - name: Install Dependencies (if macos)
-        env:
-          ACCEPT_EULA: Y
         run: brew update && brew install pkg-config meson ninja
         if: contains(runner.os, 'macOS')
       - uses: Swatinem/rust-cache@v2
@@ -57,12 +53,10 @@ jobs:
           - schemars,serde
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v6
         # No need for submodules here
       - uses: dtolnay/rust-toolchain@stable
       - name: Install System Dependencies
-        env:
-          ACCEPT_EULA: Y
         run: sudo apt-get -y update && sudo apt-get install -f && sudo apt-get -y install pkg-config meson ninja-build
       - name: Compile webrtc-audio-processing 2.1 library manually
         run: |
@@ -83,7 +77,7 @@ jobs:
   fmt:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
       - uses: dtolnay/rust-toolchain@nightly
@@ -97,3 +91,18 @@ jobs:
           clang-format-version: 13
           check-path: webrtc-audio-processing-sys/src
           fallback-style: Chromium
+
+  doc:
+    name: Documentation
+    runs-on: ubuntu-latest
+    env:
+      RUSTDOCFLAGS: -Dwarnings
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: dtolnay/install@cargo-docs-rs
+      - name: Install System Dependencies
+        run: sudo apt-get -y update && sudo apt-get install -f && sudo apt-get -y install pkg-config meson ninja-build
+      - run: cargo docs-rs
