@@ -22,7 +22,7 @@ pub struct Config {
     pub capture_amplifier: Option<CaptureAmplifier>,
 
     /// Enables and configures high pass filter. Strongly recommended if echo cancellation is
-    /// enabled. Enabling noise suppression force-enables high pass filter.
+    /// enabled. Enabling AECM or noise suppression force-enables high pass filter.
     pub high_pass_filter: Option<HighPassFilter>,
 
     /// Enables and configures acoustic echo cancellation.
@@ -180,6 +180,7 @@ impl Default for HighPassFilter {
 #[cfg_attr(feature = "strum", derive(strum::Display, strum::EnumIter))]
 pub enum EchoCanceller {
     /// Use low-complexity AEC implementation that is optimized for mobile.
+    /// Force-enables high pass filter.
     #[cfg_attr(feature = "strum", strum(serialize = "Mobile (AECM)"))]
     Mobile {
         /// Set the delay in ms between process_render_frame() and process_capture_frame().
