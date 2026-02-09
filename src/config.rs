@@ -126,21 +126,22 @@ impl FromConfig<Option<HighPassFilter>> for ffi::AudioProcessing_Config_HighPass
 impl FromConfig<Option<EchoCanceller>> for ffi::AudioProcessing_Config_EchoCanceller {
     fn from_config(other: Option<EchoCanceller>) -> Self {
         let Some(other) = other else { return Self { enabled: false, ..Self::default() } };
+
         // stream_delay_ms is extracted into a runtime variable in Processor::set_config().
-        match other {
-            EchoCanceller::Mobile { stream_delay_ms: _ } => Self {
-                enabled: true,
-                mobile_mode: true,
-                enforce_high_pass_filtering: false,
-                export_linear_aec_output: false,
-            },
-            EchoCanceller::Full { stream_delay_ms: _ } => Self {
-                enabled: true,
-                mobile_mode: false,
-                enforce_high_pass_filtering: true,
-                // This may be still enabled by FromConfig<Config> for ffi::AudioProcessing_Config
-                export_linear_aec_output: false,
-            },
+        let mobile_mode = match other {
+            EchoCanceller::Mobile { stream_delay_ms: _ } => true,
+            EchoCanceller::Full { stream_delay_ms: _ } => false,
+        };
+
+        Self {
+            enabled: true,
+            mobile_mode,
+            // This is just another way to enable the high pass filter on C++ side, but we already
+            // have an explicit config for that, so hard-code to false.
+            enforce_high_pass_filtering: false,
+            // This may be still enabled by FromConfig<Config> for ffi::AudioProcessing_Config in
+            // case of Full AEC3 mode.
+            export_linear_aec_output: false,
         }
     }
 }
