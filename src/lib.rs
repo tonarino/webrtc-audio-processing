@@ -729,6 +729,7 @@ mod tests {
     #[test]
     fn test_stream_delay() {
         let make_config = |delay_ms| Config {
+            high_pass_filter: Some(Default::default()),
             echo_canceller: Some(EchoCanceller::Full { stream_delay_ms: delay_ms }),
             ..Default::default()
         };
