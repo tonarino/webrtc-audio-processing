@@ -996,4 +996,25 @@ mod tests {
             "Echo metrics should remain available after config change"
         );
     }
+
+    // Test for https://github.com/tonarino/webrtc-audio-processing/issues/91
+    #[test]
+    fn test_full_aec_with_linear_aec_output_crash() {
+        let context = TestContext::new(1, None);
+
+        context.processor.set_config(Config {
+            echo_canceller: Some(EchoCanceller::Full { stream_delay_ms: None }),
+            noise_suppression: Some(config::NoiseSuppression {
+                analyze_linear_aec_output: true,
+                ..Default::default()
+            }),
+            ..Default::default()
+        });
+
+        let mut render = context.generate_sine_frame(440.0, 0.0);
+        let mut capture = render.clone();
+
+        context.processor.process_render_frame(&mut render).unwrap();
+        context.processor.process_capture_frame(&mut capture).unwrap();
+    }
 }
