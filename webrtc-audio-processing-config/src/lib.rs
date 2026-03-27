@@ -88,7 +88,7 @@ pub enum DownmixMethod {
 /// A choice of capture-side pre-amplification/volume adjustment.
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type"))]
 #[cfg_attr(feature = "strum", derive(strum::Display, strum::EnumIter))]
 pub enum CaptureAmplifier {
     /// Use the legacy PreAmplifier.
@@ -176,7 +176,7 @@ impl Default for HighPassFilter {
 /// - EchoCanceller::enforce_high_pass_filtering: hard-coded to true on Full, false on Mobile
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type"))]
 #[cfg_attr(feature = "strum", derive(strum::Display, strum::EnumIter))]
 pub enum EchoCanceller {
     /// Use low-complexity AEC implementation that is optimized for mobile.
@@ -244,7 +244,7 @@ pub enum NoiseSuppressionLevel {
 /// A choice of the gain controller implementation.
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type"))]
 #[cfg_attr(feature = "strum", derive(strum::Display, strum::EnumIter))]
 pub enum GainController {
     /// Legacy gain controller 1.
