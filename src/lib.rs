@@ -997,10 +997,35 @@ mod tests {
         );
     }
 
-    // Test for https://github.com/tonarino/webrtc-audio-processing/issues/91
+    /// First test for https://github.com/tonarino/webrtc-audio-processing/issues/91
     #[test]
-    fn test_full_aec_with_linear_aec_output_crash() {
+    fn test_full_aec_with_linear_aec_output_misconfiguration() {
         let context = TestContext::new(1, None);
+
+        context.processor.set_config(Config {
+            echo_canceller: Some(EchoCanceller::Full { stream_delay_ms: None }),
+            noise_suppression: Some(config::NoiseSuppression {
+                analyze_linear_aec_output: true,
+                ..Default::default()
+            }),
+            ..Default::default()
+        });
+
+        let mut render = context.generate_sine_frame(440.0, 0.0);
+        let mut capture = render.clone();
+
+        context.processor.process_render_frame(&mut render).unwrap();
+        context.processor.process_capture_frame(&mut capture).unwrap();
+    }
+
+    /// Second test for https://github.com/tonarino/webrtc-audio-processing/issues/91
+    #[test]
+    #[cfg(feature = "experimental-aec3-config")]
+    fn test_full_aec_with_linear_aec_output_correct() {
+        let mut aec3_config = experimental::EchoCanceller3Config::default();
+        aec3_config.filter.export_linear_aec_output = true;
+
+        let context = TestContext::new(1, Some(aec3_config));
 
         context.processor.set_config(Config {
             echo_canceller: Some(EchoCanceller::Full { stream_delay_ms: None }),
