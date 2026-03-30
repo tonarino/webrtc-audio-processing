@@ -16,7 +16,7 @@ mod stats;
 #[cfg(feature = "experimental-aec3-config")]
 pub mod experimental;
 
-use crate::config::{EchoCanceller, IntoFfi};
+use crate::config::{EchoCanceller, FromConfig};
 use std::{
     convert::TryFrom,
     error, fmt,
@@ -125,18 +125,24 @@ fn result_from_code<T>(on_success: T, error_code: i32) -> Result<T, Error> {
 pub struct Processor {
     inner: AudioProcessingPtr,
     sample_rate_hz: u32,
+
     /// The stream_delay extracted from config. Underlying C++ library wants us to set this before
     /// every process_capture_frame() call in many cases (Full AEC3 with custom delay, Mobile AECM).
     ///
     /// If the value cannot be exactly represented as i32 (e.g. u32::MAX), it denotes _not set_.
     stream_delay_ms: AtomicU32,
+
+    /// Whether we use explicit AEC3 configuration *and* it has filter.export_linear_aec_output
+    /// enabled. A prerequisite to using [`config::NoiseSuppression::analyze_linear_aec_output`].
+    has_aec3_export_linear_aec_output: bool,
 }
 
 impl Processor {
     /// Creates a new [`Processor`]. Detailed general configuration can be be passed to
     /// [`Self::set_config()`] at any time during processing.
     pub fn new(sample_rate_hz: u32) -> Result<Self, Error> {
-        Self::new_with_ptr(sample_rate_hz, null_mut())
+        let has_aec3_export_linear_aec_output = false;
+        Self::new_with_ptr(sample_rate_hz, null_mut(), has_aec3_export_linear_aec_output)
     }
 
     /// [Highly experimental]
@@ -158,13 +164,15 @@ impl Processor {
         sample_rate_hz: u32,
         mut aec3_config: experimental::EchoCanceller3Config,
     ) -> Result<Self, Error> {
-        Self::new_with_ptr(sample_rate_hz, &raw mut *aec3_config)
+        let has_aec3_export_linear_aec_output = aec3_config.filter.export_linear_aec_output;
+        Self::new_with_ptr(sample_rate_hz, &raw mut *aec3_config, has_aec3_export_linear_aec_output)
     }
 
     /// Pass null ptr in `aec3_config` to use its default config.
     fn new_with_ptr(
         sample_rate_hz: u32,
         aec3_config: *mut ffi::EchoCanceller3Config,
+        has_aec3_export_linear_aec_output: bool,
     ) -> Result<Self, Error> {
         let mut code = 0;
         let inner = unsafe { ffi::create_audio_processing(aec3_config, &mut code) };
@@ -178,7 +186,12 @@ impl Processor {
         let inner = AudioProcessingPtr(inner);
 
         // u32::MAX to denote stream_delay_ms not (yet) set.
-        Ok(Self { inner, sample_rate_hz, stream_delay_ms: AtomicU32::new(u32::MAX) })
+        Ok(Self {
+            inner,
+            sample_rate_hz,
+            stream_delay_ms: AtomicU32::new(u32::MAX),
+            has_aec3_export_linear_aec_output,
+        })
     }
 
     /// Processes and modifies the audio frame from a capture device by applying
@@ -290,6 +303,11 @@ impl Processor {
     /// Only submodules whose config has changed are reinitialized. If the passed config is the same
     /// as current config, the overhead is only the locking and doing some comparisons.
     pub fn set_config(&self, config: Config) {
+        let use_linear_aec_output =
+            config.noise_suppression.is_some_and(|ns| ns.analyze_linear_aec_output)
+                && config.echo_canceller.is_some_and(|ec| matches!(ec, EchoCanceller::Full { .. }))
+                && self.has_aec3_export_linear_aec_output;
+
         // Extract the stream delay to our cache (it is a runtime concept for AEC, not a config).
         let stream_delay_ms_opt = match config.echo_canceller {
             Some(EchoCanceller::Full { stream_delay_ms }) => stream_delay_ms,
@@ -300,8 +318,11 @@ impl Processor {
         let stream_delay_ms = stream_delay_ms_opt.map_or(u32::MAX, u32::from);
         self.stream_delay_ms.store(stream_delay_ms, Ordering::Relaxed);
 
+        let mut ffi_config = ffi::AudioProcessing_Config::from_config(config);
+        ffi_config.echo_canceller.export_linear_aec_output = use_linear_aec_output;
+
         unsafe {
-            ffi::set_config(*self.inner, &config.into_ffi());
+            ffi::set_config(*self.inner, &ffi_config);
         }
     }
 
