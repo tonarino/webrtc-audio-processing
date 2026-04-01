@@ -132,17 +132,18 @@ pub struct Processor {
     /// If the value cannot be exactly represented as i32 (e.g. u32::MAX), it denotes _not set_.
     stream_delay_ms: AtomicU32,
 
-    /// Whether we use explicit AEC3 configuration *and* it has filter.export_linear_aec_output
-    /// enabled. A prerequisite to using [`config::NoiseSuppression::analyze_linear_aec_output`].
-    has_aec3_export_linear_aec_output: bool,
+    /// If experimental AEC3 configuration was passed to constructor, this contains its
+    /// filter.export_linear_aec_output value. Otherwise this is `None`.
+    /// A prerequisite to using [`config::NoiseSuppression::analyze_linear_aec_output`].
+    aec3_config_export_linear_aec_output: Option<bool>,
 }
 
 impl Processor {
     /// Creates a new [`Processor`]. Detailed general configuration can be be passed to
     /// [`Self::set_config()`] at any time during processing.
     pub fn new(sample_rate_hz: u32) -> Result<Self, Error> {
-        let has_aec3_export_linear_aec_output = false;
-        Self::new_with_ptr(sample_rate_hz, null_mut(), has_aec3_export_linear_aec_output)
+        let aec3_config_export_linear_aec_output = None;
+        Self::new_with_ptr(sample_rate_hz, null_mut(), aec3_config_export_linear_aec_output)
     }
 
     /// [Highly experimental]
@@ -164,15 +165,20 @@ impl Processor {
         sample_rate_hz: u32,
         mut aec3_config: experimental::EchoCanceller3Config,
     ) -> Result<Self, Error> {
-        let has_aec3_export_linear_aec_output = aec3_config.filter.export_linear_aec_output;
-        Self::new_with_ptr(sample_rate_hz, &raw mut *aec3_config, has_aec3_export_linear_aec_output)
+        let aec3_config_export_linear_aec_output =
+            Some(aec3_config.filter.export_linear_aec_output);
+        Self::new_with_ptr(
+            sample_rate_hz,
+            &raw mut *aec3_config,
+            aec3_config_export_linear_aec_output,
+        )
     }
 
     /// Pass null ptr in `aec3_config` to use its default config.
     fn new_with_ptr(
         sample_rate_hz: u32,
         aec3_config: *mut ffi::EchoCanceller3Config,
-        has_aec3_export_linear_aec_output: bool,
+        aec3_config_export_linear_aec_output: Option<bool>,
     ) -> Result<Self, Error> {
         let mut code = 0;
         let inner = unsafe { ffi::create_audio_processing(aec3_config, &mut code) };
@@ -190,7 +196,7 @@ impl Processor {
             inner,
             sample_rate_hz,
             stream_delay_ms: AtomicU32::new(u32::MAX),
-            has_aec3_export_linear_aec_output,
+            aec3_config_export_linear_aec_output,
         })
     }
 
@@ -306,7 +312,7 @@ impl Processor {
         let use_linear_aec_output =
             config.noise_suppression.is_some_and(|ns| ns.analyze_linear_aec_output)
                 && config.echo_canceller.is_some_and(|ec| matches!(ec, EchoCanceller::Full { .. }))
-                && self.has_aec3_export_linear_aec_output;
+                && self.aec3_config_export_linear_aec_output == Some(true);
 
         // Extract the stream delay to our cache (it is a runtime concept for AEC, not a config).
         let stream_delay_ms_opt = match config.echo_canceller {
