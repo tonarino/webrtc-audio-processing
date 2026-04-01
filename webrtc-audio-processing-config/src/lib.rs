@@ -213,8 +213,10 @@ pub struct NoiseSuppression {
     pub level: NoiseSuppressionLevel,
 
     /// Analyze the output of the linear AEC instead of the capture frame.
-    /// Activates the `export_linear_aec_output` flag of the echo canceller.
-    /// Has no effect if echo cancellation is not enabled or is of the Mobile AECM type.
+    ///
+    /// Only has effect if:
+    /// - echo cancellation is enabled and of Full (AEC3) type
+    /// - experimental AEC3 config was passed with `filter.export_linear_aec_output` = true.
     pub analyze_linear_aec_output: bool,
 }
 

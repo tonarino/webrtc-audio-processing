@@ -30,14 +30,6 @@ impl FromConfig<Config> for ffi::AudioProcessing_Config {
             None => (None, None),
         };
 
-        let mut echo_canceller =
-            ffi::AudioProcessing_Config_EchoCanceller::from_config(other.echo_canceller);
-        echo_canceller.export_linear_aec_output = if let Some(ns) = &other.noise_suppression {
-            ns.analyze_linear_aec_output
-        } else {
-            false
-        };
-
         // Transient suppressor is being deprecated.
         let transient_suppression =
             ffi::AudioProcessing_Config_TransientSuppression { enabled: false };
@@ -53,7 +45,7 @@ impl FromConfig<Config> for ffi::AudioProcessing_Config {
             pre_amplifier: pre_amplifier.into_ffi(),
             capture_level_adjustment: capture_level_adjustment.into_ffi(),
             high_pass_filter: other.high_pass_filter.into_ffi(),
-            echo_canceller,
+            echo_canceller: other.echo_canceller.into_ffi(),
             noise_suppression: other.noise_suppression.into_ffi(),
             transient_suppression,
             gain_controller1: gain_controller1.into_ffi(),
@@ -139,8 +131,7 @@ impl FromConfig<Option<EchoCanceller>> for ffi::AudioProcessing_Config_EchoCance
             // This is just another way to enable the high pass filter on C++ side, but we already
             // have an explicit config for that, so hard-code to false.
             enforce_high_pass_filtering: false,
-            // This may be still enabled by FromConfig<Config> for ffi::AudioProcessing_Config in
-            // case of Full AEC3 mode.
+            // This may be still enabled by `Processor::set_config()`
             export_linear_aec_output: false,
         }
     }
