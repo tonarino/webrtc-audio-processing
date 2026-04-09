@@ -156,6 +156,8 @@ mod webrtc {
             out_dir().join("lib"),
             // Ubuntu Linux (our CI)
             out_dir().join("lib").join("x86_64-linux-gnu"),
+            // Ubuntu Linux (Arm 64bit)
+            out_dir().join("lib").join("aarch64-linux-gnu"),
             // Gentoo Linux (x86_64 multilib)
             out_dir().join("lib64"),
         ];
