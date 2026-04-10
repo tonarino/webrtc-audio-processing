@@ -71,10 +71,31 @@ fn prefix_archive_symbols(
     Ok(())
 }
 
+// Patch with `patch`.
+#[cfg(feature = "experimental-unlink-ns")]
+fn apply_patch(patch_name: &str) -> Result<()> {
+    let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let patch = manifest.parent().unwrap().join("patches").join(patch_name);
+
+    let output = Command::new("patch")
+        .args(["-p1", "-N", "--no-backup-if-mismatch"])
+        .arg("-i")
+        .arg(&patch)
+        .current_dir(manifest.join("webrtc-audio-processing"))
+        .output()
+        .context("Failed to execute patch")?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    if stdout.contains("FAILED") || output.status.code() == Some(2) {
+        bail!("Patch failed:\n{}{}", stdout, String::from_utf8_lossy(&output.stderr));
+    }
+
+    Ok(())
+}
+
 #[cfg(not(feature = "bundled"))]
 mod webrtc {
     use super::*;
-    use anyhow::{bail, Result};
 
     pub(super) fn get_build_paths() -> Result<(Vec<PathBuf>, Vec<PathBuf>)> {
         let (pkgconfig_include_path, pkgconfig_lib_path) = find_pkgconfig_paths()?;
@@ -137,8 +158,7 @@ mod webrtc {
 #[cfg(feature = "bundled")]
 mod webrtc {
     use super::*;
-    use anyhow::{bail, Context};
-    use std::{collections::HashSet, path::Path, process::Command};
+    use std::{collections::HashSet, path::Path};
 
     const BUNDLED_SOURCE_PATH: &str = "./webrtc-audio-processing";
 
@@ -198,6 +218,9 @@ mod webrtc {
             eprintln!("Remember to clone the repo recursively if building from source.");
             bail!("Aborting compilation because bundled source directory is empty.");
         }
+
+        #[cfg(feature = "experimental-unlink-ns")]
+        apply_patch("unlink-mutlichannel-noise-suppression-filters.patch")?;
 
         let build_dir = out_dir();
         let install_dir = out_dir();

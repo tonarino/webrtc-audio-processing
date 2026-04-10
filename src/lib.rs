@@ -1069,4 +1069,73 @@ mod tests {
         context.processor.process_render_frame(&mut render).unwrap();
         context.processor.process_capture_frame(&mut capture).unwrap();
     }
+
+    #[test]
+    #[cfg(feature = "experimental-unlink-ns")]
+    fn test_unlink_ns_processing() {
+        use crate::config::{Config, NoiseSuppression, Pipeline};
+        use hound::WavReader;
+
+        let sample_rate = 48_000;
+        let num_samples = 480;
+
+        // Load an example audio.
+        let reader = WavReader::new(&include_bytes!("../resources/hello.wav")[..]).unwrap();
+
+        // Normalize to +/-1.0.
+        let scale = 1.0 / (i16::MAX as f32);
+        let mono: Vec<f32> =
+            reader.into_samples::<i16>().map(|s| s.unwrap() as f32 * scale).collect();
+
+        // Split audio into 10ms chunks.
+        let frames: Vec<Vec<f32>> = mono.chunks_exact(num_samples).map(|c| c.to_vec()).collect();
+
+        let run_test = |num_channels: usize| -> f32 {
+            let processor = Processor::new(sample_rate).unwrap();
+            processor.set_config(Config {
+                pipeline: Pipeline {
+                    multi_channel_capture: num_channels > 1,
+                    ..Default::default()
+                },
+                noise_suppression: Some(NoiseSuppression::default()),
+                ..Default::default()
+            });
+
+            // Make a quiet channel and silence threshold.
+            let quiet_amp = 1e-4;
+            let quiet_channel = vec![quiet_amp; num_samples];
+            let mut dbs = Vec::new();
+
+            for src in &frames {
+                let mut channels = vec![src.clone()];
+                if num_channels > 1 {
+                    channels.push(quiet_channel.clone());
+                }
+
+                processor.process_capture_frame(&mut channels).unwrap();
+
+                // Get the RMS.
+                let sum_sq: f32 = channels[0].iter().map(|&s| s * s).sum();
+                let rms = (sum_sq / num_samples as f32).sqrt();
+
+                // Record db level if above threshold.
+                if rms > quiet_amp {
+                    dbs.push(20.0 * rms.log10());
+                }
+            }
+
+            dbs.iter().sum::<f32>() / dbs.len() as f32
+        };
+
+        let mono_db = run_test(1);
+        let stereo_db = run_test(2);
+
+        // Without the fix, the stereo output is significantly suppressed by the quiet channel.
+        assert!(
+            mono_db - stereo_db < 3.0,
+            "Mono ({:.2} dB) vs Stereo ({:.2} dB) difference too large (> 3dB)",
+            mono_db,
+            stereo_db
+        );
+    }
 }

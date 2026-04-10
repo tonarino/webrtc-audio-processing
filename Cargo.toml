@@ -34,6 +34,7 @@ serde = ["webrtc-audio-processing-config/serde", "webrtc-audio-processing-sys/se
 strum = ["webrtc-audio-processing-config/strum"]
 bundled = ["webrtc-audio-processing-sys/bundled"]
 experimental-aec3-config = ["webrtc-audio-processing-sys/experimental-aec3-config"]
+experimental-unlink-ns = ["webrtc-audio-processing-sys/experimental-unlink-ns"]
 
 [dependencies]
 serde = { version = "1", features = ["derive"], optional = true }
