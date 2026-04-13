@@ -77,17 +77,16 @@ fn apply_patch(patch_name: &str) -> Result<()> {
     let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let patch = manifest.parent().unwrap().join("patches").join(patch_name);
 
-    let output = Command::new("patch")
+    let status = Command::new("patch")
         .args(["-p1", "-N", "--no-backup-if-mismatch"])
         .arg("-i")
         .arg(&patch)
         .current_dir(manifest.join("webrtc-audio-processing"))
-        .output()
+        .status()
         .context("Failed to execute patch")?;
 
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    if stdout.contains("FAILED") || output.status.code() == Some(2) {
-        bail!("Patch failed:\n{}{}", stdout, String::from_utf8_lossy(&output.stderr));
+    if !status.success() {
+        bail!("Patch '{}' failed with status: {}", patch_name, status);
     }
 
     Ok(())
