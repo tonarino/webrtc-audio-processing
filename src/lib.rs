@@ -1077,7 +1077,7 @@ mod tests {
         use hound::WavReader;
 
         let sample_rate = 48_000;
-        let num_samples = 480;
+        let num_samples_per_frame = 480;
 
         // Load an example audio.
         let reader = WavReader::new(&include_bytes!("../resources/hello.wav")[..]).unwrap();
@@ -1088,7 +1088,8 @@ mod tests {
             reader.into_samples::<i16>().map(|s| s.unwrap() as f32 * scale).collect();
 
         // Split audio into 10ms chunks.
-        let frames: Vec<Vec<f32>> = mono.chunks_exact(num_samples).map(|c| c.to_vec()).collect();
+        let frames: Vec<Vec<f32>> =
+            mono.chunks_exact(num_samples_per_frame).map(|c| c.to_vec()).collect();
 
         let run_test = |num_channels: usize| -> f32 {
             let processor = Processor::new(sample_rate).unwrap();
@@ -1103,7 +1104,7 @@ mod tests {
 
             // Make a quiet channel and silence threshold.
             let quiet_amp = 1e-4;
-            let quiet_channel = vec![quiet_amp; num_samples];
+            let quiet_channel = vec![quiet_amp; num_samples_per_frame];
             let mut dbs = Vec::new();
 
             for src in &frames {
@@ -1116,7 +1117,7 @@ mod tests {
 
                 // Get the RMS.
                 let sum_sq: f32 = channels[0].iter().map(|&s| s * s).sum();
-                let rms = (sum_sq / num_samples as f32).sqrt();
+                let rms = (sum_sq / num_samples_per_frame as f32).sqrt();
 
                 // Record db level if above threshold.
                 if rms > quiet_amp {
