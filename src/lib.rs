@@ -1071,7 +1071,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "experimental-unlink-ns")]
     fn test_unlink_ns_processing() {
         use crate::config::{Config, NoiseSuppression, Pipeline};
         use hound::WavReader;
@@ -1131,12 +1130,28 @@ mod tests {
         let mono_db = run_test(1);
         let stereo_db = run_test(2);
 
-        // Without the fix, the stereo output is significantly suppressed by the quiet channel.
-        assert!(
-            mono_db - stereo_db < 3.0,
-            "Mono ({:.2} dB) vs Stereo ({:.2} dB) difference too large (> 3dB)",
-            mono_db,
-            stereo_db
-        );
+        // In both cases the single channel RMS should be the same.
+        assert!((-30.0..=-28.0).contains(&mono_db), "Expected ~-29dB, got {}", mono_db,);
+
+        #[cfg(not(feature = "experimental-unlink-ns"))]
+        {
+            // Without the patch, the silence second channel should suppress the first.
+            assert!(
+                (-40.0..=-38.0).contains(&stereo_db),
+                "Expected ~-39dB without patch, got {}",
+                stereo_db,
+            );
+        }
+
+        #[cfg(feature = "experimental-unlink-ns")]
+        {
+            // With the patch, the second silent channel should not impact suppression.
+            // And the RMS average should be the same as in the mono case.
+            assert!(
+                (-31.0..=-29.0).contains(&stereo_db),
+                "Expected ~-30dB with patch, got {}",
+                stereo_db,
+            );
+        }
     }
 }

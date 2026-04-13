@@ -75,18 +75,23 @@ fn prefix_archive_symbols(
 #[cfg(feature = "experimental-unlink-ns")]
 fn apply_patch(patch_name: &str) -> Result<()> {
     let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let patch = manifest.parent().unwrap().join("patches").join(patch_name);
+    let patch = manifest.join("patches").join(patch_name);
+    let webrtc = manifest.join("webrtc-audio-processing");
 
     let status = Command::new("patch")
-        .args(["-p1", "-N", "--no-backup-if-mismatch"])
+        .args(["-p1", "--forward", "--no-backup-if-mismatch"])
         .arg("-i")
         .arg(&patch)
-        .current_dir(manifest.join("webrtc-audio-processing"))
+        .current_dir(&webrtc)
         .status()
         .context("Failed to execute patch")?;
 
-    if !status.success() {
+    if status.code() != Some(0) && status.code() != Some(1) {
         bail!("Patch '{}' failed with status: {}", patch_name, status);
+    }
+
+    if status.code() == Some(1) {
+        println!("Patch '{}' already applied, skipping", patch_name);
     }
 
     Ok(())
