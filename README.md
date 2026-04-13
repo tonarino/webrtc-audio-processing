@@ -33,6 +33,9 @@ webrtc-audio-processing = "~2.0"
 * `experimental-aec3-config` - allow access to detailed `EchoCanceller3` config from the C++ code;
   experimental, not subject to semver guarantees; activates the `bundled` flag (needs private WebRTC
   headers)
+* `experimental-unlink-ns` - unlinks noise suppression between channels, preventing a loud/quiet
+  channel from affecting the noise suppression applied to other channels; activates the `bundled` flag;
+  requires `patch` to be installed
 
 #### Development Feature Flags
 

@@ -224,7 +224,7 @@ mod webrtc {
         }
 
         #[cfg(feature = "experimental-unlink-ns")]
-        apply_patch("unlink-mutlichannel-noise-suppression-filters.patch")?;
+        apply_patch("unlink-multichannel-noise-suppression-filters.patch")?;
 
         let build_dir = out_dir();
         let install_dir = out_dir();
