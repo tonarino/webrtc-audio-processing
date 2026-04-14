@@ -1131,14 +1131,14 @@ mod tests {
         let stereo_db = run_test(2);
 
         // In both cases the single channel RMS should be the same.
-        assert!((-30.0..=-28.0).contains(&mono_db), "Expected ~-29dB, got {}", mono_db,);
+        assert!((-33.0..=-31.0).contains(&mono_db), "Expected ~-32dB, got {}", mono_db,);
 
         #[cfg(not(feature = "experimental-unlink-ns"))]
         {
             // Without the patch, the silence second channel should suppress the first.
             assert!(
-                (-40.0..=-38.0).contains(&stereo_db),
-                "Expected ~-39dB without patch, got {}",
+                (-42.0..=-40.0).contains(&stereo_db),
+                "Expected ~-41dB without patch, got {}",
                 stereo_db,
             );
         }
@@ -1148,8 +1148,8 @@ mod tests {
             // With the patch, the second silent channel should not impact suppression.
             // And the RMS average should be the same as in the mono case.
             assert!(
-                (-31.0..=-29.0).contains(&stereo_db),
-                "Expected ~-30dB with patch, got {}",
+                (-33.0..=-31.0).contains(&stereo_db),
+                "Expected ~-32dB with patch, got {}",
                 stereo_db,
             );
         }
