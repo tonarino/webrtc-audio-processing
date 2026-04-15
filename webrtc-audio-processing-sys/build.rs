@@ -181,7 +181,8 @@ mod webrtc {
     }
 
     pub(super) fn build_if_necessary() -> Result<()> {
-        if Path::new(BUNDLED_SOURCE_PATH).read_dir()?.next().is_none() {
+        let bundled_source_path = Path::new(BUNDLED_SOURCE_PATH);
+        if bundled_source_path.read_dir()?.next().is_none() {
             eprintln!("The webrtc-audio-processing source directory is empty.");
             eprintln!("See the crate README for installation instructions.");
             eprintln!("Remember to clone the repo recursively if building from source.");
@@ -198,8 +199,9 @@ mod webrtc {
 
         // Copy the sources to under out directory so that we can patch it without consequences.
         let mut cp = Command::new("cp");
-        // Copy recursively, preserve attributes, turn off "is destination a directory?" heuristics.
-        cp.args(["--archive", "-T"]).arg(BUNDLED_SOURCE_PATH).arg(&webrtc_source_dir);
+        // Copy recursively, preserve attributes. Use trailing dot trick to prevent creating
+        // `webrtc-audio-processing/webrtc-audio-processing` nesting on a 2nd invocation.
+        cp.arg("-a").arg(bundled_source_path.join(".")).arg(&webrtc_source_dir);
         let status = cp.status().context("executing cp")?;
         assert!(status.success(), "Command failed: {:?}", &cp);
 
