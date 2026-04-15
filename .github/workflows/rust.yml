@@ -18,8 +18,9 @@ jobs:
         features:
           - bundled
           - bundled,serde,strum
-          # experimental-aec3-config implicitly activates bundled (build would fail if it doesn't)
-          - experimental-aec3-config,schemars,serde,strum
+          # experimental-aec3-config & experimental-unlink-ns implicitly activate bundled
+          # (build would fail if it doesn't)
+          - experimental-aec3-config,experimental-unlink-ns,schemars,serde,strum
 
     steps:
       - uses: actions/checkout@v6

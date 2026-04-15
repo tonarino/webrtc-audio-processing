@@ -1069,4 +1069,82 @@ mod tests {
         context.processor.process_render_frame(&mut render).unwrap();
         context.processor.process_capture_frame(&mut capture).unwrap();
     }
+
+    #[test]
+    fn test_unlink_ns_processing() {
+        use crate::config::{Config, NoiseSuppression, Pipeline};
+        use hound::WavReader;
+
+        let sample_rate = 48_000;
+        let num_samples_per_frame = 480;
+
+        // Load an example audio.
+        let reader = WavReader::new(&include_bytes!("../resources/hello.wav")[..]).unwrap();
+
+        // Normalize the full range of i16 to +/-1.0 f32.
+        let scale = 1.0 / 32768.0;
+        let mono: Vec<f32> =
+            reader.into_samples::<i16>().map(|s| s.unwrap() as f32 * scale).collect();
+
+        // Split audio into 10ms chunks.
+        let frames: Vec<Vec<f32>> =
+            mono.chunks_exact(num_samples_per_frame).map(|c| c.to_vec()).collect();
+
+        let run_test = |num_channels: usize| -> f32 {
+            let processor = Processor::new(sample_rate).unwrap();
+            processor.set_config(Config {
+                pipeline: Pipeline {
+                    multi_channel_capture: num_channels > 1,
+                    ..Default::default()
+                },
+                noise_suppression: Some(NoiseSuppression::default()),
+                ..Default::default()
+            });
+
+            let mut sum_sq = 0.0;
+            for frame in &frames {
+                let mut channels = vec![frame.clone()];
+                // Make a silent channel.
+                if num_channels > 1 {
+                    channels.push(vec![0.0; num_samples_per_frame]);
+                }
+
+                processor.process_capture_frame(&mut channels).unwrap();
+
+                // Accumulate sum of squares for first channel.
+                sum_sq += channels[0].iter().map(|&s| s * s).sum::<f32>();
+            }
+
+            // Compute RMS and convert to dB after averaging.
+            let total_samples = frames.len() * num_samples_per_frame;
+            20.0 * (sum_sq / total_samples as f32).sqrt().log10()
+        };
+
+        let mono_db = run_test(1);
+        let stereo_db = run_test(2);
+
+        // With and without the patch, the single channel RMS should be the same.
+        assert!((mono_db + 22.5).abs() < 1.0, "Expected ~-22.5dB, got {}", mono_db);
+
+        #[cfg(not(feature = "experimental-unlink-ns"))]
+        {
+            // Without the patch, the silent second channel should suppress the first.
+            assert!(
+                (stereo_db + 33.7).abs() < 1.0,
+                "Expected ~-33.7dB without patch, got {}",
+                stereo_db,
+            );
+        }
+
+        #[cfg(feature = "experimental-unlink-ns")]
+        {
+            // With the patch, the second silent channel should not impact suppression.
+            assert!(
+                (stereo_db - mono_db).abs() < 1.0,
+                "With patch, mono ({}) and stereo ({}) should be nearly equal",
+                mono_db,
+                stereo_db,
+            );
+        }
+    }
 }

@@ -1,0 +1,63 @@
+diff --git a/webrtc/modules/audio_processing/ns/noise_suppressor.cc b/webrtc/modules/audio_processing/ns/noise_suppressor.cc
+index 7c524da..68f39ba 100644
+--- a/webrtc/modules/audio_processing/ns/noise_suppressor.cc
++++ b/webrtc/modules/audio_processing/ns/noise_suppressor.cc
+@@ -270,21 +270,6 @@ NoiseSuppressor::NoiseSuppressor(const NsConfig& config,
+   }
+ }
+ 
+-void NoiseSuppressor::AggregateWienerFilters(
+-    rtc::ArrayView<float, kFftSizeBy2Plus1> filter) const {
+-  rtc::ArrayView<const float, kFftSizeBy2Plus1> filter0 =
+-      channels_[0]->wiener_filter.get_filter();
+-  std::copy(filter0.begin(), filter0.end(), filter.begin());
+-
+-  for (size_t ch = 1; ch < num_channels_; ++ch) {
+-    rtc::ArrayView<const float, kFftSizeBy2Plus1> filter_ch =
+-        channels_[ch]->wiener_filter.get_filter();
+-
+-    for (size_t k = 0; k < kFftSizeBy2Plus1; ++k) {
+-      filter[k] = std::min(filter[k], filter_ch[k]);
+-    }
+-  }
+-}
+ 
+ void NoiseSuppressor::Analyze(const AudioBuffer& audio) {
+   // Prepare the noise estimator for the analysis stage.
+@@ -455,16 +440,12 @@ void NoiseSuppressor::Process(AudioBuffer* audio) {
+     return;
+   }
+ 
+-  // Aggregate the Wiener filters for all channels.
+-  std::array<float, kFftSizeBy2Plus1> filter_data;
+-  rtc::ArrayView<const float, kFftSizeBy2Plus1> filter = filter_data;
+-  if (num_channels_ == 1) {
+-    filter = channels_[0]->wiener_filter.get_filter();
+-  } else {
+-    AggregateWienerFilters(filter_data);
+-  }
+-
++  // Apply Wiener filters independently per-channel rather than aggregating them.
++  // This prevents a silent or noisy channel from ducking the voice on active channels,
++  // with the trade-off that it no longer preserves a stable stereo image for coincident mics.
+   for (size_t ch = 0; ch < num_channels_; ++ch) {
++    rtc::ArrayView<const float, kFftSizeBy2Plus1> filter =
++        channels_[ch]->wiener_filter.get_filter();
+     // Apply the filter to the lower band.
+     for (size_t i = 0; i < kFftSizeBy2Plus1; ++i) {
+       filter_bank_states[ch].real[i] *= filter[i];
+diff --git a/webrtc/modules/audio_processing/ns/noise_suppressor.h b/webrtc/modules/audio_processing/ns/noise_suppressor.h
+index 1e321cf..fa72f72 100644
+--- a/webrtc/modules/audio_processing/ns/noise_suppressor.h
++++ b/webrtc/modules/audio_processing/ns/noise_suppressor.h
+@@ -81,10 +81,6 @@ class NoiseSuppressor {
+   std::vector<float> energies_before_filtering_heap_;
+   std::vector<float> gain_adjustments_heap_;
+   std::vector<std::unique_ptr<ChannelState>> channels_;
+-
+-  // Aggregates the Wiener filters into a single filter to use.
+-  void AggregateWienerFilters(
+-      rtc::ArrayView<float, kFftSizeBy2Plus1> filter) const;
+ };
+ 
+ }  // namespace webrtc

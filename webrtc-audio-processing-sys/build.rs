@@ -71,10 +71,48 @@ fn prefix_archive_symbols(
     Ok(())
 }
 
+// Patch with `patch`.
+#[cfg(feature = "experimental-unlink-ns")]
+fn apply_patch(patch_name: &str) -> Result<()> {
+    let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let patch = manifest.join("patches").join(patch_name);
+    let webrtc = manifest.join("webrtc-audio-processing");
+
+    let status = Command::new("patch")
+        .args(["-p1", "--forward", "--no-backup-if-mismatch"])
+        .arg("-i")
+        .arg(&patch)
+        .current_dir(&webrtc)
+        .status()
+        .context("Failed to execute patch")?;
+
+    if status.success() {
+        return Ok(());
+    }
+
+    // If --forward returns 1, it might mean the patch is already applied.
+    // We check this by running patch with --reverse and --dry-run.
+    if status.code() == Some(1) {
+        let dry_run_status = Command::new("patch")
+            .args(["-p1", "--reverse", "--dry-run"])
+            .arg("-i")
+            .arg(&patch)
+            .current_dir(&webrtc)
+            .status()
+            .context("Failed to execute patch dry-run")?;
+
+        if dry_run_status.success() {
+            println!("Patch '{}' already applied, skipping", patch_name);
+            return Ok(());
+        }
+    }
+
+    bail!("Patch '{}' failed with status: {}", patch_name, status);
+}
+
 #[cfg(not(feature = "bundled"))]
 mod webrtc {
     use super::*;
-    use anyhow::{bail, Result};
 
     pub(super) fn get_build_paths() -> Result<(Vec<PathBuf>, Vec<PathBuf>)> {
         let (pkgconfig_include_path, pkgconfig_lib_path) = find_pkgconfig_paths()?;
@@ -137,8 +175,7 @@ mod webrtc {
 #[cfg(feature = "bundled")]
 mod webrtc {
     use super::*;
-    use anyhow::{bail, Context};
-    use std::{collections::HashSet, path::Path, process::Command};
+    use std::{collections::HashSet, path::Path};
 
     const BUNDLED_SOURCE_PATH: &str = "./webrtc-audio-processing";
 
@@ -198,6 +235,9 @@ mod webrtc {
             eprintln!("Remember to clone the repo recursively if building from source.");
             bail!("Aborting compilation because bundled source directory is empty.");
         }
+
+        #[cfg(feature = "experimental-unlink-ns")]
+        apply_patch("unlink-multichannel-noise-suppression-filters.patch")?;
 
         let build_dir = out_dir();
         let install_dir = out_dir();
