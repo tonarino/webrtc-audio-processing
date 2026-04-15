@@ -71,45 +71,6 @@ fn prefix_archive_symbols(
     Ok(())
 }
 
-// Patch with `patch`.
-#[cfg(feature = "experimental-unlink-ns")]
-fn apply_patch(patch_name: &str) -> Result<()> {
-    let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let patch = manifest.join("patches").join(patch_name);
-    let webrtc = manifest.join("webrtc-audio-processing");
-
-    let status = Command::new("patch")
-        .args(["-p1", "--forward", "--no-backup-if-mismatch"])
-        .arg("-i")
-        .arg(&patch)
-        .current_dir(&webrtc)
-        .status()
-        .context("Failed to execute patch")?;
-
-    if status.success() {
-        return Ok(());
-    }
-
-    // If --forward returns 1, it might mean the patch is already applied.
-    // We check this by running patch with --reverse and --dry-run.
-    if status.code() == Some(1) {
-        let dry_run_status = Command::new("patch")
-            .args(["-p1", "--reverse", "--dry-run"])
-            .arg("-i")
-            .arg(&patch)
-            .current_dir(&webrtc)
-            .status()
-            .context("Failed to execute patch dry-run")?;
-
-        if dry_run_status.success() {
-            println!("Patch '{}' already applied, skipping", patch_name);
-            return Ok(());
-        }
-    }
-
-    bail!("Patch '{}' failed with status: {}", patch_name, status);
-}
-
 #[cfg(not(feature = "bundled"))]
 mod webrtc {
     use super::*;
@@ -183,8 +144,8 @@ mod webrtc {
         let mut include_paths = vec![
             out_dir().join("include"),
             out_dir().join("include").join(LIB_NAME),
-            src_dir().join("webrtc-audio-processing"),
-            src_dir().join("webrtc-audio-processing").join("webrtc"),
+            webrtc_source_dir(),
+            webrtc_source_dir().join("webrtc"),
         ];
         // TODO(strohel): instead of hardcoding the paths, we should consult the pkgconfig file that
         // the bundled webrtc-audio-processing build produces.
@@ -211,18 +172,9 @@ mod webrtc {
             lib_paths.append(&mut lib.link_paths);
         } else {
             // Otherwise use the local build fetched and built by meson.
-            include_paths.push(
-                src_dir()
-                    .join("webrtc-audio-processing")
-                    .join("subprojects")
-                    .join("abseil-cpp-20240722.0"),
-            );
-            lib_paths.push(
-                out_dir()
-                    .join("webrtc-audio-processing")
-                    .join("subprojects")
-                    .join("abseil-cpp-20240722.0"),
-            );
+            include_paths
+                .push(webrtc_source_dir().join("subprojects").join("abseil-cpp-20240722.0"));
+            lib_paths.push(webrtc_build_dir().join("subprojects").join("abseil-cpp-20240722.0"));
         }
 
         Ok((include_paths, lib_paths))
@@ -236,17 +188,26 @@ mod webrtc {
             bail!("Aborting compilation because bundled source directory is empty.");
         }
 
+        let webrtc_source_dir = webrtc_source_dir();
+        let webrtc_build_dir = webrtc_build_dir();
+        eprintln!(
+            "Copying webrtc-audio-processing to {} and building it in {}",
+            webrtc_source_dir.display(),
+            webrtc_build_dir.display()
+        );
+
+        // Copy the sources to under out directory so that we can patch it without consequences.
+        let mut cp = Command::new("cp");
+        // Copy recursively, preserve attributes, turn off "is destination a directory?" heuristics.
+        cp.args(["--archive", "-T"]).arg(BUNDLED_SOURCE_PATH).arg(&webrtc_source_dir);
+        let status = cp.status().context("executing cp")?;
+        assert!(status.success(), "Command failed: {:?}", &cp);
+
         #[cfg(feature = "experimental-unlink-ns")]
         apply_patch("unlink-multichannel-noise-suppression-filters.patch")?;
 
-        let build_dir = out_dir();
-        let install_dir = out_dir();
-
-        let webrtc_build_dir = build_dir.join(BUNDLED_SOURCE_PATH);
-        eprintln!("Building webrtc-audio-processing in {}", webrtc_build_dir.display());
-
         let mut meson = Command::new("meson");
-        meson.args(["setup", "--prefix", install_dir.to_str().unwrap()]);
+        meson.arg("setup").arg("--prefix").arg(out_dir().as_os_str());
         meson.arg("--reconfigure");
 
         if cfg!(target_os = "macos") {
@@ -257,8 +218,8 @@ mod webrtc {
 
         let status = meson
             .arg("-Ddefault_library=static")
-            .arg(BUNDLED_SOURCE_PATH)
-            .arg(webrtc_build_dir.to_str().unwrap())
+            .arg(webrtc_build_dir.as_os_str())
+            .arg(webrtc_source_dir.as_os_str())
             .status()
             .context("Failed to execute meson. Do you have it installed?")?;
         assert!(status.success(), "Command failed: {:?}", &meson);
@@ -278,6 +239,24 @@ mod webrtc {
             .context("Failed to execute ninja install")?;
         assert!(status.success(), "Command failed: {:?}", &install);
 
+        Ok(())
+    }
+
+    // Patch with `patch`.
+    #[cfg(feature = "experimental-unlink-ns")]
+    fn apply_patch(patch_name: &str) -> Result<()> {
+        let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let patch = manifest.join("patches").join(patch_name);
+
+        let status = Command::new("patch")
+            .args(["-p1", "--forward"])
+            .arg("-i")
+            .arg(&patch)
+            .current_dir(webrtc_source_dir())
+            .status()
+            .context("Failed to execute patch")?;
+
+        anyhow::ensure!(status.success(), "Patch '{}' failed with status: {}", patch_name, status);
         Ok(())
     }
 
@@ -301,10 +280,12 @@ mod webrtc {
         bail!("Cannot find {static_lib_filename} in {lib_dirs:?} to prefix its symbols.");
     }
 
-    fn src_dir() -> PathBuf {
-        std::env::var("CARGO_MANIFEST_DIR")
-            .expect("CARGO_MANIFEST_DIR environment var not set.")
-            .into()
+    fn webrtc_source_dir() -> PathBuf {
+        out_dir().join("webrtc-audio-processing")
+    }
+
+    fn webrtc_build_dir() -> PathBuf {
+        out_dir().join("webrtc-audio-processing-build")
     }
 
     /// Extract defined (non-external) symbols from a static library using nm.
