@@ -1101,44 +1101,35 @@ mod tests {
                 ..Default::default()
             });
 
-            // Make a quiet channel and silence threshold.
-            let quiet_amp = 1e-4;
-            let quiet_channel = vec![quiet_amp; num_samples_per_frame];
-            let mut dbs = Vec::new();
-
-            for src in &frames {
-                let mut channels = vec![src.clone()];
+            let mut sum_sq = 0.0;
+            for frame in &frames {
+                let mut channels = vec![frame.clone()];
+                // Make a silent channel.
                 if num_channels > 1 {
-                    channels.push(quiet_channel.clone());
+                    channels.push(vec![0.0; num_samples_per_frame]);
                 }
 
                 processor.process_capture_frame(&mut channels).unwrap();
-
-                // Get the RMS.
-                let sum_sq: f32 = channels[0].iter().map(|&s| s * s).sum();
-                let rms = (sum_sq / num_samples_per_frame as f32).sqrt();
-
-                // Record db level if above threshold.
-                if rms > quiet_amp {
-                    dbs.push(20.0 * rms.log10());
-                }
+                sum_sq += channels[0].iter().map(|&s| s * s).sum::<f32>();
             }
 
-            dbs.iter().sum::<f32>() / dbs.len() as f32
+            // Compute RMS and convert to dB after averaging.
+            let total_samples = frames.len() * num_samples_per_frame;
+            20.0 * (sum_sq / total_samples as f32).sqrt().log10()
         };
 
         let mono_db = run_test(1);
         let stereo_db = run_test(2);
 
-        // In both cases the single channel RMS should be the same.
-        assert!((-33.0..=-31.0).contains(&mono_db), "Expected ~-32dB, got {}", mono_db,);
+        // With and without the patch, the single channel RMS should be the same.
+        assert!((mono_db + 22.5).abs() < 1.0, "Expected ~-22.5dB, got {}", mono_db);
 
         #[cfg(not(feature = "experimental-unlink-ns"))]
         {
-            // Without the patch, the silence second channel should suppress the first.
+            // Without the patch, the silent second channel should suppress the first.
             assert!(
-                (-42.0..=-40.0).contains(&stereo_db),
-                "Expected ~-41dB without patch, got {}",
+                (stereo_db + 33.7).abs() < 1.0,
+                "Expected ~-33.7dB without patch, got {}",
                 stereo_db,
             );
         }
@@ -1146,10 +1137,10 @@ mod tests {
         #[cfg(feature = "experimental-unlink-ns")]
         {
             // With the patch, the second silent channel should not impact suppression.
-            // And the RMS average should be the same as in the mono case.
             assert!(
-                (-33.0..=-31.0).contains(&stereo_db),
-                "Expected ~-32dB with patch, got {}",
+                (stereo_db - mono_db).abs() < 1.0,
+                "With patch, mono ({}) and stereo ({}) should be nearly equal",
+                mono_db,
                 stereo_db,
             );
         }
