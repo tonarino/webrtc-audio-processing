@@ -22,8 +22,9 @@ categories = ["multimedia::audio"]
 license-file = "COPYING"
 
 [package.metadata.docs.rs]
-# Document with all features enabled.
-all-features = true
+# Document with all features, but exclude portaudio, whose build fails on docs.rs (tries to access
+# internet). Extend this list then adding features (optional dependencies).
+features = ["schemars", "serde", "strum", "bundled", "experimental-aec3-config", "experimental-unlink-ns"]
 
 [badges]
 maintenance = { status = "actively-developed" }
