@@ -1081,8 +1081,8 @@ mod tests {
         // Load an example audio.
         let reader = WavReader::new(&include_bytes!("../resources/hello.wav")[..]).unwrap();
 
-        // Normalize to +/-1.0.
-        let scale = 1.0 / (i16::MAX as f32);
+        // Normalize the full range of i16 to +/-1.0 f32.
+        let scale = 1.0 / 32768.0;
         let mono: Vec<f32> =
             reader.into_samples::<i16>().map(|s| s.unwrap() as f32 * scale).collect();
 
