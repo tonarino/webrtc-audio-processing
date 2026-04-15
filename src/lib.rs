@@ -1110,6 +1110,8 @@ mod tests {
                 }
 
                 processor.process_capture_frame(&mut channels).unwrap();
+
+                // Accumulate sum of squares for first channel.
                 sum_sq += channels[0].iter().map(|&s| s * s).sum::<f32>();
             }
 
