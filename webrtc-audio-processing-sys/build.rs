@@ -86,15 +86,28 @@ fn apply_patch(patch_name: &str) -> Result<()> {
         .status()
         .context("Failed to execute patch")?;
 
-    if status.code() != Some(0) && status.code() != Some(1) {
-        bail!("Patch '{}' failed with status: {}", patch_name, status);
+    if status.success() {
+        return Ok(());
     }
 
+    // If --forward returns 1, it might mean the patch is already applied.
+    // We check this by running patch with --reverse and --dry-run.
     if status.code() == Some(1) {
-        println!("Patch '{}' already applied, skipping", patch_name);
+        let dry_run_status = Command::new("patch")
+            .args(["-p1", "--reverse", "--dry-run"])
+            .arg("-i")
+            .arg(&patch)
+            .current_dir(&webrtc)
+            .status()
+            .context("Failed to execute patch dry-run")?;
+
+        if dry_run_status.success() {
+            println!("Patch '{}' already applied, skipping", patch_name);
+            return Ok(());
+        }
     }
 
-    Ok(())
+    bail!("Patch '{}' failed with status: {}", patch_name, status);
 }
 
 #[cfg(not(feature = "bundled"))]
