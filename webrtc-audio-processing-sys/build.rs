@@ -402,8 +402,13 @@ fn main() -> Result<()> {
         .includes(&include_dirs)
         .flag("-std=c++17")
         .flag("-Wno-unused-parameter")
-        .out_dir(out_dir())
-        .compile("webrtc_audio_processing_wrapper");
+        .out_dir(out_dir());
+
+    // Include bundled source headers for internal classes (e.g. ResidualEchoDetector)
+    // that are not exposed in the system package.
+    cc_build.include(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("webrtc-audio-processing/webrtc"));
+
+    cc_build.compile("webrtc_audio_processing_wrapper");
 
     // The the cc and bindgen commands emit `cargo:rerun-if-env-changed=...`, and these deactivate
     // the default behavior to rerun if _any_ source file changes. So state these explicitly.
