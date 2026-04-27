@@ -150,7 +150,7 @@ mod tests {
 
             let stream_config = create_stream_config(SAMPLE_RATE_HZ, 1);
             let num_samples = stream_config.num_frames_; // frames in WebRTC == our samples
-            let mut frame = vec![vec![0f32; num_samples as usize]; 1];
+            let mut frame = vec![vec![0f32; num_samples]; 1];
             let frame_ptr = frame.iter_mut().map(|v| v.as_mut_ptr()).collect::<Vec<*mut f32>>();
             assert_success(process_render_frame(ap, &stream_config, frame_ptr.as_ptr()));
             assert_success(process_capture_frame(ap, &stream_config, frame_ptr.as_ptr()));
@@ -196,7 +196,7 @@ mod tests {
 
             let stream_config = create_stream_config(SAMPLE_RATE_HZ, 1);
             let num_samples = stream_config.num_frames_; // frames in WebRTC == our samples
-            let mut frame = vec![vec![0f32; num_samples as usize]; 1];
+            let mut frame = vec![vec![0f32; num_samples]; 1];
             let frame_ptr = frame.iter_mut().map(|v| v.as_mut_ptr()).collect::<Vec<*mut f32>>();
             assert_success(process_render_frame(ap, &stream_config, frame_ptr.as_ptr()));
             assert_success(process_capture_frame(ap, &stream_config, frame_ptr.as_ptr()));
