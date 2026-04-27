@@ -205,15 +205,13 @@ mod tests {
             println!("Stats:\n{:#?}", stats);
             assert!(stats.echo_return_loss.has_value);
             assert!(stats.echo_return_loss_enhancement.has_value);
+            assert!(stats.residual_echo_likelihood.has_value);
+            assert!(stats.residual_echo_likelihood_recent_max.has_value);
             assert!(stats.delay_ms.has_value);
 
-            // The following stats are not asserted because they are not reliably populated
-            // in this test environment.
-            // assert!(stats.voice_detected.has_value);
-            // assert!(stats.residual_echo_likelihood.has_value);
-            // assert!(stats.residual_echo_likelihood_recent_max.has_value);
-
-            // TODO: Investigate why these stats are not filled.
+            // Fields declared in upstream but never populated in v2.1.
+            // See: webrtc/api/audio/audio_processing_statistics.h
+            assert!(!stats.voice_detected.has_value);
             assert!(!stats.divergent_filter_fraction.has_value);
             assert!(!stats.delay_median_ms.has_value);
             assert!(!stats.delay_standard_deviation_ms.has_value);
