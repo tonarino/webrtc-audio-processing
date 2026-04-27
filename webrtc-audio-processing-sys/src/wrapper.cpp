@@ -8,6 +8,8 @@
 #ifdef WEBRTC_AEC3_CONFIG
 #include "modules/audio_processing/aec3/echo_canceller3.h"
 #endif
+#include "modules/audio_processing/residual_echo_detector.h"
+#include "rtc_base/ref_counted_object.h"
 
 #include <algorithm>
 #include <memory>
@@ -95,6 +97,10 @@ AudioProcessing* create_audio_processing(
     return nullptr;
 #endif
   }
+
+  // Set the echo detector to provide echo metrics.
+  builder.SetEchoDetector(rtc::scoped_refptr<webrtc::EchoDetector>(
+      new rtc::RefCountedObject<webrtc::ResidualEchoDetector>()));
   ap->processor.reset(builder.Create().release());
 
   return ap.release();
