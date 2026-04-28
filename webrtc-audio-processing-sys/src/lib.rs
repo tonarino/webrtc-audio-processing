@@ -205,9 +205,14 @@ mod tests {
             println!("Stats:\n{:#?}", stats);
             assert!(stats.echo_return_loss.has_value);
             assert!(stats.echo_return_loss_enhancement.has_value);
-            assert!(stats.residual_echo_likelihood.has_value);
-            assert!(stats.residual_echo_likelihood_recent_max.has_value);
             assert!(stats.delay_ms.has_value);
+
+            // Residual echo metrics require the bundled internal header.
+            #[cfg(feature = "bundled")]
+            {
+                assert!(stats.residual_echo_likelihood.has_value);
+                assert!(stats.residual_echo_likelihood_recent_max.has_value);
+            }
 
             // Fields declared in upstream but never populated in v2.1.
             // See: webrtc/api/audio/audio_processing_statistics.h

@@ -406,7 +406,13 @@ fn main() -> Result<()> {
 
     // Include bundled source headers for internal classes (e.g. ResidualEchoDetector)
     // that are not exposed in the system package.
-    cc_build.include(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("webrtc-audio-processing/webrtc"));
+    #[cfg(feature = "bundled")]
+    {
+        cc_build.include(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("webrtc-audio-processing/webrtc"),
+        );
+        cc_build.define("WEBRTC_HAS_INTERNAL_HEADERS", None);
+    }
 
     cc_build.compile("webrtc_audio_processing_wrapper");
 

@@ -13,8 +13,10 @@ pub struct Stats {
     pub echo_return_loss_enhancement: Option<f64>,
 
     /// Residual echo detector likelihood.
+    #[cfg(feature = "bundled")]
     pub residual_echo_likelihood: Option<f64>,
     /// Maximum residual echo likelihood from the last time period.
+    #[cfg(feature = "bundled")]
     pub residual_echo_likelihood_recent_max: Option<f64>,
 
     /// The instantaneous delay estimate produced in the AEC. The unit is in milliseconds and the
@@ -28,7 +30,9 @@ impl From<ffi::Stats> for Stats {
         Self {
             echo_return_loss: other.echo_return_loss.into(),
             echo_return_loss_enhancement: other.echo_return_loss_enhancement.into(),
+            #[cfg(feature = "bundled")]
             residual_echo_likelihood: other.residual_echo_likelihood.into(),
+            #[cfg(feature = "bundled")]
             residual_echo_likelihood_recent_max: other.residual_echo_likelihood_recent_max.into(),
             delay_ms: Option::<i32>::from(other.delay_ms).map(|v| v as u32),
         }
