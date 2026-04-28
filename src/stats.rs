@@ -7,28 +7,16 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Stats {
-    /// True if voice is detected in the current frame.
-    pub voice_detected: Option<bool>,
     /// AEC stats: ERL = 10log_10(P_far / P_echo)
     pub echo_return_loss: Option<f64>,
     /// AEC stats: ERLE = 10log_10(P_echo / P_out)
     pub echo_return_loss_enhancement: Option<f64>,
-    /// AEC stats: Fraction of time that the AEC linear filter is divergent, in a 1-second
-    /// non-overlapped aggregation window.
-    pub divergent_filter_fraction: Option<f64>,
-
-    /// The delay median in milliseconds. The values are aggregated until the first call to
-    /// [`Processor::get_stats()`](crate::Processor::get_stats()) and afterwards aggregated and
-    /// updated every second.
-    pub delay_median_ms: Option<u32>,
-    /// The delay standard deviation in milliseconds. The values are aggregated until the first
-    /// call to [`Processor::get_stats()`](crate::Processor::get_stats()) and afterwards aggregated
-    /// and updated every second.
-    pub delay_standard_deviation_ms: Option<u32>,
 
     /// Residual echo detector likelihood.
+    #[cfg(feature = "bundled")]
     pub residual_echo_likelihood: Option<f64>,
     /// Maximum residual echo likelihood from the last time period.
+    #[cfg(feature = "bundled")]
     pub residual_echo_likelihood_recent_max: Option<f64>,
 
     /// The instantaneous delay estimate produced in the AEC. The unit is in milliseconds and the
@@ -40,14 +28,11 @@ pub struct Stats {
 impl From<ffi::Stats> for Stats {
     fn from(other: ffi::Stats) -> Self {
         Self {
-            voice_detected: other.voice_detected.into(),
             echo_return_loss: other.echo_return_loss.into(),
             echo_return_loss_enhancement: other.echo_return_loss_enhancement.into(),
-            divergent_filter_fraction: other.divergent_filter_fraction.into(),
-            delay_median_ms: Option::<i32>::from(other.delay_median_ms).map(|v| v as u32),
-            delay_standard_deviation_ms: Option::<i32>::from(other.delay_standard_deviation_ms)
-                .map(|v| v as u32),
+            #[cfg(feature = "bundled")]
             residual_echo_likelihood: other.residual_echo_likelihood.into(),
+            #[cfg(feature = "bundled")]
             residual_echo_likelihood_recent_max: other.residual_echo_likelihood_recent_max.into(),
             delay_ms: Option::<i32>::from(other.delay_ms).map(|v| v as u32),
         }

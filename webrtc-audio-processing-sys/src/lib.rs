@@ -150,7 +150,7 @@ mod tests {
 
             let stream_config = create_stream_config(SAMPLE_RATE_HZ, 1);
             let num_samples = stream_config.num_frames_; // frames in WebRTC == our samples
-            let mut frame = vec![vec![0f32; num_samples as usize]; 1];
+            let mut frame = vec![vec![0f32; num_samples]; 1];
             let frame_ptr = frame.iter_mut().map(|v| v.as_mut_ptr()).collect::<Vec<*mut f32>>();
             assert_success(process_render_frame(ap, &stream_config, frame_ptr.as_ptr()));
             assert_success(process_capture_frame(ap, &stream_config, frame_ptr.as_ptr()));
@@ -196,7 +196,7 @@ mod tests {
 
             let stream_config = create_stream_config(SAMPLE_RATE_HZ, 1);
             let num_samples = stream_config.num_frames_; // frames in WebRTC == our samples
-            let mut frame = vec![vec![0f32; num_samples as usize]; 1];
+            let mut frame = vec![vec![0f32; num_samples]; 1];
             let frame_ptr = frame.iter_mut().map(|v| v.as_mut_ptr()).collect::<Vec<*mut f32>>();
             assert_success(process_render_frame(ap, &stream_config, frame_ptr.as_ptr()));
             assert_success(process_capture_frame(ap, &stream_config, frame_ptr.as_ptr()));
@@ -207,13 +207,16 @@ mod tests {
             assert!(stats.echo_return_loss_enhancement.has_value);
             assert!(stats.delay_ms.has_value);
 
-            // The following stats are not asserted because they are not reliably populated
-            // in this test environment.
-            // assert!(stats.voice_detected.has_value);
-            // assert!(stats.residual_echo_likelihood.has_value);
-            // assert!(stats.residual_echo_likelihood_recent_max.has_value);
+            // Residual echo metrics require the bundled internal header.
+            #[cfg(feature = "bundled")]
+            {
+                assert!(stats.residual_echo_likelihood.has_value);
+                assert!(stats.residual_echo_likelihood_recent_max.has_value);
+            }
 
-            // TODO: Investigate why these stats are not filled.
+            // Fields declared in upstream but never populated in v2.1.
+            // See: webrtc/api/audio/audio_processing_statistics.h
+            assert!(!stats.voice_detected.has_value);
             assert!(!stats.divergent_filter_fraction.has_value);
             assert!(!stats.delay_median_ms.has_value);
             assert!(!stats.delay_standard_deviation_ms.has_value);
