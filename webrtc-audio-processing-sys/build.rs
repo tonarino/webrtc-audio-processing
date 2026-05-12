@@ -408,9 +408,6 @@ fn main() -> Result<()> {
     // that are not exposed in the system package.
     #[cfg(feature = "bundled")]
     {
-        cc_build.include(
-            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("webrtc-audio-processing/webrtc"),
-        );
         cc_build.define("WEBRTC_HAS_INTERNAL_HEADERS", None);
     }
 
