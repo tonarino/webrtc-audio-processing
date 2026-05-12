@@ -213,6 +213,12 @@ mod tests {
                 assert!(stats.residual_echo_likelihood.has_value);
                 assert!(stats.residual_echo_likelihood_recent_max.has_value);
             }
+            #[cfg(not(feature = "bundled"))]
+            {
+                // Residual echo metrics are always None when echo detector is not bundled.
+                assert!(!stats.residual_echo_likelihood.has_value);
+                assert!(!stats.residual_echo_likelihood_recent_max.has_value);
+            }
 
             // Fields declared in upstream but never populated in v2.1.
             // See: webrtc/api/audio/audio_processing_statistics.h
