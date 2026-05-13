@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use bindgen::callbacks::{AttributeInfo, DeriveInfo, ParseCallbacks};
 use std::{
     env,
@@ -486,7 +486,9 @@ fn determine_objcopy_path() -> Result<PathBuf> {
     // Optional: verification
     if !objcopy.exists() {
         println!("cargo:warning=rust-objcopy not found at {:?}", objcopy);
-        println!("cargo:warning=Ensure the 'llvm-tools' component is installed: 'rustup component add llvm-tools'");
+        println!(
+            "cargo:warning=Ensure the 'llvm-tools' component is installed: 'rustup component add llvm-tools'"
+        );
     }
 
     Ok(objcopy)

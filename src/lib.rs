@@ -103,11 +103,7 @@ impl fmt::Display for Error {
 impl error::Error for Error {}
 
 fn result_from_code<T>(on_success: T, error_code: i32) -> Result<T, Error> {
-    if error_code == 0 {
-        Ok(on_success)
-    } else {
-        Err(Error::from(error_code))
-    }
+    if error_code == 0 { Ok(on_success) } else { Err(Error::from(error_code)) }
 }
 
 /// [`Processor`] provides an access to WebRTC's audio processing, e.g. echo cancellation, noise

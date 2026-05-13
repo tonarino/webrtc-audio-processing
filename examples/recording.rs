@@ -21,7 +21,7 @@
 /// $ cargo run --example recording --features bundled --features serde -- --config-file \
 ///     examples/recording-configs/record-pipeline.json5
 /// ```
-use anyhow::{anyhow, Error};
+use anyhow::{Error, anyhow};
 use hound::{WavIntoSamples, WavReader, WavWriter};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -30,8 +30,8 @@ use std::{
     io::{BufReader, BufWriter},
     path::{Path, PathBuf},
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc,
+        atomic::{AtomicBool, Ordering},
     },
     thread,
     time::Duration,
