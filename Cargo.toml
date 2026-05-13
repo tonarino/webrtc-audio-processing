@@ -10,7 +10,7 @@ shared-version = true
 tag-prefix = ""
 
 [workspace.package]
-edition = "2021"
+edition = "2024"
 
 [package]
 name = "webrtc-audio-processing"
