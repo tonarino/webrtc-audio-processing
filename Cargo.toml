@@ -9,12 +9,15 @@ shared-version = true
 # create a single tag for all crates
 tag-prefix = ""
 
+[workspace.package]
+edition = "2021"
+
 [package]
 name = "webrtc-audio-processing"
 version = "2.1.0"
 authors = ["Ryo Kawaguchi <ryo@kawagu.ch>"]
 repository = "https://github.com/tonarino/webrtc-audio-processing"
-edition = "2018"
+edition.workspace = true
 description = "A wrapper for WebRTC's AudioProcessing module."
 documentation = "https://docs.rs/webrtc-audio-processing"
 keywords = ["ffi"]
