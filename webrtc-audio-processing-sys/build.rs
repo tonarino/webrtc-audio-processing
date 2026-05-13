@@ -404,12 +404,9 @@ fn main() -> Result<()> {
         .flag("-Wno-unused-parameter")
         .out_dir(out_dir());
 
-    // Include bundled source headers for internal classes (e.g. ResidualEchoDetector)
-    // that are not exposed in the system package.
+    // Inform wrapper code that headers for internal classes (ResidualEchoDetector) are available.
     #[cfg(feature = "bundled")]
-    {
-        cc_build.define("WEBRTC_HAS_INTERNAL_HEADERS", None);
-    }
+    cc_build.define("WEBRTC_HAS_INTERNAL_HEADERS", None);
 
     cc_build.compile("webrtc_audio_processing_wrapper");
 
