@@ -434,7 +434,9 @@ fn main() -> Result<()> {
         .header("src/wrapper.hpp")
         .clang_args(&["-x", "c++", "-std=c++17", "-fparse-all-comments"])
         .generate_comments(true)
-        .enable_cxx_namespaces();
+        .enable_cxx_namespaces()
+        // Rust edition 2024 warns on usafe operations outside unsafe block, even in unsafe fns.
+        .wrap_unsafe_ops(true);
 
     builder = builder
         // Transitive dependencies are automatically included.
