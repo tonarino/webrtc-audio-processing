@@ -113,7 +113,8 @@ mod tests {
         let json = serde_json::to_string_pretty(&config).unwrap();
 
         assert_eq!(
-            file_contents.trim(), json.trim(),
+            file_contents.trim(),
+            json.trim(),
             "The passed config does not match {filepath}.\n\
              Update the file by running: cargo run --example aec_config --features serde,experimental-aec3-config -- default-* > {filepath}"
         );

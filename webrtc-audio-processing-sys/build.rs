@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use bindgen::callbacks::{AttributeInfo, DeriveInfo, ParseCallbacks};
 use std::{
     env,
@@ -434,7 +434,9 @@ fn main() -> Result<()> {
         .header("src/wrapper.hpp")
         .clang_args(&["-x", "c++", "-std=c++17", "-fparse-all-comments"])
         .generate_comments(true)
-        .enable_cxx_namespaces();
+        .enable_cxx_namespaces()
+        // Rust edition 2024 warns on usafe operations outside unsafe block, even in unsafe fns.
+        .wrap_unsafe_ops(true);
 
     builder = builder
         // Transitive dependencies are automatically included.
@@ -486,7 +488,9 @@ fn determine_objcopy_path() -> Result<PathBuf> {
     // Optional: verification
     if !objcopy.exists() {
         println!("cargo:warning=rust-objcopy not found at {:?}", objcopy);
-        println!("cargo:warning=Ensure the 'llvm-tools' component is installed: 'rustup component add llvm-tools'");
+        println!(
+            "cargo:warning=Ensure the 'llvm-tools' component is installed: 'rustup component add llvm-tools'"
+        );
     }
 
     Ok(objcopy)

@@ -9,12 +9,15 @@ shared-version = true
 # create a single tag for all crates
 tag-prefix = ""
 
+[workspace.package]
+edition = "2024"
+
 [package]
 name = "webrtc-audio-processing"
 version = "2.1.0"
 authors = ["Ryo Kawaguchi <ryo@kawagu.ch>"]
 repository = "https://github.com/tonarino/webrtc-audio-processing"
-edition = "2018"
+edition.workspace = true
 description = "A wrapper for WebRTC's AudioProcessing module."
 documentation = "https://docs.rs/webrtc-audio-processing"
 keywords = ["ffi"]
@@ -61,7 +64,7 @@ anyhow = "1"
 crossbeam-channel = "0.5"
 ctrlc = { version = "3", features = ["termination"] }
 hound = "3"
-json5 = "0.4"
+json5 = "1"
 regex = "1"
 serde = { version = "1", features = ["derive"] }
 serde_ignored = "0.1"

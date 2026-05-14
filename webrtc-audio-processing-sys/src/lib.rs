@@ -25,31 +25,19 @@ impl StreamConfig {
 
 impl From<OptionalInt> for Option<i32> {
     fn from(other: OptionalInt) -> Option<i32> {
-        if other.has_value {
-            Some(other.value)
-        } else {
-            None
-        }
+        if other.has_value { Some(other.value) } else { None }
     }
 }
 
 impl From<OptionalDouble> for Option<f64> {
     fn from(other: OptionalDouble) -> Option<f64> {
-        if other.has_value {
-            Some(other.value)
-        } else {
-            None
-        }
+        if other.has_value { Some(other.value) } else { None }
     }
 }
 
 impl From<OptionalBool> for Option<bool> {
     fn from(other: OptionalBool) -> Option<bool> {
-        if other.has_value {
-            Some(other.value)
-        } else {
-            None
-        }
+        if other.has_value { Some(other.value) } else { None }
     }
 }
 
