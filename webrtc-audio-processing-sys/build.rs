@@ -203,7 +203,7 @@ mod webrtc {
         // `webrtc-audio-processing/webrtc-audio-processing` nesting on a 2nd invocation.
         cp.arg("-a").arg(bundled_source_path.join(".")).arg(&webrtc_source_dir);
         let status = cp.status().context("executing cp")?;
-        assert!(status.success(), "Command failed: {:?}", &cp);
+        assert!(status.success(), "Command failed: {:?}", cp);
 
         #[cfg(feature = "experimental-unlink-ns")]
         apply_patch("unlink-multichannel-noise-suppression-filters.patch")?;
@@ -224,14 +224,14 @@ mod webrtc {
             .arg(webrtc_source_dir.as_os_str())
             .status()
             .context("Failed to execute meson. Do you have it installed?")?;
-        assert!(status.success(), "Command failed: {:?}", &meson);
+        assert!(status.success(), "Command failed: {:?}", meson);
 
         let mut ninja = Command::new("ninja");
         let status = ninja
             .current_dir(&webrtc_build_dir)
             .status()
             .context("Failed to execute ninja. Do you have it installed?")?;
-        assert!(status.success(), "Command failed: {:?}", &ninja);
+        assert!(status.success(), "Command failed: {:?}", ninja);
 
         let mut install = Command::new("ninja");
         let status = install
@@ -239,7 +239,7 @@ mod webrtc {
             .arg("install")
             .status()
             .context("Failed to execute ninja install")?;
-        assert!(status.success(), "Command failed: {:?}", &install);
+        assert!(status.success(), "Command failed: {:?}", install);
 
         Ok(())
     }
