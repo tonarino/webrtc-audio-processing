@@ -18,6 +18,86 @@ const MACOSX_DEPLOYMENT_TARGET_VAR: &str = "MACOSX_DEPLOYMENT_TARGET";
 /// Symbol prefix for the webrtc-audio-processing library to allow multiple versions to coexist.
 const SYMBOL_PREFIX: &str = "v2_";
 
+/// Whether we are building for an MSVC target.
+///
+/// Reads `CARGO_CFG_TARGET_ENV` rather than using `cfg!`, because in a build
+/// script `cfg!` describes the host and would answer for the wrong machine when
+/// cross-compiling.
+fn target_is_msvc() -> bool {
+    env::var("CARGO_CFG_TARGET_ENV").is_ok_and(|env| env == "msvc")
+}
+
+/// The architecture we are building for, as Cargo names it.
+#[cfg(feature = "bundled")]
+fn target_arch() -> String {
+    env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default()
+}
+
+/// Whether we are building for an Apple platform.
+#[cfg(feature = "bundled")]
+fn target_is_macos() -> bool {
+    env::var("CARGO_CFG_TARGET_OS").is_ok_and(|os| os == "macos")
+}
+
+/// Apple's spelling of an architecture, for clang's `-arch`.
+#[cfg(feature = "bundled")]
+fn apple_arch(cargo_arch: &str) -> Option<&'static str> {
+    match cargo_arch {
+        "aarch64" => Some("arm64"),
+        "x86_64" => Some("x86_64"),
+        _ => None,
+    }
+}
+
+/// meson's spelling of an architecture, for a cross file's `cpu_family`.
+#[cfg(feature = "bundled")]
+fn meson_cpu_family(cargo_arch: &str) -> Option<&'static str> {
+    match cargo_arch {
+        "aarch64" => Some("aarch64"),
+        "x86_64" => Some("x86_64"),
+        _ => None,
+    }
+}
+
+/// Render a list of arguments as a meson array literal, e.g. `['-arch', 'arm64']`.
+#[cfg(feature = "bundled")]
+fn meson_list(args: &[String]) -> String {
+    let quoted: Vec<String> = args.iter().map(|a| format!("'{a}'")).collect();
+    format!("[{}]", quoted.join(", "))
+}
+
+/// Write a meson cross file describing an Apple target on a different-arch host.
+///
+/// Without one, meson probes the build machine and emits host-architecture
+/// objects, which then fail to link against the Rust target. Only the machine
+/// description and the tools live here; compile and link flags are passed on
+/// the command line, because meson lets `-D` options override a cross file and
+/// having them in both places means the command line silently wins.
+#[cfg(feature = "bundled")]
+fn write_macos_cross_file(cargo_arch: &str) -> Result<PathBuf> {
+    let cpu_family = meson_cpu_family(cargo_arch)
+        .with_context(|| format!("No meson cpu_family known for target arch '{cargo_arch}'"))?;
+    let path = out_dir().join(format!("meson-cross-macos-{cargo_arch}.ini"));
+    let contents = format!(
+        "[binaries]\n\
+         c = 'clang'\n\
+         cpp = 'clang++'\n\
+         ar = 'ar'\n\
+         strip = 'strip'\n\
+         \n\
+         [host_machine]\n\
+         system = 'darwin'\n\
+         subsystem = 'macos'\n\
+         kernel = 'xnu'\n\
+         cpu_family = '{cpu_family}'\n\
+         cpu = '{cpu_family}'\n\
+         endian = 'little'\n"
+    );
+    std::fs::write(&path, contents)
+        .with_context(|| format!("Failed to write meson cross file to {}", path.display()))?;
+    Ok(path)
+}
+
 fn out_dir() -> PathBuf {
     std::env::var("OUT_DIR").expect("OUT_DIR environment var not set.").into()
 }
@@ -212,10 +292,55 @@ mod webrtc {
         meson.arg("setup").arg("--prefix").arg(out_dir().as_os_str());
         meson.arg("--reconfigure");
 
-        if cfg!(target_os = "macos") {
-            let link_args = "['-framework', 'CoreFoundation', '-framework', 'Foundation']";
-            meson.arg(format!("-Dc_link_args={}", link_args));
-            meson.arg(format!("-Dcpp_link_args={}", link_args));
+        if target_is_macos() {
+            let arch = target_arch();
+            // Pin the architecture explicitly. On a native build this matches
+            // what meson would have picked anyway; on a cross build (an Intel
+            // slice produced on an Apple Silicon runner, say) it is the
+            // difference between a library that links and one that does not.
+            let arch_args: Vec<String> = match apple_arch(&arch) {
+                Some(apple) => vec!["-arch".to_owned(), apple.to_owned()],
+                None => Vec::new(),
+            };
+
+            let mut link_args = arch_args.clone();
+            link_args.extend(
+                ["-framework", "CoreFoundation", "-framework", "Foundation"]
+                    .iter()
+                    .map(|s| (*s).to_owned()),
+            );
+
+            if !arch_args.is_empty() {
+                meson.arg(format!("-Dc_args={}", meson_list(&arch_args)));
+                meson.arg(format!("-Dcpp_args={}", meson_list(&arch_args)));
+            }
+            meson.arg(format!("-Dc_link_args={}", meson_list(&link_args)));
+            meson.arg(format!("-Dcpp_link_args={}", meson_list(&link_args)));
+
+            // Flags alone are not enough when the architectures differ: meson
+            // probes the build machine for things like pointer size and
+            // endianness, so it needs to be told what it is really targeting.
+            if std::env::consts::ARCH != arch {
+                let cross_file = write_macos_cross_file(&arch)?;
+                meson.arg("--cross-file").arg(&cross_file);
+            }
+        }
+
+        // WebRTC uses designated initializers, which GCC and Clang accept as a
+        // C++17 extension but MSVC rejects outright (C7555). meson.build asks
+        // for c++17, so raise it to c++20 for MSVC only -- the bundled sources
+        // build clean at that standard.
+        if target_is_msvc() {
+            meson.arg("-Dcpp_std=c++20");
+
+            // Match the C runtime that `cc` uses for the wrapper, which is the
+            // release DLL runtime (/MD). meson defaults b_vscrt to
+            // from_buildtype, and this project asks for `debugoptimized`, which
+            // selects the debug runtime (/MDd). Two CRTs in one binary means
+            // allocations made on one side get freed on the other, and the
+            // result is a STATUS_ACCESS_VIOLATION at runtime rather than
+            // anything visible at build time.
+            meson.arg("-Db_vscrt=md");
         }
 
         let status = meson
@@ -356,7 +481,23 @@ fn main() -> Result<()> {
 
     // Prefix defined symbols in the webrtc library (bundled builds only)
     // Returns the list of renamed symbols to update wrapper references later
-    let renamed_symbols = webrtc::prefix_library_symbols(&lib_dirs, SYMBOL_PREFIX)?;
+    //
+    // Skipped on MSVC. The renaming is objcopy over the archive's defined
+    // symbols, which works on ELF and Mach-O but does not reach every reference
+    // in COFF objects -- inline methods and template instantiations pulled in
+    // through the headers keep pointing at the original names, and the mismatch
+    // surfaces as hundreds of unresolved externals at link time. The prefix
+    // only exists so two major versions can coexist in one binary; giving that
+    // up on Windows is a much smaller cost than the crate not building there.
+    let renamed_symbols = if target_is_msvc() {
+        println!(
+            "cargo:warning=symbol prefixing is skipped on MSVC, so this build cannot coexist \
+             with another major version of webrtc-audio-processing in the same binary"
+        );
+        Vec::new()
+    } else {
+        webrtc::prefix_library_symbols(&lib_dirs, SYMBOL_PREFIX)?
+    };
 
     for dir in &lib_dirs {
         println!("cargo:rustc-link-search=native={}", dir.display());
@@ -396,13 +537,19 @@ fn main() -> Result<()> {
     // linkers (like when passing -Wl,--as-needed) may discard the c++ library (automatically
     // added by cc) from the linking list, resulting in build failure.
     // The linking order should respect the dependency graph, i.e. wrapper -> webrtc-2.
-    cc_build
-        .cpp(true)
-        .file("src/wrapper.cpp")
-        .includes(&include_dirs)
-        .flag("-std=c++17")
-        .flag("-Wno-unused-parameter")
-        .out_dir(out_dir());
+    cc_build.cpp(true).file("src/wrapper.cpp").includes(&include_dirs).out_dir(out_dir());
+
+    // MSVC does not speak GCC's flag syntax. `-Wno-unused-parameter` reaches it
+    // as `/Wno-unused-parameter` and is a hard error (D8021, invalid numeric
+    // argument to the warning-level flag), which is what stopped this crate
+    // building on Windows at all.
+    if target_is_msvc() {
+        // c++20 rather than c++17 for the same reason as the meson build: the
+        // headers this wrapper includes use designated initializers.
+        cc_build.flag("/std:c++20");
+    } else {
+        cc_build.flag("-std=c++17").flag("-Wno-unused-parameter");
+    }
 
     // Inform wrapper code that headers for internal classes (ResidualEchoDetector) are available.
     #[cfg(feature = "bundled")]
@@ -417,8 +564,25 @@ fn main() -> Result<()> {
     println!("cargo:rerun-if-changed=src/wrapper.cpp");
 
     // Prefix the wrapper library's references to webrtc symbols to match the renamed webrtc library.
-    let wrapper_lib = out_dir().join("libwebrtc_audio_processing_wrapper.a");
-    if wrapper_lib.exists() {
+    //
+    // cc-rs names the archive after the target's convention, so look for the
+    // right one. Getting this wrong is not harmless: the webrtc library has
+    // already had every symbol renamed by this point, so skipping the wrapper
+    // leaves it referencing the old names and the failure surfaces much later
+    // as a wall of unresolved externals at link time.
+    if !renamed_symbols.is_empty() {
+        let wrapper_lib = if target_is_msvc() {
+            out_dir().join("webrtc_audio_processing_wrapper.lib")
+        } else {
+            out_dir().join("libwebrtc_audio_processing_wrapper.a")
+        };
+        if !wrapper_lib.exists() {
+            bail!(
+                "Cannot find the wrapper archive at {} to prefix its symbols. \
+                 Without it the wrapper cannot link against the renamed library.",
+                wrapper_lib.display()
+            );
+        }
         prefix_archive_symbols(&wrapper_lib, &renamed_symbols, SYMBOL_PREFIX)?;
     }
 

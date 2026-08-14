@@ -29,3 +29,7 @@ The following tools are needed in order to use the `bundled` feature flag:
 
 * meson
 * ninja
+
+On Windows, build from a Visual Studio developer prompt so that meson selects
+MSVC. If it finds mingw's `g++` instead, abseil fails to compile against
+mingw's `windows.foundation.h`.
